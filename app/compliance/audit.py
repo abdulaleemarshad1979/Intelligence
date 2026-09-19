@@ -9,10 +9,12 @@ import hashlib
 import json
 import time
 import uuid
+import threading
 from typing import Dict, Any, List, Optional, Tuple
 from app.compliance.rbac import OfficerIdentity, DEFAULT_OFFICER
 
 GENESIS_HASH = "0000000000000000000000000000000000000000000000000000000000000000"
+_LEDGER_LOCK = threading.Lock()
 
 class AuditLogger:
     """Manages cryptographic tamper-evident audit logs."""
@@ -44,6 +46,8 @@ class AuditLogger:
                     entry_hash TEXT NOT NULL
                 )
             """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON cryptographic_audit_ledger(timestamp)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_action ON cryptographic_audit_ledger(action_type)")
             conn.commit()
 
     def _get_latest_hash(self) -> str:
@@ -52,7 +56,7 @@ class AuditLogger:
             row = cursor.fetchone()
             if row:
                 return row["entry_hash"]
-        return GENESIS_HASH
+            return GENESIS_HASH
 
     def compute_hash(
         self,
@@ -77,35 +81,39 @@ class AuditLogger:
         if officer is None:
             officer = DEFAULT_OFFICER
 
-        timestamp = time.time()
-        entry_id = f"AUD-{int(timestamp*1000)}-{uuid.uuid4().hex[:6]}"
-        prev_hash = self._get_latest_hash()
-        details_json = json.dumps(details, sort_keys=True)
-        entry_hash = self.compute_hash(prev_hash, timestamp, officer.user_id, action_type, resource_id, details_json)
+        with _LEDGER_LOCK:
+            with self._get_connection() as conn:
+                cursor = conn.execute("SELECT entry_hash FROM cryptographic_audit_ledger ORDER BY id DESC LIMIT 1")
+                row = cursor.fetchone()
+                prev_hash = row["entry_hash"] if row else GENESIS_HASH
 
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO cryptographic_audit_ledger (
-                    entry_id, timestamp, user_id, badge_number, officer_name,
-                    role, action_type, resource_id, details_json, prev_hash, entry_hash
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                entry_id, timestamp, officer.user_id, officer.badge_number,
-                officer.full_name, officer.role.value, action_type,
-                resource_id, details_json, prev_hash, entry_hash
-            ))
-            conn.commit()
+                timestamp = time.time()
+                entry_id = f"AUD-{int(timestamp*1000)}-{uuid.uuid4().hex[:6]}"
+                details_json = json.dumps(details, sort_keys=True)
+                entry_hash = self.compute_hash(prev_hash, timestamp, officer.user_id, action_type, resource_id, details_json)
 
-        return {
-            "entry_id": entry_id,
-            "timestamp": timestamp,
-            "action_type": action_type,
-            "resource_id": resource_id,
-            "officer": officer.full_name,
-            "badge_number": officer.badge_number,
-            "entry_hash": entry_hash,
-            "prev_hash": prev_hash
-        }
+                conn.execute("""
+                    INSERT INTO cryptographic_audit_ledger (
+                        entry_id, timestamp, user_id, badge_number, officer_name,
+                        role, action_type, resource_id, details_json, prev_hash, entry_hash
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    entry_id, timestamp, officer.user_id, officer.badge_number,
+                    officer.full_name, officer.role.value, action_type,
+                    resource_id, details_json, prev_hash, entry_hash
+                ))
+                conn.commit()
+
+            return {
+                "entry_id": entry_id,
+                "timestamp": timestamp,
+                "action_type": action_type,
+                "resource_id": resource_id,
+                "officer": officer.full_name,
+                "badge_number": officer.badge_number,
+                "entry_hash": entry_hash,
+                "prev_hash": prev_hash
+            }
 
     def get_logs(self, limit: int = 50, action_filter: Optional[str] = None) -> List[Dict[str, Any]]:
         """Retrieve recent audit logs in reverse chronological order."""

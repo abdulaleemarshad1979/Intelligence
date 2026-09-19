@@ -146,3 +146,50 @@ def test_super_resolution_enhancement_endpoint(client):
     assert data["status"] == "SUCCESS"
     assert "enhanced_image_base64" in data
     assert "sha256_hash" in data
+
+
+def test_dashboard_cameras_and_mode_endpoints(client):
+    """Verify official dashboard /cameras, /get_mode, and /set_mode endpoints."""
+    # Test /cameras endpoint
+    res = client.get("/cameras")
+    assert res.status_code == 200
+    cams = res.json()
+    assert len(cams) == 16
+    assert cams[0]["id"] == "CAM-001"
+    assert cams[0]["status"] == "online"
+    assert "people_count" in cams[0]
+    assert "forecast" in cams[0]
+    assert cams[0]["forecast"]["status"] == "active"
+
+    # Test /get_mode and /set_mode
+    mode_res = client.get("/get_mode")
+    assert mode_res.status_code == 200
+    assert "counting_mode" in mode_res.json()
+
+    set_res = client.post("/set_mode", json={"counting_mode": "viewing"})
+    assert set_res.status_code == 200
+    assert set_res.json()["counting_mode"] == "viewing"
+
+    # Reset back to counting
+    client.post("/set_mode", json={"counting_mode": "counting"})
+
+
+def test_dashboard_notifications_and_csv_export(client):
+    """Verify /api/notifications and /forecast/history.csv downloads."""
+    # Test notifications
+    res = client.get("/api/notifications")
+    assert res.status_code == 200
+    notifs = res.json()
+    assert isinstance(notifs, list)
+    assert len(notifs) >= 1
+    assert "message" in notifs[0]
+    assert "severity" in notifs[0]
+
+    # Test CSV export
+    csv_res = client.get("/forecast/history.csv")
+    assert csv_res.status_code == 200
+    assert "text/csv" in csv_res.headers.get("content-type", "")
+    content = csv_res.text
+    assert "timestamp,camera_id,camera_name" in content
+    assert "CAM-001" in content
+

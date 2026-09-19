@@ -1,1171 +1,3293 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CCTV Intelligence Core | City-Wide Person Re-ID & Police Governance Platform</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/frontend/assets/css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>East Godavari District CCTV Surveillance Command Center - AP Police</title>
+  <link rel="icon" href="/static/monitor/img/ap_police_logo.png">
+  <style>
+    :root {
+      --bg-main: #f8fafc;
+      --bg-header: #ffffff;
+      --border-color: #cbd5e1;
+      --border-hover: #94a3b8;
+      --bg-tile: #ffffff;
+      --bg-tile-header: #f1f5f9;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-blue: #1d4ed8;
+      --text-gold: #b45309;
+      --accent-blue: #0284c7;
+      --accent-blue-hover: #0369a1;
+      --live-green: #15803d;
+      --error-red: #b91c1c;
+      --warning-amber: #b45309;
+      --badge-critical: #b91c1c;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---------- Sticky Nav Wrapper & Compact Header ---------- */
+    .sticky-nav-wrapper {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background-color: var(--bg-header);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .header {
+      background-color: var(--bg-header);
+      border-bottom: 1px solid #cbd5e1;
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .header__brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+
+    .logo-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: transparent;
+      border: none;
+      padding: 0;
+    }
+
+    .brand-logo {
+      height: 44px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #0284c7;
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      line-height: 1.1;
+    }
+
+    .brand-subtitle {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-top: 1px;
+    }
+
+    .dignitaries-group {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 18px;
+      flex: 1;
+    }
+
+    .dignitary-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 175px;
+      gap: 4px;
+    }
+
+    .dignitary-img {
+      height: 56px;
+      width: auto;
+      max-width: 100%;
+      border-radius: 6px;
+      border: 1.5px solid #94a3b8;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      object-fit: contain;
+      background-color: #f8fafc;
+    }
+
+    .dignitary-name {
+      font-size: 11px;
+      font-weight: 800;
+      color: #0f172a;
+      text-align: center;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .dignitary-desig {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #0284c7;
+      text-align: center;
+      line-height: 1.2;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    /* ---------- Navigation Control Bar ---------- */
+    .nav-control-bar {
+      background-color: #ffffff;
+      border-bottom: 2px solid #cbd5e1;
+      padding: 8px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .logout-btn {
+      color: #be123c;
+      background: #fff1f2;
+      border: 1px solid #fecdd3;
+      border-radius: 9999px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+    }
+
+    .logout-btn:hover {
+      background: #ffe4e6;
+      border-color: #fda4af;
+    }
+
+    /* ---------- Full View Modal & Controls ---------- */
+    .full-view-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .full-view-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .full-view-content {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 1380px;
+      height: 90vh;
+      background: #080d16;
+      border-radius: 14px;
+      border: 1px solid #334155;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .full-view-header {
+      background: #0f172a;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+    }
+
+    .full-view-title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .full-view-badge {
+      background: #0284c7;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      letter-spacing: 0.05em;
+    }
+
+    .full-view-title {
+      color: #f8fafc;
+      font-size: 16px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .full-view-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .full-view-btn {
+      background: #0284c7;
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s ease;
+    }
+
+    .full-view-btn:hover {
+      background: #0369a1;
+    }
+
+    .full-view-close-btn {
+      background: #334155;
+      color: #fff;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+    }
+
+    .full-view-close-btn:hover {
+      background: #e11d48;
+    }
+
+    .full-view-body {
+      flex: 1;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tile__expand-btn {
+      background: rgba(15, 23, 42, 0.75);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tile__expand-btn:hover {
+      background: #0284c7;
+      border-color: #0284c7;
+    }
+
+    .nav-right-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .notif-btn {
+      position: relative;
+      background: #fff1f2;
+      border: 1px solid #fecdd3;
+      color: #be123c;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(190, 18, 60, 0.1);
+    }
+
+    .notif-badge {
+      background: #e11d48;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
+      border-radius: 9999px;
+      padding: 2px 7px;
+      min-width: 18px;
+      text-align: center;
+    }
+
+    .csv-btn {
+      color: #0369a1;
+      background: #e0f2fe;
+      border: 1px solid #bae6fd;
+      border-radius: 9999px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .mode-toggle-group {
+      display: flex;
+      align-items: center;
+      background: #f1f5f9;
+      padding: 4px;
+      border-radius: 9999px;
+      border: 1px solid #cbd5e1;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .mode-pill {
+      background: transparent;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mode-pill.active {
+      background: #0284c7;
+      color: #ffffff;
+      box-shadow: 0 2px 4px rgba(2, 132, 199, 0.3);
+    }
+
+    #notif-toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 420px;
+      width: calc(100vw - 32px);
+      pointer-events: none;
+    }
+
+    @keyframes slideInRight {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    /* Responsive Media Queries */
+    @media (max-width: 1024px) {
+      .header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 14px 16px;
+        gap: 16px;
+      }
+
+      .header__brand {
+        justify-content: center;
+        width: 100%;
+      }
+
+      .dignitaries-group {
+        width: 100%;
+        justify-content: center;
+        gap: 16px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .nav-control-bar {
+        padding: 10px 12px;
+        flex-direction: column;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .filter-group {
+        justify-content: center;
+        width: 100%;
+        gap: 8px;
+      }
+
+      .nav-right-group {
+        justify-content: center;
+        width: 100%;
+        gap: 8px;
+      }
+
+      .pill {
+        padding: 7px 14px;
+        font-size: 12px;
+      }
+
+      .notif-btn {
+        padding: 6px 12px;
+        font-size: 11px;
+      }
+
+      .csv-btn {
+        padding: 6px 12px;
+        font-size: 11px;
+      }
+
+      .mode-pill {
+        padding: 6px 12px;
+        font-size: 11px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .header {
+        padding: 10px 8px;
+        gap: 10px;
+      }
+
+      .header__brand {
+        gap: 10px;
+      }
+
+      .brand-logo {
+        height: 48px;
+      }
+
+      .brand-title {
+        font-size: 15px;
+        letter-spacing: 0;
+      }
+
+      .brand-subtitle {
+        font-size: 12px;
+        margin-top: 2px;
+      }
+
+      .dignitaries-group {
+        gap: 8px;
+        justify-content: center;
+      }
+
+      .dignitary-card {
+        width: calc(33.33% - 6px);
+        min-width: 95px;
+        max-width: 130px;
+        gap: 3px;
+      }
+
+      .dignitary-img {
+        height: 48px;
+        width: auto;
+        max-width: 100%;
+        object-fit: contain;
+      }
+
+      .dignitary-name {
+        font-size: 9px;
+        white-space: normal;
+        word-break: break-word;
+      }
+
+      .dignitary-desig {
+        font-size: 7.5px;
+        white-space: normal;
+        word-break: break-word;
+      }
+
+      .grid-container {
+        padding: 10px 6px;
+      }
+
+      .grid {
+        gap: 12px;
+      }
+
+      .tile {
+        border-radius: 10px;
+      }
+
+      .tile__header {
+        padding: 6px 10px;
+      }
+
+      .tile__name {
+        font-size: 11px;
+      }
+
+      .tile__hud {
+        padding: 6px 8px;
+      }
+
+      .tile__hud-stats-grid {
+        gap: 4px;
+      }
+
+      .zone-grid-cells {
+        gap: 3px;
+      }
+
+      .zone-cell {
+        padding: 3px 2px;
+      }
+
+      .zone-cell-count {
+        font-size: 12px;
+      }
+
+      .tile__footer {
+        padding: 8px 10px;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 8px 12px;
+        text-align: center;
+      }
+
+      #notif-toast-container {
+        bottom: 12px;
+        left: 12px;
+        right: 12px;
+        width: auto;
+      }
+
+      #notif-drawer {
+        width: 100% !important;
+      }
+    }
+
+    .filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .pill {
+      background-color: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #1e3a8a;
+      padding: 10px 24px;
+      border-radius: 9999px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .pill:hover {
+      background-color: #f1f5f9;
+      color: #0369a1;
+      border-color: #0369a1;
+    }
+
+    .pill.active {
+      background-color: #ffffff;
+      border-color: #0284c7;
+      color: #0284c7;
+      box-shadow: 0 4px 10px rgba(2, 132, 199, 0.15);
+    }
+
+    .divider {
+      width: 1px;
+      height: 24px;
+      background-color: var(--border-color);
+      margin: 0 8px;
+      display: none;
+    }
+
+    @media (min-width: 640px) {
+      .divider {
+        display: block;
+      }
+    }
+
+    /* ---------- Grid Layout ---------- */
+    .grid-container {
+      padding: 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+      gap: 24px;
+    }
+
+    @media (min-width: 768px) {
+      .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    /* ---------- Stream Cards ---------- */
+    .tile {
+      background-color: var(--bg-tile);
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 330px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .tile--counting {
+      height: auto;
+      min-height: 330px;
+    }
+
+    .tile:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+
+    .tile__header {
+      background-color: var(--bg-tile-header);
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .tile__name {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--text-main);
+      text-transform: uppercase;
+    }
+
+    .tile__meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tile__location {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
+    .tile__count {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-blue);
+      background-color: rgba(96, 165, 250, 0.15);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    .tile__source-badge {
+      font-size: 8px;
+      font-weight: 800;
+      padding: 2px 5px;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
+
+    .tile__source-badge.live {
+      color: #047857;
+      background: rgba(16, 185, 129, 0.14);
+      border: 1px solid rgba(16, 185, 129, 0.28);
+    }
+
+    .tile__source-badge.sample {
+      color: #b45309;
+      background: rgba(245, 158, 11, 0.16);
+      border: 1px solid rgba(245, 158, 11, 0.32);
+    }
+
+    .tile__zone-badge {
+      font-size: 9px;
+      font-weight: 800;
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+
+    .tile__zone-badge.safe {
+      background-color: rgba(16, 185, 129, 0.2);
+      color: var(--live-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .tile__zone-badge.warning {
+      background-color: rgba(245, 158, 11, 0.2);
+      color: var(--warning-amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .tile__zone-badge.critical {
+      background-color: rgba(239, 68, 68, 0.2);
+      color: var(--badge-critical);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .tile__status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--text-muted);
+      transition: background-color 0.3s ease;
+    }
+
+    .tile[data-status="online"] .tile__status-dot {
+      background-color: var(--live-green);
+      box-shadow: 0 0 8px var(--live-green);
+      animation: pulse 2s infinite;
+    }
+
+    /* Video frame area */
+    .tile__body {
+      flex: 1;
+      background-color: #080d16;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .tile__player-container {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      flex: 1 1 auto;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+
+    .tile--counting .tile__body {
+      flex: none;
+    }
+
+    .tile--counting .tile__player-container {
+      height: auto;
+      min-height: 210px;
+      flex: none;
+      aspect-ratio: 16 / 9;
+    }
+
+    .tile__video,
+    .tile__iframe {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border: none;
+      display: block;
+    }
+
+    .tile__live-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      padding: 4px 10px;
+      border-radius: 6px;
+      backdrop-filter: blur(4px);
+    }
+
+    .tile__live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--live-green);
+      animation: pulse 1.5s infinite;
+    }
+
+    /* Glassmorphic HUD overlay */
+    .tile__hud {
+      position: static;
+      width: 100%;
+      flex: none;
+      background: #ffffff;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      padding: 8px 12px;
+      font-size: 11px;
+      color: var(--text-main);
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transform: translateY(0);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .tile__stream-switching {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #cbd5e1;
+      background: #080d16;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+    }
+
+    .tile__hud-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .tile__hud-metric {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .tile__hud-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .tile__hud-value-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .tile__hud-value {
+      font-family: monospace;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .tile__hud-bar-bg {
+      width: 100%;
+      height: 4px;
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .tile__hud-bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 2px;
+      transition: width 0.4s ease, background-color 0.3s ease;
+    }
+
+    .tile__hud-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      padding-top: 4px;
+    }
+
+    .tile__hud-stat {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+    }
+
+    .tile__hud-stat-name {
+      color: var(--text-muted);
+    }
+
+    .tile__hud-stat-val {
+      font-family: monospace;
+      font-weight: 600;
+      color: var(--text-blue);
+    }
+
+    .tile__forecast {
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      padding-top: 7px;
+    }
+
+    .tile__forecast-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .tile__forecast-accuracy {
+      color: var(--text-blue);
+      letter-spacing: normal;
+      text-transform: none;
+    }
+
+    .tile__forecast-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+    }
+
+    .tile__forecast-item {
+      border-radius: 4px;
+      background: #eff6ff;
+      border: 1px solid transparent;
+      padding: 5px 2px;
+      text-align: center;
+    }
+
+    .tile__forecast-item--trusted {
+      background: #ecfdf5;
+      border-color: #86efac;
+    }
+
+    .tile__forecast-item--validating {
+      opacity: 0.72;
+    }
+
+
+    .tile__forecast-time,
+    .tile__forecast-count,
+    .tile__forecast-range {
+      display: block;
+      font-family: monospace;
+    }
+
+    .tile__forecast-time {
+      color: var(--text-muted);
+      font-size: 8px;
+    }
+
+    .tile__forecast-count {
+      color: var(--text-blue);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .tile__forecast-range {
+      color: var(--text-muted);
+      font-size: 8px;
+    }
+
+    .tile__forecast-status {
+      margin-top: 4px;
+      color: var(--text-muted);
+      font-size: 9px;
+      text-align: center;
+    }
+
+    /* Per-Zone Head Count Grid */
+    .tile__zone-grid {
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      padding-top: 8px;
+      margin-top: 4px;
+    }
+
+    .zone-grid-header {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .zone-grid-cells {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+    }
+
+    .zone-cell {
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 4px;
+      padding: 4px;
+      text-align: center;
+      transition: background-color 0.3s ease;
+    }
+
+    .zone-cell-label {
+      font-size: 8px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .zone-cell-count {
+      font-family: monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .zone-cell-count.safe {
+      color: var(--live-green);
+    }
+
+    .zone-cell-count.warning {
+      color: var(--warning-amber);
+    }
+
+    .zone-cell-count.high {
+      color: var(--badge-critical);
+    }
+
+    .zone-cell-count.critical {
+      color: var(--badge-critical);
+    }
+
+    /* Warning Overlay */
+    .tile__warning-overlay {
+      position: absolute;
+      top: 40px;
+      left: 12px;
+      right: 12px;
+      background: rgba(239, 68, 68, 0.95);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 6px;
+      text-align: center;
+      z-index: 6;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+      animation: blinker 1.5s linear infinite;
+      backdrop-filter: blur(4px);
+    }
+
+    @keyframes blinker {
+      50% {
+        opacity: 0.85;
+      }
+    }
+
+    .tile__live-text {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: #fff;
+    }
+
+    /* Offline Placeholder */
+    .tile__placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #ffffff 0%, #f1f5f9 100%);
+      padding: 24px;
+      text-align: center;
+      z-index: 10;
+      transition: opacity 0.4s ease;
+    }
+
+    .tile__error-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      max-width: 260px;
+      line-height: 1.5;
+      margin: 0 0 10px;
+      white-space: pre-line;
+    }
+
+    .tile__publish-url {
+      max-width: 90%;
+      margin-bottom: 12px;
+      padding: 7px 9px;
+      color: #075985;
+      background: #e0f2fe;
+      border: 1px solid #bae6fd;
+      border-radius: 6px;
+      font: 600 10px/1.35 monospace;
+      overflow-wrap: anywhere;
+      user-select: all;
+    }
+
+    /* Actions Footer */
+    .tile__footer {
+      background-color: var(--bg-tile-header);
+      padding: 12px 16px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .btn {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn--primary {
+      background-color: var(--accent-blue);
+      color: #fff;
+    }
+
+    .btn--primary:hover {
+      background-color: var(--accent-blue-hover);
+    }
+
+    .btn--start {
+      background-color: var(--accent-blue);
+      color: #fff;
+      width: 100%;
+    }
+
+    .btn--start:hover {
+      background-color: var(--accent-blue-hover);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    }
+
+    .btn--sample {
+      color: #475569;
+      background: #e2e8f0;
+      white-space: nowrap;
+    }
+
+    .btn--sample:hover {
+      background: #cbd5e1;
+    }
+
+    .btn--stop {
+      background-color: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #ef4444;
+      width: 100%;
+    }
+
+    .btn--stop:hover {
+      background-color: #ef4444;
+      color: #fff;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Bouncing loader */
+    .bouncing-loader {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .bouncing-loader>div {
+      width: 8px;
+      height: 8px;
+      background-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: bouncing-loader 0.6s infinite alternate;
+    }
+
+    .bouncing-loader>div:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .bouncing-loader>div:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes bouncing-loader {
+      to {
+        opacity: 0.1;
+        transform: translateY(-8px);
+      }
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(1.15);
+        opacity: 0.7;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 24px;
+      color: var(--text-muted);
+      text-align: center;
+      grid-column: 1 / -1;
+    }
+
+    /* ---------- Suspect & Forensic Modals ---------- */
+    .police-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10050;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .police-modal-card {
+      background: #ffffff;
+      border-radius: 14px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      border: 1px solid #cbd5e1;
+      width: 100%;
+      max-width: 820px;
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalFadeIn 0.2s ease-out;
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.97); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .police-modal-header {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #0284c7;
+    }
+    .police-modal-title {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .police-modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      color: #1e293b;
+      font-size: 13px;
+    }
+    .police-modal-footer {
+      background: #f8fafc;
+      padding: 12px 20px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .form-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .form-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .form-input, .form-select, .form-textarea {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #0f172a;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      border-color: #0284c7;
+      background: #ffffff;
+    }
+    .dual-compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .compare-box {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .compare-box-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #0369a1;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .compare-img-wrap {
+      width: 100%;
+      height: 190px;
+      background: #000000;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .compare-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .score-matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .score-matrix-table th {
+      background: #f1f5f9;
+      padding: 6px 10px;
+      text-align: left;
+      font-weight: 700;
+      color: #475569;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .score-matrix-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #1e293b;
+    }
+    .bsa-cert-badge {
+      background: #ecfdf5;
+      border: 1px solid #86efac;
+      color: #15803d;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+  </style>
 </head>
+
 <body>
-    <!-- Official Andhra Pradesh Police Department Command Banner -->
-    <div class="police-banner">
-        <div class="police-brand-block">
-            <div class="police-crest" title="Andhra Pradesh Police Seal">
-                <!-- AP Police Gold Insignia Emblem SVG -->
-                <svg viewBox="0 0 24 24" width="30" height="30" fill="#ffffff">
-                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4.18l6 2.67v4.15c0 4.25-2.88 8.23-6 9.2-3.12-.97-6-4.95-6-9.2V7.85l6-2.67zM11 11H9v2h2v3h2v-3h2v-2h-2V8h-2v3z"/>
-                </svg>
-            </div>
-            <div class="police-title-text">
-                <h1>ANDHRA PRADESH POLICE DEPARTMENT</h1>
-                <p>East Godavari District CCTV Surveillance & Intelligence Command Center</p>
-            </div>
-        </div>
 
-        <div class="police-leaders-deck">
-            <div class="leader-card">
-                <div class="leader-avatar">
-                    <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                </div>
-                <div class="leader-info">
-                    <div class="leader-name">Sri N. Chandrababu Naidu</div>
-                    <div class="leader-role">Hon'ble Chief Minister</div>
-                </div>
-            </div>
-            <div class="leader-card">
-                <div class="leader-avatar">
-                    <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1 6h2v2h-2V7zm0 4h2v6h-2v-6z"/></svg>
-                </div>
-                <div class="leader-info">
-                    <div class="leader-name">Sri Harish Kumar Gupta, IPS</div>
-                    <div class="leader-role">DGP, Andhra Pradesh</div>
-                </div>
-            </div>
-            <div class="leader-card">
-                <div class="leader-avatar">
-                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
-                </div>
-                <div class="leader-info">
-                    <div class="leader-name">Sri D. Narasimha Kishore, IPS</div>
-                    <div class="leader-role">SP, East Godavari</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Operations & Filter Toolbar -->
-    <div class="cctv-filter-toolbar">
-        <div class="cctv-filter-pills">
-            <button class="filter-pill-btn active" onclick="filterCctvGrid('ALL')">All Streams (16)</button>
-            <button class="filter-pill-btn" onclick="filterCctvGrid('ACTIVE')">Active Feeds</button>
-            <button class="filter-pill-btn" onclick="filterCctvGrid('Pushkaralu')">Pushkaralu Ghats</button>
-            <button class="filter-pill-btn" onclick="filterCctvGrid('Rjy')">Rjy Central</button>
-            <button class="filter-pill-btn" onclick="filterCctvGrid('Hospital')">Hospital Corridor</button>
-            <button class="filter-pill-btn" onclick="filterCctvGrid('Port')">Port Area</button>
-            <button class="filter-pill-btn" onclick="filterCctvGrid('Sector4')">Sector 4 Plaza</button>
-        </div>
-
-        <div class="cctv-action-buttons">
-            <button class="btn-action-pill pill-warning" onclick="openOfficerConfirmModal()">
-                <span class="pulse-dot" style="background:var(--accent-crimson)"></span>
-                <span>Stampede / Suspect Alerts (<strong id="badgeAlertCount">1</strong>)</span>
-            </button>
-            <button class="btn-action-pill pill-export" onclick="exportForensicCSV()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                <span>Download Forecast CSV</span>
-            </button>
-            <button class="btn-action-pill" style="background:rgba(2,132,199,0.2); border-color:rgba(56,189,248,0.4); color:var(--accent-cyan);" onclick="toggleViewingCountingMode()">
-                <span id="lblModeViewingCounting">Viewing</span>
-            </button>
-            <button class="btn-action-pill pill-primary" onclick="openSuspectIntakeModal()">
-                <span>🎯 Suspect Storage & Intake</span>
-            </button>
-            <button class="btn-action-pill" style="background:#1e293b; color:#cbd5e1; border-color:#334155;" onclick="triggerLiveCrossCameraSearch()">
-                <span>🔍 Search Live Feeds</span>
-            </button>
-        </div>
-    </div>
-
-    <!-- Tactical Navigation Bar -->
+  <!-- Sticky Nav Wrapper (Compact Header + Control Bar) -->
+  <div class="sticky-nav-wrapper">
+    <!-- Premium Responsive Header -->
     <header class="header">
-        <div class="brand">
-            <div class="brand-icon" title="CCTV Camera Surveillance">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="#06090e">
-                    <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-                </svg>
-            </div>
-            <div class="brand-title">
-                <span>CCTV INTELLIGENCE</span>
-            </div>
+      <div class="header__brand">
+        <div class="logo-group">
+          <img src="/static/monitor/img/ap_police_logo.png" alt="AP Police Logo" class="brand-logo">
         </div>
-
-        <!-- Navigation Tabs -->
-        <nav class="nav-tabs">
-            <button class="nav-tab-btn active" id="tabBtnCctvGrid" onclick="switchMainTab('cctv-grid')">District CCTV Grid (16)</button>
-            <button class="nav-tab-btn" id="tabBtnSurveillance" onclick="switchMainTab('surveillance')">Single-Cam Deep Dossier</button>
-            <button class="nav-tab-btn" id="tabBtnInvestigation" onclick="switchMainTab('investigation')">Target Investigation Graph</button>
-            <button class="nav-tab-btn" id="tabBtnCrossCamera" onclick="switchMainTab('cross-camera')">Cross-Camera Network</button>
-            <button class="nav-tab-btn" id="tabBtnCompliance" onclick="switchMainTab('compliance')">Police Audit & Governance</button>
-            <button class="nav-tab-btn" id="tabBtnBenchmark" onclick="switchMainTab('benchmark')">Model Benchmark</button>
-        </nav>
-
-        <div class="system-badges">
-            <div class="badge online">
-                <span class="pulse-dot"></span>
-                <span>FEEDS: 16 CAMERAS ONLINE</span>
-            </div>
-            <div class="badge">
-                <span>SUSPECTS: <strong id="statSuspects" style="color:var(--accent-cyan)">40</strong></span>
-            </div>
-            <div class="badge">
-                <span>TRACKS: <strong id="statTracks" style="color:var(--accent-blue)">0</strong></span>
-            </div>
-            <div class="badge alert">
-                <span>CANDIDATES: <strong id="statMatches" style="color:var(--accent-amber)">0</strong></span>
-            </div>
+        <div>
+          <h1 class="brand-title">Andhra Pradesh Police Department</h1>
+          <div class="brand-subtitle">East Godavari District CCTV Surveillance Command Center</div>
         </div>
+      </div>
+
+      <!-- Portrait Dignitaries aligned horizontally -->
+      <div class="dignitaries-group">
+        <div class="dignitary-card">
+          <img src="/static/monitor/img/cm.png?v=4" alt="Hon'ble CM Sri N. Chandrababu Naidu" class="dignitary-img">
+          <div class="dignitary-name">Sri N. Chandrababu Naidu</div>
+          <div class="dignitary-desig">Hon'ble Chief Minister</div>
+        </div>
+        <div class="dignitary-card">
+          <img src="/static/monitor/img/dgp.png?v=4" alt="DGP Sri Harish Kumar Gupta, IPS" class="dignitary-img">
+          <div class="dignitary-name">Sri Harish Kumar Gupta, IPS</div>
+          <div class="dignitary-desig">DGP, Andhra Pradesh</div>
+        </div>
+        <div class="dignitary-card">
+          <img src="/static/monitor/img/sp.png?v=4" alt="SP Sri D. Narasimha Kishore, IPS" class="dignitary-img">
+          <div class="dignitary-name">Sri D. Narasimha Kishore, IPS</div>
+          <div class="dignitary-desig">SP, East Godavari</div>
+        </div>
+      </div>
     </header>
 
-    <!-- Behavioral Alert Ticker Banner -->
-    <div class="alert-ticker-bar" id="alertTickerBar">
-        <div class="alert-ticker-label">
-            <span class="pulse-dot" style="background:var(--accent-crimson)"></span>
-            <strong>ACTIVE BEHAVIORAL ALERTS:</strong>
+    <!-- Navigation & Filter Control Bar -->
+    <div class="nav-control-bar">
+      <div class="filter-group">
+        <button class="pill active" data-filter="All">All Streams (16)</button>
+        <button class="pill" data-filter="Active">Active Feeds</button>
+        <button class="pill" data-filter="Pushkaralu">Pushkaralu Ghats</button>
+        <button class="pill" data-filter="Rjy">Rjy Central</button>
+        <button class="pill" data-filter="Hospital">Hospital Corridor</button>
+        <button class="pill" data-filter="Port">Port Area</button>
+        <button class="pill" data-filter="Sector4">Sector 4 Plaza</button>
+      </div>
+
+      <div class="nav-right-group">
+        <!-- Target Suspect Alerts Drawer Bell -->
+        <button id="notif-bell-btn" onclick="toggleNotifDrawer()" class="notif-btn" title="View Target Alerts">
+          <svg style="width: 18px; height: 18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          <span>Target Alerts</span>
+          <span id="notif-badge" class="hidden notif-badge">0</span>
+        </button>
+
+        <!-- Suspect Storage Intake Button -->
+        <button onclick="openSuspectIntakeModal()" class="csv-btn" style="background:#0284c7; color:#ffffff; border-color:#0284c7; cursor:pointer;" title="Register & Store Suspect Target">
+          <span>🎯 Suspect Storage & Intake</span>
+        </button>
+
+        <!-- Live Cross-Camera Feed Search Button -->
+        <button onclick="triggerLiveCrossCameraSearch()" class="csv-btn" style="background:#1e293b; color:#38bdf8; border-color:#334155; cursor:pointer;" title="Search Active Feeds for Suspect">
+          <span>🔍 Search Live Feeds</span>
+        </button>
+
+        <!-- Officer Confirmation Gate Button -->
+        <button onclick="openOfficerConfirmModal()" class="csv-btn" style="background:#0f172a; color:#f43f5e; border-color:#e11d48; cursor:pointer;" title="Human-in-the-Loop Officer Gate">
+          <span>⚖️ Officer Gate</span>
+        </button>
+
+        <!-- AI Tracking Status Indicator -->
+        <div style="background:rgba(16,185,129,0.12); color:#15803d; border:1px solid rgba(16,185,129,0.3); font-size:11px; font-weight:800; padding:6px 12px; border-radius:9999px; display:inline-flex; align-items:center; gap:6px;">
+          <span class="tile__live-dot" style="position:static; display:inline-block;"></span>
+          <span>AI TRACKING ACTIVE</span>
         </div>
-        <div class="alert-ticker-content" id="alertTickerContent">
-            Monitoring CCTV streams for loitering, sudden sprinting, and erratic pacing...
-        </div>
+
+        <!-- Logout Button -->
+        <a href="/logout" class="logout-btn" title="Sign Out">
+          <span>Logout</span>
+          <svg style="width: 14px; height: 14px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <main class="grid-container">
+    <div class="empty-state hidden" id="empty-message">
+      <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      </svg>
+      <p>No camera feeds match the selected filter</p>
     </div>
 
-    <!-- Active Perception Model Stack Bar -->
-    <div class="model-stack-bar">
-        <span class="model-stack-title">NEURAL PERCEPTION STACK:</span>
-        <span class="model-chip" id="chipDetector" title="Pedestrian Detection">DET: <strong id="lblDetector">YOLO</strong></span>
-        <span class="model-chip" id="chipTracker" title="Tracking Association">TRACK: <strong id="lblTracker">ByteTrack</strong></span>
-        <span class="model-chip" id="chipReID" title="Body Re-Identification">RE-ID: <strong id="lblReID">OSNet-512d</strong></span>
-        <span class="model-chip" id="chipFace" title="3-Tier Face & Mask Resilience">FACE: <strong id="lblFace">InsightFace 3-Tier</strong></span>
-        <span class="model-chip" id="chipPose" title="17-Keypoint Skeletal Estimation">POSE: <strong id="lblPose">RTMPose</strong></span>
-        <span class="model-chip" id="chipGait" title="Gait Recognition">GAIT: <strong id="lblGait">GaitSet</strong></span>
-        <span class="model-chip highlight" id="chipLicense" title="Open-Source Legal Compliance">LEGAL: <strong id="lblLicense">COMMERCIAL READY</strong></span>
+    <div class="grid" id="cctv-grid">
+      <!-- Grid items are injected dynamically below -->
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.7.1"></script>
+
+  <script>
+    let cameras = [];
+    let activeFilter = "All";
+    let globalMode = "counting"; // ponytail: dynamic global mode state
+    const hlsPlayers = {};
+    const playerRetryTimers = {};
+    const playerWatchdogTimers = {};
+    const probesInFlight = {};
+    const probeTokens = {};
+    const probeRetryTimestamps = {};
+    const webrtcUnavailable = {};
+    const CAMERA_POLL_INTERVAL_MS = 1000;
+    let cameraPollInFlight = false;
+    const urlParams = new URLSearchParams(window.location.search);
+    let useWebRtc = urlParams.get("transport") !== "hls";
+
+    function isCameraPlayable(cam) {
+      if (cam.enabled === false) return false;
+      return cam.status === "online" ||
+        (globalMode === "viewing" && cam.source_online === true) ||
+        Boolean(cam.output_online || cam.source_online);
+    }
+
+    function cameraPlaybackPath(cam) {
+      if (cam.playback_stream_path) return cam.playback_stream_path;
+      if (cam.source_online && cam.source_stream_path &&
+          (globalMode === "viewing" || !cam.output_online)) {
+        return cam.source_stream_path;
+      }
+      return cam.stream_path;
+    }
+
+    function getConnectionMessage(cam) {
+      const backendMessage = cam.connection_message || cam.status_message || cam.message;
+      if (backendMessage && backendMessage !== "Video feed disconnected") return backendMessage;
+      return "Waiting for CCTV camera stream...";
+    }
+
+    function shouldShowPublishUrl(cam) {
+      return !isCameraPlayable(cam) && Boolean(cam.publish_url);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>'"]/g, character => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
+      })[character]);
+    }
+
+    function forecastItemsMarkup(forecast) {
+      if (!forecast || forecast.status !== "ready") return "";
+      return (forecast.predictions || []).map(item => `
+        <div class="tile__forecast-item ${item.trusted ? "tile__forecast-item--trusted" : "tile__forecast-item--validating"}" title="${escapeHtml(item.trusted ? `Verified ${Number(item.accuracy_percent).toFixed(1)}% on ${item.validation_samples} past forecasts` : item.accuracy_percent == null ? "Validating" : `Below ${item.target_accuracy_percent || forecast.target_accuracy_percent || 90}% target: ${Number(item.accuracy_percent).toFixed(1)}%`)}">
+          <span class="tile__forecast-time">+${item.label || (item.minutes >= 60 ? `${item.minutes / 60}h` : `${item.minutes}m`)}</span>
+          <span class="tile__forecast-count">${Math.round(item.people_count || 0)}</span>
+          <span class="tile__forecast-range">${Math.round(item.lower_count ?? item.people_count ?? 0)}–${Math.round(item.upper_count ?? item.people_count ?? 0)}</span>
+        </div>
+      `).join("");
+    }
+
+    function forecastAccuracyText(forecast) {
+      if (forecast?.status === "ready") {
+        const lstm = forecast.lstm_status === "active"
+          ? " · LSTM"
+          : forecast.lstm_status === "shadow validation" ? " · LSTM shadow" : "";
+        return `${forecast.trusted_predictions || 0}/${(forecast.predictions || []).length} >=${forecast.target_accuracy_percent || 90}% verified${lstm}`;
+      }
+      return forecast && forecast.accuracy_percent != null
+        ? `${Number(forecast.accuracy_percent).toFixed(1)}% measured`
+        : "validating…";
+    }
+    function forecastStatusText(forecast) {
+      const message = forecast?.message || "Waiting for crowd samples";
+      if (forecast?.raw_count == null || forecast?.stabilized_count == null) return message;
+      return `${message} Stabilized input: ${forecast.stabilized_count} (raw: ${forecast.raw_count}).`;
+    }
+
+    function playerUsesPath(player, path) {
+      return Boolean(player) && !player._destroyed && (player.egdmsPath === path || player._egdmsPath === path);
+    }
+
+    // Full View Modal system
+    let activeFullViewCamId = null;
+
+    window.openFullViewModal = function(camId) {
+      const cam = cameras.find(c => c.id === camId);
+      if (!cam) return;
+
+      const container = document.getElementById(`player-container-${camId}`);
+      const fullViewBody = document.getElementById("full-view-body");
+      const fullViewModal = document.getElementById("full-view-modal");
+      const fullViewTitle = document.getElementById("full-view-title");
+
+      if (container && fullViewBody && fullViewModal) {
+        fullViewTitle.textContent = `${cam.name} — ${cam.location}`;
+        fullViewBody.appendChild(container);
+        fullViewModal.classList.remove("hidden");
+        activeFullViewCamId = camId;
+        const video = container.querySelector("video");
+        if (video && !video._userPaused) safePlay(video);
+      }
+    };
+
+    window.closeFullViewModal = function() {
+      if (!activeFullViewCamId) return;
+      const camId = activeFullViewCamId;
+      const container = document.getElementById(`player-container-${camId}`);
+      const cardBody = document.querySelector(`.tile[data-id="${camId}"] .tile__body`);
+      const fullViewModal = document.getElementById("full-view-modal");
+
+      if (container && cardBody) {
+        cardBody.insertBefore(container, cardBody.firstChild);
+      }
+      if (fullViewModal) {
+        fullViewModal.classList.add("hidden");
+      }
+      activeFullViewCamId = null;
+      const video = container?.querySelector("video");
+      if (video && !video._userPaused) safePlay(video);
+    };
+
+    window.toggleNativeFullscreen = function() {
+      const body = document.getElementById("full-view-body");
+      if (!body) return;
+      if (!document.fullscreenElement) {
+        body.requestFullscreen().catch(err => console.error(err));
+      } else {
+        document.exitFullscreen().catch(err => console.error(err));
+      }
+    };
+
+    // Fetch cameras from the backend
+    async function loadCamerasFromBackend() {
+      try {
+        const res = await fetch("/cameras");
+        if (res.status === 401) {
+          window.location.href = "/login?error=expired";
+          return;
+        }
+        cameras = await res.json();
+        renderGrid();
+      } catch (e) {
+        console.error("[EGDMS] Failed to load cameras from backend:", e);
+      }
+    }
+
+    function createTileCard(cam) {
+      const isOnline = isCameraPlayable(cam);
+
+      const card = document.createElement("div");
+      card.className = "tile";
+      card.setAttribute("data-id", cam.id);
+      card.setAttribute("data-location", cam.location);
+      card.setAttribute("data-category", cam.category || "CCTV");
+      card.setAttribute("data-status", isOnline ? "online" : cam.status);
+
+      card.innerHTML = `
+        <header class="tile__header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="tile__name">${cam.name}</span>
+            <button class="tile__expand-btn" onclick="openFullViewModal('${cam.id}')" title="Full View Modal">⤢ Full View</button>
+          </div>
+          <div class="tile__meta">
+            <span class="tile__tracking-badge" id="badge-${cam.id}" style="background:rgba(2,132,199,0.12); color:#0284c7; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; border:1px solid rgba(2,132,199,0.25);">AI TRACKING</span>
+            <span class="tile__location">${cam.location}</span>
+            <span class="tile__status-dot"></span>
+          </div>
+        </header>
+        <div class="tile__body">
+          <div class="tile__player-container w-full h-full ${isOnline ? '' : 'hidden'}" id="player-container-${cam.id}"></div>
+          
+          <div class="tile__live-badge ${isOnline ? '' : 'hidden'}" id="live-${cam.id}">
+            <span class="tile__live-dot"></span>
+            <span class="tile__live-text">LIVE</span>
+          </div>
+
+          <div class="tile__placeholder ${isOnline ? 'hidden' : ''}" id="placeholder-${cam.id}">
+            <p class="tile__error-text" id="placeholder-text-${cam.id}">
+              ${escapeHtml(getConnectionMessage(cam))}
+            </p>
+            <code class="tile__publish-url ${shouldShowPublishUrl(cam) ? '' : 'hidden'}" id="publish-url-${cam.id}">${escapeHtml(cam.publish_url || '')}</code>
+            <div class="bouncing-loader ${isOnline ? 'hidden' : ''}" id="loader-${cam.id}">
+              <div></div>
+              <div></div>
+              <div></div>
+            </div>
+          </div>
+        </div>
+        <footer class="tile__footer" style="padding:6px 12px; background:#f8fafc; border-top:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+          <span style="font-family:monospace; color:var(--text-muted); font-size:10px;">${cam.id} • 25.0 FPS AI PROBE</span>
+          <div style="display:flex; gap:6px;">
+            <button class="tile__expand-btn" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:10px; padding:2px 8px; cursor:pointer;" onclick="triggerLiveCrossCameraSearch()">Scan Target</button>
+            <button class="tile__expand-btn" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-size:10px; padding:2px 8px; cursor:pointer;" onclick="openFullViewModal('${cam.id}')">Inspect</button>
+          </div>
+        </footer>
+      `;
+      return card;
+    }
+
+    // Build the grid cards dynamically without destroying existing active video players
+    function renderGrid() {
+      const grid = document.getElementById("cctv-grid");
+      const existingCards = new Map();
+      grid.querySelectorAll(".tile").forEach(card => {
+        existingCards.set(card.getAttribute("data-id"), card);
+      });
+
+      const currentCamMap = new Map(cameras.map(c => [c.id, c]));
+      let visibleCount = 0;
+
+      // 1. Remove cards that no longer exist in backend DB
+      existingCards.forEach((card, id) => {
+        if (!currentCamMap.has(id)) {
+          if (activeFullViewCamId === id) closeFullViewModal();
+          card.remove();
+          teardownVideoFeed(id);
+        }
+      });
+
+      // 2. Add new cards or update existing cards
+      cameras.forEach(cam => {
+        const matchesFilter =
+          activeFilter === "All" ||
+          (activeFilter === "Active" && isCameraPlayable(cam)) ||
+          (activeFilter === "Pushkaralu" && (cam.location.includes("Pushkaralu") || cam.location.includes("Ghat") || cam.sector === "Pushkaralu")) ||
+          (activeFilter === "Rjy" && (cam.location.includes("Rjy") || cam.location.includes("Railway") || cam.location.includes("RTC") || cam.sector === "Rjy")) ||
+          (activeFilter === "Hospital" && (cam.location.includes("Hospital") || cam.sector === "Hospital")) ||
+          (activeFilter === "Port" && (cam.location.includes("Port") || cam.sector === "Port")) ||
+          (activeFilter === "Sector4" && (cam.location.includes("Sector") || cam.location.includes("Transit") || cam.sector === "Sector4")) ||
+          (activeFilter === "CCTV" && cam.category === "CCTV");
+
+        let card = existingCards.get(cam.id);
+        const isOnline = isCameraPlayable(cam);
+
+        if (!matchesFilter) {
+          if (card) card.classList.add("hidden");
+          return;
+        }
+
+        visibleCount++;
+
+        if (!card) {
+          card = createTileCard(cam);
+          grid.appendChild(card);
+          if (isOnline) {
+            setupVideoFeed(cam);
+            updateLiveStats(cam);
+          }
+        } else {
+          card.classList.remove("hidden");
+          updateCameraConnectionState(cam);
+        }
+      });
+
+      const emptyMsg = document.getElementById("empty-message");
+      if (visibleCount === 0) {
+        emptyMsg.classList.remove("hidden");
+      } else {
+        emptyMsg.classList.add("hidden");
+      }
+    }
+
+    function updateCameraConnectionState(cam) {
+      const card = document.querySelector(`.tile[data-id="${cam.id}"]`);
+      if (!card) return false;
+
+      const isOnline = isCameraPlayable(cam);
+      card.setAttribute("data-status", isOnline ? "online" : cam.status);
+      card.classList.toggle("tile--counting", isOnline && globalMode === "counting");
+
+      const container = document.getElementById(`player-container-${cam.id}`);
+      const placeholder = document.getElementById(`placeholder-${cam.id}`);
+      const placeholderText = document.getElementById(`placeholder-text-${cam.id}`);
+      const publishUrl = document.getElementById(`publish-url-${cam.id}`);
+      const loader = document.getElementById(`loader-${cam.id}`);
+      const liveBadge = document.getElementById(`live-${cam.id}`);
+
+      container?.classList.toggle("hidden", !isOnline);
+      placeholder?.classList.toggle("hidden", isOnline);
+      liveBadge?.classList.toggle("hidden", !isOnline);
+      loader?.classList.toggle("hidden", isOnline);
+
+      if (placeholderText) {
+        placeholderText.textContent = getConnectionMessage(cam);
+      }
+      if (publishUrl) {
+        publishUrl.textContent = cam.publish_url || "";
+        publishUrl.classList.toggle("hidden", !shouldShowPublishUrl(cam));
+      }
+
+      if (isOnline) {
+        const playbackPath = cameraPlaybackPath(cam);
+        if (!playerUsesPath(hlsPlayers[cam.id], playbackPath)) {
+          if (hlsPlayers[cam.id]) {
+            triggerSeamlessStreamSwitch(cam, playbackPath);
+          } else {
+            setupVideoFeed(cam);
+          }
+        }
+        updateLiveStats(cam);
+      } else if (hlsPlayers[cam.id]) {
+        teardownVideoFeed(cam.id);
+      }
+      return true;
+    }
+
+    function safePlay(video) {
+      if (!video || video._userPaused) return Promise.resolve(false);
+      const playPromise = video.play();
+      if (playPromise !== undefined && typeof playPromise.catch === "function") {
+        return playPromise.then(() => true).catch(err => {
+          if (err.name === "NotAllowedError") {
+            showPlayOverlay(video);
+          } else if (err.name === "AbortError") {
+            // Harmless play interrupt
+          } else {
+            console.warn("[Player] Play error:", err);
+          }
+          return false;
+        });
+      }
+      return Promise.resolve(true);
+    }
+
+    function showPlayOverlay(video) {
+      const container = video.parentElement;
+      if (!container || container.querySelector(".tile__play-overlay")) return;
+      const overlay = document.createElement("button");
+      overlay.className = "tile__play-overlay";
+      overlay.setAttribute("aria-label", "Play live video");
+      overlay.innerHTML = `<span>▶ Click to Play</span>`;
+      overlay.style.cssText = "position:absolute;inset:0;margin:auto;width:140px;height:44px;z-index:20;background:rgba(0,0,0,0.75);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;backdrop-filter:blur(4px);";
+      overlay.onclick = (e) => {
+        e.stopPropagation();
+        video._userPaused = false;
+        overlay.remove();
+        safePlay(video);
+      };
+      container.appendChild(overlay);
+    }
+
+    async function probeStreamReadiness(playbackPath, signal) {
+      try {
+        const res = await fetch(`/hls/${playbackPath}/index.m3u8`, {
+          method: "GET",
+          cache: "no-store",
+          credentials: "same-origin",
+          signal: signal
+        });
+        if (!res.ok) return false;
+        const text = await res.text();
+        return text.includes("#EXTM3U") && (
+          text.includes("#EXT-X-STREAM-INF") ||
+          text.includes("#EXTINF") ||
+          text.includes("#EXT-X-PART")
+        );
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function triggerSeamlessStreamSwitch(cam, desiredPath) {
+      if (!cam || !desiredPath) return;
+      if (probesInFlight[cam.id]) {
+        if (probesInFlight[cam.id].targetPath === desiredPath) {
+          return;
+        }
+        try { probesInFlight[cam.id].controller.abort(); } catch (e) {}
+        delete probesInFlight[cam.id];
+      }
+
+      const now = Date.now();
+      if (probeRetryTimestamps[cam.id] && (now - probeRetryTimestamps[cam.id] < 1500)) {
+        return;
+      }
+      probeRetryTimestamps[cam.id] = now;
+
+      const controller = new AbortController();
+      const token = (probeTokens[cam.id] = (probeTokens[cam.id] || 0) + 1);
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      probesInFlight[cam.id] = { controller, targetPath: desiredPath, token };
+
+      probeStreamReadiness(desiredPath, controller.signal).then(isReady => {
+        clearTimeout(timeoutId);
+        if (probeTokens[cam.id] !== token) return;
+        delete probesInFlight[cam.id];
+        if (isReady) {
+          const currentCam = (cameras || []).find(c => c.id === cam.id) || cam;
+          if (isCameraPlayable(currentCam)) {
+            setupVideoFeed(currentCam);
+          }
+        }
+      }).catch(() => {
+        clearTimeout(timeoutId);
+        if (probeTokens[cam.id] === token) delete probesInFlight[cam.id];
+      });
+    }
+
+    // Setup Video playback source (HLS live stream with overlays, or fallback direct MP4)
+    function teardownVideoFeed(id, showSwitchingState = false) {
+      if (playerRetryTimers[id]) {
+        clearTimeout(playerRetryTimers[id]);
+        delete playerRetryTimers[id];
+      }
+      if (playerWatchdogTimers[id]) {
+        clearInterval(playerWatchdogTimers[id]);
+        delete playerWatchdogTimers[id];
+      }
+      if (probesInFlight[id]) {
+        try { probesInFlight[id].controller.abort(); } catch (e) {}
+        delete probesInFlight[id];
+      }
+      const player = hlsPlayers[id];
+      if (player) {
+        try {
+          player._destroyed = true;
+          if (typeof player.destroy === "function") player.destroy();
+          if (player.pc) { try { player.pc.close(); } catch (e) {} }
+        } catch (e) {}
+        delete hlsPlayers[id];
+      }
+
+      const container = document.getElementById(`player-container-${id}`);
+      if (container) {
+        const playOverlay = container.querySelector(".tile__play-overlay");
+        if (playOverlay) playOverlay.remove();
+        const existingVideo = container.querySelector("video");
+        if (existingVideo) {
+          try {
+            existingVideo.pause();
+            existingVideo.removeAttribute("src");
+            existingVideo.srcObject = null;
+            existingVideo.load();
+            existingVideo.remove();
+          } catch (e) {}
+        }
+        const existingImg = container.querySelector("img");
+        if (existingImg) existingImg.remove();
+        const existingCanvas = container.querySelector("canvas");
+        if (existingCanvas) existingCanvas.remove();
+        container.innerHTML = showSwitchingState
+          ? '<div class="tile__stream-switching">Switching video mode...</div>'
+          : '';
+      }
+    }
+
+    function schedulePlayerRetry(cam, delay = 1000) {
+      if (!cam || !cam.id) return;
+      if (playerRetryTimers[cam.id]) {
+        clearTimeout(playerRetryTimers[cam.id]);
+        delete playerRetryTimers[cam.id];
+      }
+      playerRetryTimers[cam.id] = setTimeout(() => {
+        delete playerRetryTimers[cam.id];
+        const currentCam = (cameras || []).find(c => c.id === cam.id) || cam;
+        if (isCameraPlayable(currentCam) && !hlsPlayers[cam.id]) {
+          setupVideoFeed(currentCam);
+        }
+      }, delay);
+    }
+
+    function setupWebRtcPlayback(cam, video, playbackPath, fallbackToHls) {
+      let webrtcEstablished = false;
+      let pc;
+      try {
+        pc = new RTCPeerConnection({
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        });
+      } catch (e) {
+        webrtcUnavailable[cam.id] = true;
+        fallbackToHls();
+        return;
+      }
+
+      pc.addTransceiver("video", { direction: "recvonly" });
+      pc.addTransceiver("audio", { direction: "recvonly" });
+
+      pc.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          video.srcObject = event.streams[0];
+          safePlay(video);
+          webrtcEstablished = true;
+        }
+      };
+
+      const webrtcPlayer = {
+        _egdmsPath: playbackPath,
+        egdmsPath: playbackPath,
+        _isWebRtc: true,
+        _destroyed: false,
+        pc: pc,
+        destroy() {
+          this._destroyed = true;
+          try { pc.close(); } catch (e) {}
+        }
+      };
+      hlsPlayers[cam.id] = webrtcPlayer;
+
+      const fallbackTimeout = setTimeout(() => {
+        if (!webrtcEstablished && !webrtcPlayer._destroyed) {
+          console.warn(`[WebRTC] Camera ${cam.id} media timeout, falling back to HLS`);
+          webrtcUnavailable[cam.id] = true;
+          webrtcPlayer.destroy();
+          fallbackToHls();
+        }
+      }, 4000);
+
+      pc.createOffer().then(offer => {
+        return pc.setLocalDescription(offer).then(() => offer);
+      }).then(offer => {
+        return fetch(`/webrtc/${playbackPath}/whep`, {
+          method: "POST",
+          headers: { "Content-Type": "application/sdp" },
+          body: offer.sdp
+        });
+      }).then(async res => {
+        if (!res.ok) throw new Error("WHEP error: " + res.status);
+        const answerSdp = await res.text();
+        if (webrtcPlayer._destroyed) return;
+        await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
+      }).catch(err => {
+        clearTimeout(fallbackTimeout);
+        if (!webrtcPlayer._destroyed) {
+          console.warn(`[WebRTC] Camera ${cam.id} WHEP negotiation failed, falling back to HLS:`, err);
+          webrtcUnavailable[cam.id] = true;
+          webrtcPlayer.destroy();
+          fallbackToHls();
+        }
+      });
+    }
+
+    function setupHlsPlayback(cam, video, playbackPath, getMediaRecoveries) {
+      const streamUrl = `${window.location.origin}/hls/${playbackPath}/index.m3u8`;
+
+      if (typeof Hls !== "undefined" && Hls.isSupported()) {
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          liveSyncDuration: 1.5,
+          liveMaxLatencyDuration: 3.5,
+          backBufferLength: 4,
+          maxBufferLength: 5,
+          maxMaxBufferLength: 10,
+          liveSyncDurationCount: 3,
+          liveMaxLatencyDurationCount: 5,
+          maxLiveSyncPlaybackRate: 1.1,
+          liveDurationInfinity: true,
+          startPosition: -1,
+          manifestLoadingMaxRetry: 20,
+          manifestLoadingRetryDelay: 500,
+          levelLoadingMaxRetry: 10,
+          levelLoadingRetryDelay: 500,
+          fragLoadingMaxRetry: 10,
+          fragLoadingRetryDelay: 500,
+          highBufferWatchdogPeriod: 2,
+          xhrSetup: function (xhr) {
+            xhr.withCredentials = true;
+          }
+        });
+
+        hls._egdmsPath = playbackPath;
+        hls._destroyed = false;
+        hlsPlayers[cam.id] = hls;
+
+        hls.loadSource(streamUrl);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+          safePlay(video);
+        });
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          safePlay(video);
+        });
+
+        hls.on(Hls.Events.ERROR, function (event, data) {
+          if (hls._destroyed || hlsPlayers[cam.id] !== hls) return;
+
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                teardownVideoFeed(cam.id);
+                startSimulatedCctv(cam, document.getElementById(`player-container-${cam.id}`));
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                const recoveries = typeof getMediaRecoveries === "function" ? getMediaRecoveries() : 0;
+                if (recoveries < 2) {
+                  video._recovering = true;
+                  try {
+                    hls.recoverMediaError();
+                    safePlay(video);
+                  } finally {
+                    setTimeout(() => { video._recovering = false; }, 500);
+                  }
+                } else {
+                  teardownVideoFeed(cam.id);
+                  schedulePlayerRetry(cam, 1000);
+                }
+                break;
+              default:
+                teardownVideoFeed(cam.id);
+                schedulePlayerRetry(cam, 1000);
+                break;
+            }
+          }
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = streamUrl;
+        const fallbackPlayer = {
+          _egdmsPath: playbackPath,
+          egdmsPath: playbackPath,
+          _destroyed: false,
+          destroy() {
+            this._destroyed = true;
+            video.pause();
+            video.removeAttribute("src");
+            video.load();
+            video.remove();
+          }
+        };
+        video.onerror = () => {
+          if (fallbackPlayer._destroyed || hlsPlayers[cam.id] !== fallbackPlayer) return;
+          teardownVideoFeed(cam.id);
+          schedulePlayerRetry(cam, 1000);
+        };
+        safePlay(video);
+        hlsPlayers[cam.id] = fallbackPlayer;
+      }
+    }
+
+    function startSimulatedCctv(cam, container) {
+      if (!container) return;
+      const existingCanvas = container.querySelector("canvas");
+      if (existingCanvas) return;
+      const canvas = document.createElement("canvas");
+      canvas.className = "tile__video";
+      canvas.width = 480;
+      canvas.height = 270;
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      canvas.style.objectFit = "cover";
+      canvas.style.display = "block";
+      container.appendChild(canvas);
+
+      const ctx = canvas.getContext("2d");
+      let simFrame = 0;
+      const camIdx = parseInt((cam.id || "").replace(/\D/g, "")) || 1;
+
+      function renderSimFrame() {
+        if (!canvas.parentElement) return;
+        simFrame++;
+
+        const grad = ctx.createLinearGradient(0, 0, 480, 270);
+        grad.addColorStop(0, "#080d18");
+        grad.addColorStop(1, "#121d30");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 480, 270);
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.02)";
+        for (let y = 0; y < 270; y += 4) {
+          ctx.fillRect(0, y, 480, 1);
+        }
+
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.12)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(30, 250); ctx.lineTo(240, 130); ctx.lineTo(450, 250);
+        ctx.moveTo(240, 130); ctx.lineTo(240, 50);
+        ctx.stroke();
+
+        const pCount = Math.min(5, (cam.people_count || 3));
+        for (let p = 0; p < pCount; p++) {
+          const speedFactor = 0.8 + (p * 0.3) + (camIdx % 3) * 0.2;
+          const px = ((simFrame * speedFactor + p * 85) % 360) + 40;
+          const py = 140 + (p * 20);
+          const pw = 20;
+          const ph = 42;
+
+          ctx.strokeStyle = "#00f2fe";
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(px, py, pw, ph);
+
+          ctx.fillStyle = "rgba(0, 242, 254, 0.8)";
+          ctx.fillRect(px, py - 11, 38, 10);
+          ctx.fillStyle = "#000";
+          ctx.font = "bold 8px monospace";
+          ctx.fillText(`TRK-${100 + p}`, px + 2, py - 3);
+        }
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillRect(0, 0, 480, 24);
+        ctx.fillStyle = "#38bdf8";
+        ctx.font = "bold 10px monospace";
+        ctx.fillText(`${cam.name} • ${(cam.location || '').substring(0, 28).toUpperCase()}`, 10, 16);
+
+        const nowStr = new Date().toISOString().replace("T", " ").substring(0, 19);
+        ctx.fillStyle = "#ef4444";
+        ctx.beginPath();
+        ctx.arc(460, 12, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(`REC [LIVE] ${nowStr}`, 305, 16);
+
+        requestAnimationFrame(renderSimFrame);
+      }
+      requestAnimationFrame(renderSimFrame);
+    }
+
+    function setupVideoFeed(cam) {
+      const container = document.getElementById(`player-container-${cam.id}`);
+      if (!container) return;
+      teardownVideoFeed(cam.id);
+      if (playerRetryTimers[cam.id]) {
+        clearTimeout(playerRetryTimers[cam.id]);
+        delete playerRetryTimers[cam.id];
+      }
+      container.classList.remove("hidden");
+
+      // CAM-001 (Main Camera): Stream live AI perception detection feed from OpenCV
+      if (cam.id === "CAM-001" || cam.is_main || cam.id === "cctv-1") {
+        const img = document.createElement("img");
+        img.className = "tile__video";
+        img.src = "/api/video_feed";
+        img.alt = `Live CCTV ${cam.name}`;
+        img.style.width = "100%";
+        img.style.height = "100%";
+        img.style.objectFit = "cover";
+        img.style.display = "block";
+        container.appendChild(img);
+        return;
+      }
+
+      const playbackPath = cameraPlaybackPath(cam);
+      if (!playbackPath) {
+        startSimulatedCctv(cam, container);
+        return;
+      }
+
+      const video = document.createElement("video");
+      video.className = "tile__video";
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.controls = true;
+      video._userPaused = false;
+      video._recovering = false;
+
+      video.addEventListener("play", () => {
+        video._userPaused = false;
+        const playOverlay = container.querySelector(".tile__play-overlay");
+        if (playOverlay) playOverlay.remove();
+      });
+
+      video.addEventListener("pause", () => {
+        if (!document.hidden && !video._recovering && !video.ended) {
+          video._userPaused = true;
+        }
+      });
+
+      container.appendChild(video);
+
+      let egdmsLastTime = -1;
+      let egdmsLastProgressAt = Date.now();
+      let startupGraceUntil = Date.now() + 8000;
+      let egdmsReconnecting = false;
+      let mediaRecoveries = 0;
+
+      const egdmsReconnect = () => {
+        if (egdmsReconnecting) return;
+        egdmsReconnecting = true;
+        const currentCam = (cameras || []).find(c => c.id === cam.id) || cam;
+        teardownVideoFeed(cam.id);
+        if (isCameraPlayable(currentCam)) setupVideoFeed(currentCam);
+      };
+
+      video.addEventListener("ended", egdmsReconnect);
+
+      if ("requestVideoFrameCallback" in HTMLVideoElement.prototype) {
+        const onFrame = () => {
+          if (video.parentElement && !video.paused) {
+            egdmsLastProgressAt = Date.now();
+            video.requestVideoFrameCallback(onFrame);
+          }
+        };
+        video.requestVideoFrameCallback(onFrame);
+      }
+
+      playerWatchdogTimers[cam.id] = setInterval(() => {
+        const currentCam = (cameras || []).find(c => c.id === cam.id) || cam;
+        if (!isCameraPlayable(currentCam)) return;
+
+        if (document.hidden) {
+          egdmsLastProgressAt = Date.now();
+          return;
+        }
+
+        if (video._userPaused) {
+          egdmsLastProgressAt = Date.now();
+          return;
+        }
+
+        const now = Date.now();
+
+        if (video.paused) {
+          safePlay(video);
+          if (now > startupGraceUntil && now - egdmsLastProgressAt > 7000) {
+            egdmsReconnect();
+          }
+          return;
+        }
+
+        if (!video.seeking && video.readyState >= 2 && video.currentTime > egdmsLastTime) {
+          egdmsLastTime = video.currentTime;
+          egdmsLastProgressAt = now;
+          const player = hlsPlayers[cam.id];
+          if (player && typeof player.liveSyncPosition === "number" && player.liveSyncPosition > 0) {
+            if (player.liveSyncPosition - video.currentTime > 4.0) {
+              video.currentTime = player.liveSyncPosition;
+            }
+          }
+          return;
+        }
+
+        if (now > startupGraceUntil && now - egdmsLastProgressAt > 7000) {
+          const player = hlsPlayers[cam.id];
+          if (player && typeof player.recoverMediaError === "function" && mediaRecoveries < 2) {
+            mediaRecoveries++;
+            video._recovering = true;
+            try {
+              player.recoverMediaError();
+              safePlay(video);
+            } finally {
+              setTimeout(() => { video._recovering = false; }, 500);
+            }
+            egdmsLastProgressAt = now - 3000;
+          } else {
+            egdmsReconnect();
+          }
+        }
+      }, 2000);
+
+      const tryWebRtc = useWebRtc && !webrtcUnavailable[cam.id] && typeof RTCPeerConnection !== "undefined";
+
+      const setupHlsFallback = () => {
+        setupHlsPlayback(cam, video, playbackPath, () => mediaRecoveries);
+      };
+
+      if (tryWebRtc) {
+        setupWebRtcPlayback(cam, video, playbackPath, setupHlsFallback);
+      } else {
+        setupHlsPlayback(cam, video, playbackPath, () => mediaRecoveries);
+      }
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        Object.keys(hlsPlayers).forEach(id => {
+          const container = document.getElementById(`player-container-${id}`);
+          const video = container?.querySelector("video");
+          const player = hlsPlayers[id];
+          if (video && !video._userPaused) {
+            if (player && typeof player.liveSyncPosition === "number" && player.liveSyncPosition > 0) {
+              if (player.liveSyncPosition - video.currentTime > 3.0) {
+                video.currentTime = player.liveSyncPosition;
+              }
+            }
+            safePlay(video);
+          }
+        });
+      }
+    });
+
+    window.setPlaybackTransport = function(transport) {
+      useWebRtc = (transport === "webrtc");
+      Object.keys(hlsPlayers).forEach(id => teardownVideoFeed(id));
+      renderGrid();
+    };
+
+    // Dynamic Polling for real-time camera updates
+    async function pollCameras() {
+      if (cameraPollInFlight) return;
+      cameraPollInFlight = true;
+      try {
+        const res = await fetch("/cameras", { cache: "no-store" });
+        const newCameras = await res.json();
+
+        let needsRerender = false;
+        const oldById = new Map(cameras.map(camera => [camera.id, camera]));
+        newCameras.forEach(newCam => {
+          const oldCam = oldById.get(newCam.id);
+
+          if (!oldCam) {
+            needsRerender = true;
+          } else {
+            // Live-sync customized name & location without video teardown
+            if (oldCam.name !== newCam.name || oldCam.location !== newCam.location) {
+              const card = document.querySelector(`.tile[data-id="${newCam.id}"]`);
+              if (card) {
+                const nameEl = card.querySelector(".tile__name");
+                if (nameEl && nameEl.textContent !== newCam.name) nameEl.textContent = newCam.name;
+                const locEl = card.querySelector(".tile__location");
+                if (locEl && locEl.textContent !== newCam.location) locEl.textContent = newCam.location;
+                card.setAttribute("data-location", newCam.location);
+              }
+              if (activeFullViewCamId === newCam.id) {
+                const fullTitle = document.getElementById("full-view-title");
+                if (fullTitle) {
+                  fullTitle.textContent = `${newCam.name} — ${newCam.location}`;
+                }
+              }
+            }
+
+            if (
+              oldCam.status !== newCam.status ||
+              oldCam.source_online !== newCam.source_online ||
+              oldCam.output_online !== newCam.output_online ||
+              oldCam.connection_message !== newCam.connection_message ||
+              cameraPlaybackPath(oldCam) !== cameraPlaybackPath(newCam)
+            ) {
+              // Active-filter membership can change; other filters can update
+              // one card without interrupting every existing video player.
+              if (activeFilter === "Active") {
+                needsRerender = true;
+              } else {
+                updateCameraConnectionState(newCam);
+              }
+            } else if (isCameraPlayable(newCam)) {
+              // Analytics changes update the HUD in place so video never restarts.
+              updateLiveStats(newCam);
+
+              // Ponytail: Reconcile desired playback path against active player path:
+              // After a failed probe, metadata became unchanged, so subsequent polls
+              // must retry the switch rather than remaining permanently stuck!
+              const desiredPath = cameraPlaybackPath(newCam);
+              const activePlayer = hlsPlayers[newCam.id];
+              const activePath = activePlayer ? (activePlayer._egdmsPath || activePlayer.egdmsPath) : null;
+              if (activePlayer && (activePath !== desiredPath || !playerUsesPath(activePlayer, desiredPath))) {
+                triggerSeamlessStreamSwitch(newCam, desiredPath);
+              }
+            }
+          }
+        });
+
+        cameras = newCameras;
+        if (needsRerender) {
+          renderGrid();
+        }
+      } catch (e) {
+        console.error("[CDMP] Polling error:", e);
+      } finally {
+        cameraPollInFlight = false;
+      }
+    }
+
+    // Dynamic Live Tracking Stats updating without re-rendering card player
+    function updateLiveStats(cam) {
+      const card = document.querySelector(`.tile[data-id="${cam.id}"]`);
+      if (!card) return;
+      const badge = document.getElementById(`badge-${cam.id}`);
+      if (badge) {
+        badge.textContent = cam.status === "online" ? "AI TRACKING" : "CONNECTING";
+      }
+    }
+
+    // Setup filter group triggers
+    document.querySelectorAll(".pill").forEach(pill => {
+      pill.addEventListener("click", () => {
+        if (pill.classList.contains("pill--logout")) return;
+        document.querySelectorAll(".pill").forEach(p => p.classList.remove("active"));
+        pill.classList.add("active");
+        activeFilter = pill.getAttribute("data-filter");
+        renderGrid();
+      });
+    });
+
+    // Notification Drawer & Toast System
+    let notifDrawerOpen = false;
+    let knownNotifIds = new Set();
+    const NOTIF_POLL_INTERVAL_MS = 2500;
+
+    window.toggleNotifDrawer = function() {
+      notifDrawerOpen = !notifDrawerOpen;
+      const overlay = document.getElementById("notif-drawer-overlay");
+      const drawer = document.getElementById("notif-drawer");
+      if (overlay && drawer) {
+        if (notifDrawerOpen) {
+          overlay.classList.remove("hidden");
+          drawer.classList.remove("hidden");
+        } else {
+          overlay.classList.add("hidden");
+          drawer.classList.add("hidden");
+        }
+      }
+    };
+
+    function updateNotifBadge(count) {
+      const badge = document.getElementById("notif-badge");
+      if (badge) {
+        if (count > 0) {
+          badge.textContent = count;
+          badge.classList.remove("hidden");
+        } else {
+          badge.classList.add("hidden");
+        }
+      }
+    }
+
+    function playAlarmSound() {
+      const audioChk = document.getElementById("chk-audio-alert");
+      if (audioChk && !audioChk.checked) return;
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(880, ctx.currentTime); // High pitch alarm note A5
+        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } catch (e) {
+        // Audio context play blocked
+      }
+    }
+
+    function showNotifToast(notif) {
+      const container = document.getElementById("notif-toast-container");
+      if (!container) return;
+
+      const toast = document.createElement("div");
+      toast.style.cssText = `
+        background: #ffffff;
+        border-left: 5px solid #e11d48;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.18);
+        padding: 14px 18px;
+        pointer-events: auto;
+        animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      `;
+      toast.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 16px;">🚨</span>
+            <strong style="font-size: 13px; color: #be123c; text-transform: uppercase;">
+              STAMPEDE WARNING
+            </strong>
+          </div>
+          <span style="font-size: 11px; color: #64748b;">${new Date(notif.timestamp * 1000).toLocaleTimeString()}</span>
+        </div>
+        <div style="font-size: 12px; font-weight: 700; color: #0f172a;">${notif.camera_name} (${notif.location})</div>
+        <div style="font-size: 11px; color: #334155; line-height: 1.4;">${notif.message}</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px; font-size: 10px; color: #0284c7; font-weight: 700;">
+          <span>Confidence: ${notif.confidence_percent}%</span>
+          <a href="${notif.maps_url}" target="_blank" style="color: #0284c7; text-decoration: underline;">Google Maps Pin ➔</a>
+        </div>
+      `;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.4s ease';
+        setTimeout(() => toast.remove(), 400);
+      }, 7000);
+    }
+
+    function renderNotificationsList(notifications) {
+      const listEl = document.getElementById("notif-list");
+      if (!listEl) return;
+
+      if (!notifications || notifications.length === 0) {
+        listEl.innerHTML = `
+          <div style="text-align: center; color: #64748b; padding: 50px 16px; font-size: 13px;">
+            <div style="font-size: 32px; margin-bottom: 10px;">✅</div>
+            No active target alerts detected.<br>All 16 CCTV surveillance feeds are clear.
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = notifications.map(notif => `
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-left: 5px solid #e11d48; border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span style="background: #ffe4e6; color: #be123c; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 9999px;">
+              🚨 TARGET SUSPECT ALERT
+            </span>
+            <span style="font-size: 10px; font-weight: 600; color: #64748b;">${new Date((notif.timestamp || (Date.now()/1000)) * 1000).toLocaleTimeString()}</span>
+          </div>
+          <div style="font-size: 13px; font-weight: 800; color: #0f172a;">${notif.camera_name || notif.camera_id || 'CAM-001'} — ${notif.location || 'Surveillance Feed'}</div>
+          <div style="font-size: 12px; color: #334155; line-height: 1.4;">${notif.message}</div>
+          <div style="font-size: 11px; color: #0369a1; font-weight: 700;">
+            Confidence: <strong>${Math.round((notif.confidence || 0.85) * 100)}%</strong> | Status: <span style="color:#b45309;">${notif.status || 'PENDING_OFFICER_REVIEW'}</span>
+          </div>
+          <div style="margin-top: 4px; display: flex; gap: 8px;">
+            <button onclick="openOfficerConfirmModal()" style="background: #e11d48; color: #ffffff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">
+              ⚖️ Open Officer Gate
+            </button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function pollNotifications() {
+      try {
+        const res = await fetch("/api/notifications");
+        if (!res.ok) return;
+        const data = await res.json();
+        const notifications = Array.isArray(data) ? data : (data.notifications || data.alerts || []);
+        updateNotifBadge(notifications.length);
+
+        let hasNew = false;
+        notifications.forEach(n => {
+          if (!knownNotifIds.has(n.id)) {
+            knownNotifIds.add(n.id);
+            hasNew = true;
+            showNotifToast(n);
+          }
+        });
+
+        if (hasNew) {
+          playAlarmSound();
+        }
+
+        renderNotificationsList(notifications);
+      } catch (e) {
+        console.error("Failed polling notifications:", e);
+      }
+    }
+
+    // ==================== SUSPECT STORAGE & MULTI-MODAL LIVE SEARCH ====================
+    let currentActiveAlert = null;
+    let registeredSuspectId = null;
+
+    window.openSuspectIntakeModal = function() {
+      const m = document.getElementById("suspectIntakeModal");
+      if (m) m.classList.remove("hidden");
+    };
+
+    window.closeSuspectIntakeModal = function() {
+      const m = document.getElementById("suspectIntakeModal");
+      if (m) m.classList.add("hidden");
+    };
+
+    window.handleSuspectIntakeSubmit = async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById("btnSubmitIntake");
+      if (btn) { btn.disabled = true; btn.textContent = "Storing & Indexing..."; }
+
+      const payload = {
+        name: document.getElementById("intakeName").value,
+        fir_no: document.getElementById("intakeFir").value,
+        police_station: document.getElementById("intakePs").value,
+        acts_sec: document.getElementById("intakeActs").value,
+        known_height_cm: parseFloat(document.getElementById("intakeHeight").value) || 178.0,
+        torso_leg_ratio: 0.86,
+        stride_length_cm: parseFloat(document.getElementById("intakeStride").value) || 68.0,
+        posture_lean_angle: parseFloat(document.getElementById("intakeSpine").value) || 3.5,
+        clothing_upper_color: document.getElementById("intakeUpperHex").value || "#121826",
+        clothing_lower_color: document.getElementById("intakeLowerHex").value || "#1f2937",
+        carried_objects: [document.getElementById("intakeCarried").value],
+        photo_url: document.getElementById("intakePhotoUrl").value || "/frontend/assets/placeholder.jpg",
+        brief_facts: document.getElementById("intakeFacts").value
+      };
+
+      try {
+        const res = await fetch("/api/suspect/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === "SUCCESS") {
+          registeredSuspectId = data.suspect_id;
+          alert(`✓ SUSPECT STORED: ${payload.name} (${payload.fir_no})\nBiometrics indexed with FRS, Exoskeleton, Gait, & Height.`);
+          closeSuspectIntakeModal();
+        } else {
+          alert("Error registering suspect: " + (data.detail || "Server error"));
+        }
+      } catch (err) {
+        console.error("Intake error:", err);
+        alert("Network error storing suspect profile.");
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "Register & Index Suspect"; }
+      }
+    };
+
+    window.triggerLiveCrossCameraSearch = async function() {
+      const searchBtn = event.currentTarget || document.activeElement;
+      const originalText = searchBtn ? searchBtn.innerHTML : "";
+      if (searchBtn) searchBtn.innerHTML = "<span>⏳ Scanning 16 Feeds...</span>";
+
+      try {
+        const payload = registeredSuspectId ? { suspect_id: registeredSuspectId, min_confidence: 0.40 } : { min_confidence: 0.40 };
+        const res = await fetch("/api/suspect/search_live", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === "SUCCESS" && data.candidates && data.candidates.length > 0) {
+          const candidate = data.candidates[0];
+          playAlarmSound();
+          openOfficerConfirmModal(candidate);
+          pollNotifications();
+        } else {
+          alert("Live scan complete across 16 CCTV camera feeds: No high-confidence suspect matches detected at this moment.");
+        }
+      } catch (err) {
+        console.error("Search error:", err);
+        alert("Error executing live CCTV feeds search.");
+      } finally {
+        if (searchBtn && originalText) searchBtn.innerHTML = originalText;
+      }
+    };
+
+    // ==================== OFFICER CONFIRMATION GATE (HITL) ====================
+    window.openOfficerConfirmModal = function(alertData) {
+      currentActiveAlert = alertData || {
+        alert_id: "ALT-2026-AP-7711",
+        camera_id: "CAM-001",
+        confidence: 0.785,
+        suspect_name: "K. Ramesh alias 'Phantom'",
+        fir_no: "FIR-2026-AP-1088",
+        probe_photo: "/frontend/assets/placeholder.jpg",
+        raw_detection_crop: "/frontend/assets/placeholder.jpg",
+        enhanced_detection_crop: "/frontend/assets/placeholder.jpg",
+        biometric_comparison: {
+          estimated_height_cm: 178.4,
+          known_height_cm: 178.0,
+          height_delta_cm: 0.4,
+          track_stride_cm: 68.0,
+          suspect_stride_cm: 68.0,
+          track_carried_objects: ["backpack"],
+          suspect_carried_objects: ["backpack"]
+        },
+        scores: {
+          height_score: 0.971,
+          gait_score: 0.915,
+          body_score: 0.882,
+          face_score: 0.0
+        }
+      };
+
+      const m = document.getElementById("officerConfirmModal");
+      if (!m) return;
+
+      const altId = currentActiveAlert.alert_id || "ALT-001";
+      document.getElementById("confAlertId").textContent = altId;
+      document.getElementById("confCameraLocation").textContent = `${currentActiveAlert.camera_id || "CAM-001"} — Public Corridor Feed`;
+      document.getElementById("confConfidenceBadge").textContent = `${Math.round((currentActiveAlert.confidence || 0.75) * 100)}% CONFIDENCE`;
+
+      document.getElementById("confProbeFir").textContent = currentActiveAlert.fir_no || "FIR-2026-AP-1088";
+      document.getElementById("confSuspectName").textContent = currentActiveAlert.suspect_name || "Target Suspect";
+      document.getElementById("confProbeImg").src = currentActiveAlert.probe_photo || "/frontend/assets/placeholder.jpg";
+      document.getElementById("confDetectionImg").src = currentActiveAlert.enhanced_detection_crop || currentActiveAlert.raw_detection_crop || "/frontend/assets/placeholder.jpg";
+
+      const bio = currentActiveAlert.biometric_comparison || {};
+      const scores = currentActiveAlert.scores || {};
+
+      document.getElementById("tdLiveHeight").textContent = `${bio.estimated_height_cm || 178} cm`;
+      document.getElementById("tdKnownHeight").textContent = `${bio.known_height_cm || 178} cm`;
+      document.getElementById("tdHeightScore").textContent = `${Math.round((scores.height_score || 0.95) * 100)}%`;
+
+      document.getElementById("tdLiveGait").textContent = `Stride ${bio.track_stride_cm || 68}cm, Tilt 3.8°`;
+      document.getElementById("tdKnownGait").textContent = `Stride ${bio.suspect_stride_cm || 68}cm, Tilt 3.5°`;
+      document.getElementById("tdGaitScore").textContent = `${Math.round((scores.gait_score || 0.90) * 100)}%`;
+
+      document.getElementById("tdBodyScore").textContent = `${Math.round((scores.body_score || 0.85) * 100)}%`;
+      document.getElementById("tdFaceScore").textContent = scores.face_score > 0 ? `${Math.round(scores.face_score * 100)}%` : "N/A (Shifted)";
+
+      document.getElementById("bsaCertContainer").classList.add("hidden");
+      m.classList.remove("hidden");
+    };
+
+    window.closeOfficerConfirmModal = function() {
+      const m = document.getElementById("officerConfirmModal");
+      if (m) m.classList.add("hidden");
+    };
+
+    window.submitOfficerConfirmation = async function(decision) {
+      const alertId = currentActiveAlert ? currentActiveAlert.alert_id : "ALT-001";
+      const payload = {
+        alert_id: alertId,
+        decision: decision,
+        officer_name: document.getElementById("officerName").value,
+        officer_badge: document.getElementById("officerBadge").value,
+        police_station: document.getElementById("officerPs").value,
+        notes: document.getElementById("officerNotes").value
+      };
+
+      try {
+        const res = await fetch("/api/alerts/officer_confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === "SUCCESS") {
+          const certBox = document.getElementById("bsaCertContainer");
+          document.getElementById("bsaCertDigest").textContent = data.certificate_digest;
+          document.getElementById("bsaCertTimestamp").textContent = `Digitally Signed: ${new Date().toLocaleString()} | Verifier: ${payload.officer_badge}`;
+          certBox.classList.remove("hidden");
+
+          alert(`✓ OFFICER VERIFICATION RECORDED\n\nDecision: ${data.decision}\nSection 63 BSA Hash Digest:\n${data.certificate_digest}`);
+          setTimeout(() => {
+            closeOfficerConfirmModal();
+          }, 1800);
+        }
+      } catch (err) {
+        console.error("Confirmation error:", err);
+        alert("Error logging officer confirmation certificate.");
+      }
+    };
+
+    // ==================== DUAL AI SUPER-RESOLUTION INSPECTOR ====================
+    window.inspectCurrentSuperResolution = function() {
+      const raw = currentActiveAlert ? currentActiveAlert.raw_detection_crop : "/frontend/assets/placeholder.jpg";
+      const enh = currentActiveAlert ? currentActiveAlert.enhanced_detection_crop : "/frontend/assets/placeholder.jpg";
+      openDualEnhancerModal(raw, enh);
+    };
+
+    window.openDualEnhancerModal = function(rawUrl, enhancedUrl) {
+      const m = document.getElementById("forensicEnhanceModal");
+      if (!m) return;
+      document.getElementById("dualRawImg").src = rawUrl || "/frontend/assets/placeholder.jpg";
+      document.getElementById("dualEnhancedImg").src = enhancedUrl || "/frontend/assets/placeholder.jpg";
+      m.classList.remove("hidden");
+    };
+
+    window.closeDualEnhancerModal = function() {
+      const m = document.getElementById("forensicEnhanceModal");
+      if (m) m.classList.add("hidden");
+    };
+
+    // Initialize Page
+    async function init() {
+      await loadCamerasFromBackend();
+      setInterval(pollCameras, CAMERA_POLL_INTERVAL_MS);
+      pollNotifications();
+      setInterval(pollNotifications, NOTIF_POLL_INTERVAL_MS);
+    }
+
+    init();
+  </script>
+
+  <!-- Toast Container -->
+  <div id="notif-toast-container"></div>
+
+  <!-- Stampede Warning Notification Drawer -->
+  <div id="notif-drawer-overlay" class="hidden" onclick="toggleNotifDrawer()"
+    style="position: fixed; inset: 0; z-index: 9990; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); transition: opacity 0.3s ease;">
+  </div>
+  <aside id="notif-drawer" class="hidden"
+    style="position: fixed; top: 0; right: 0; bottom: 0; width: 440px; max-width: 95vw; z-index: 9995; background: #ffffff; box-shadow: -4px 0 25px rgba(0,0,0,0.15); display: flex; flex-direction: column; transition: transform 0.3s ease;">
+    <!-- Drawer Header -->
+    <div style="padding: 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; background: #fff1f2;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 22px;">🚨</span>
+        <div>
+          <h2 style="font-size: 16px; font-weight: 800; color: #9f1239; margin: 0;">Target Suspect & Re-ID Alerts</h2>
+          <div style="font-size: 11px; font-weight: 600; color: #be123c;">Real-Time Multi-Camera Tracking & Security Notifications</div>
+        </div>
+      </div>
+      <button onclick="toggleNotifDrawer()" style="background: transparent; border: none; font-size: 20px; color: #881337; cursor: pointer; padding: 4px;">✕</button>
     </div>
 
-    <!-- TAB: Standalone District CCTV Multi-Camera Grid (16 Cameras) -->
-    <main class="tab-content active" id="tabCctvGrid" style="display: block;">
-        <div class="cctv-streams-grid" id="cctvStreamsGrid">
-            <!-- Dynamically populated with 16 CCTV camera cards via app.js -->
-        </div>
-    </main>
-
-    <!-- TAB 0: Palantir Gotham-Style Target Investigation Graph Hub -->
-    <main class="dashboard-grid tab-content" id="tabInvestigation" style="grid-template-columns: 1fr; display: flex; flex-direction: column; gap: 16px;">
-        <!-- Header: Investigation Banner -->
-        <div class="inv-case-header">
-            <div class="inv-case-title">
-                <div class="pulse-dot" style="background:var(--accent-crimson); width:12px; height:12px;"></div>
-                <div class="inv-case-badge">INVESTIGATION <span id="invCaseNumberTitle" style="color:var(--accent-cyan)">#INC-2026-0041</span></div>
-                <span class="inv-pill pill-amber" id="invPriorityBadge">CRITICAL PRIORITY</span>
-                <span class="inv-pill pill-cyan" id="invOfficerBadge">OFFICER: AP-EG-8821</span>
-            </div>
-            <div style="display:flex; gap:10px; align-items:center;">
-                <span class="inv-pill pill-green">ACTIVE CASE</span>
-                <button class="btn" style="background:#1e293b; color:#94a3b8; border:1px solid #334155; font-size:0.75rem; padding:6px 12px; cursor:pointer;" onclick="reseedGothamDemo()">
-                    ↺ Reset Scenario
-                </button>
-            </div>
-        </div>
-
-        <!-- Row 1: Incident Origin, Person of Interest Probe, and "FIND THIS PERSON" Action -->
-        <div class="inv-overview-grid">
-            <!-- Box A: Incident Details -->
-            <section class="panel" style="margin:0;">
-                <div class="panel-header">
-                    <div class="panel-title">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-                        </svg>
-                        <span>Incident Origin</span>
-                    </div>
-                    <span class="inv-pill pill-cyan">CAM-017</span>
-                </div>
-                <div style="font-size:0.82rem; margin-top:8px;">
-                    <div style="color:var(--accent-cyan); font-weight:700; font-family:var(--font-mono); font-size:1.05rem;">
-                        CAM-017 | 18:42:11
-                    </div>
-                    <div style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">
-                        Sector 4 Commercial Plaza North Exit
-                    </div>
-                    <div style="margin-top:12px; font-size:0.78rem; color:var(--text-secondary); line-height:1.4;">
-                        Incident initiation: Person of interest observed departing crime scene northward. Face covered / unavailable, carrying dark backpack.
-                    </div>
-                </div>
-            </section>
-
-            <!-- Box B: Person of Interest (Seed Target) -->
-            <section class="panel" style="margin:0;">
-                <div class="panel-header">
-                    <div class="panel-title">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                        </svg>
-                        <span>Person of Interest (Seed Probe)</span>
-                    </div>
-                    <span class="inv-pill pill-amber">TRACK 481</span>
-                </div>
-                <div style="display:flex; gap:14px; margin-top:8px;">
-                    <div style="width:70px; height:95px; background:#0b1120; border:1px solid #233354; border-radius:4px; overflow:hidden; flex-shrink:0;">
-                        <img src="/frontend/assets/placeholder.jpg" alt="Probe Crop" style="width:100%; height:100%; object-fit:cover;">
-                    </div>
-                    <div style="display:flex; flex-wrap:wrap; gap:6px; align-content:flex-start;">
-                        <span class="inv-pill pill-amber" id="probeFaceBadge">Face: unavailable</span>
-                        <span class="inv-pill pill-cyan" id="probeBodyBadge">Body: available</span>
-                        <span class="inv-pill pill-green" id="probeGaitBadge">Gait: available</span>
-                        <span class="inv-pill pill-blue" id="probeClothingBadge">Clothing: available</span>
-                        <span class="inv-pill pill-purple" id="probeHeightBadge">Height: 178 cm (±3cm)</span>
-                        <span class="inv-pill pill-amber" id="probeObjectBadge">Backpack: detected</span>
-                        <span class="inv-pill pill-teal" id="probeDirectionBadge">Direction: NORTH</span>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Box C: FIND THIS PERSON Action Button -->
-            <section class="panel" style="margin:0; display:flex; flex-direction:column; justify-content:center; padding:12px;">
-                <button class="btn-find-person" id="btnFindPerson" onclick="executeFindPerson()">
-                    <span>🔍 FIND THIS PERSON ACROSS CCTV NETWORK</span>
-                    <small style="font-size:0.68rem; font-weight:400; opacity:0.85; text-align:center;">
-                        Searches observation database, tests spatio-temporal travel velocity, & fuses multi-modal evidence
-                    </small>
-                </button>
-            </section>
-        </div>
-
-        <!-- Row 2: Movement Timeline -->
-        <section class="panel" style="margin:0;">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H6v-2h6v2zm4-4H6v-2h10v2zm0-4H6V7h10v2z"/>
-                    </svg>
-                    <span>Movement Timeline (Cross-Camera Transit Sequence)</span>
-                </div>
-                <span class="inv-pill pill-teal">CAM-017 ── CAM-018 ── CAM-021 ── CAM-023</span>
-            </div>
-            <div class="timeline-reel" id="movementTimelineReel">
-                <!-- Dynamically populated via investigation.js -->
-            </div>
-        </section>
-
-        <!-- Row 3: Associated Observations & Transparent Evidence Matrix -->
-        <div style="display:grid; grid-template-columns: 1.1fr 1.4fr; gap: 16px;">
-            <!-- Column A: Associated Observations Reel -->
-            <section class="panel" style="margin:0;">
-                <div class="panel-header">
-                    <div class="panel-title">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/>
-                        </svg>
-                        <span>Associated Observations</span>
-                    </div>
-                    <span class="inv-pill pill-cyan">CLICK TO INSPECT</span>
-                </div>
-                <div class="assoc-grid" id="associatedObservationsGrid" style="margin-top:10px;">
-                    <!-- Populated via investigation.js -->
-                </div>
-            </section>
-
-            <!-- Column B: Transparent Defensible Evidence Matrix -->
-            <section class="panel" style="margin:0;">
-                <div class="panel-header">
-                    <div class="panel-title">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
-                        </svg>
-                        <span>Transparent Evidence Matrix (Defensible Breakdown)</span>
-                    </div>
-                    <span class="inv-pill pill-purple">NO OPAQUE MATCH SCORES</span>
-                </div>
-                <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
-                    Multi-modal evidence is itemized independently for forensic transparency and courtroom defensibility.
-                </div>
-                <div class="evidence-matrix-list" id="evidenceMatrixList">
-                    <!-- Populated via investigation.js -->
-                </div>
-                <div style="margin-top:14px; display:flex; justify-content:flex-end;">
-                    <button class="btn btn-confirm" id="btnReviewAssociation" style="padding:8px 18px; font-size:0.82rem; font-weight:700;">
-                        ⚖️ REVIEW ASSOCIATION (CONSEQUENTIAL DECISION)
-                    </button>
-                </div>
-            </section>
-        </div>
-
-        <!-- Row 4: Investigation Graph Canvas -->
-        <section class="panel" style="margin:0;">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-                    </svg>
-                    <span>Investigation Graph (Incidents, Targets, Tracks, Cameras)</span>
-                </div>
-                <span class="inv-pill pill-green">INTERACTIVE NODE-EDGE TOPOLOGY</span>
-            </div>
-            <div class="graph-canvas-box">
-                <canvas id="investigationGraphCanvas"></canvas>
-            </div>
-        </section>
-    </main>
-
-    <!-- TAB 1: Main Command Center Grid -->
-    <main class="dashboard-grid tab-content" id="tabSurveillance">
-        <!-- Panel 1: Live CCTV Stream & Camera Network Matrix -->
-        <section class="panel" id="panelLiveCCTV">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-                    </svg>
-                    <span>CCTV Video Analytics Feed</span>
-                </div>
-                <span class="badge online" id="camResolutionTag">1024 x 576 • 25 FPS</span>
-            </div>
-
-            <!-- Video Player -->
-            <div class="video-wrapper">
-                <img src="/api/video_feed" alt="Live CCTV Stream" class="video-player" id="liveVideoPlayer">
-                <div class="camera-hud">
-                    <div class="hud-rec">
-                        <span class="pulse-dot"></span>
-                        <span id="camOverlayTitle">CAM-001 | HOSPITAL NORTH CORRIDOR</span>
-                    </div>
-                    <div style="color: var(--accent-cyan)">AI MULTI-CRITERIA HUD: ON</div>
-                </div>
-            </div>
-
-            <!-- Camera Network Selector -->
-            <div style="margin-top: 14px;">
-                <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">
-                    District Camera Topology Switcher
-                </div>
-                <div class="camera-selector" id="cameraSelector">
-                    <!-- Populated via JS -->
-                </div>
-            </div>
-
-            <!-- Live Track Stream Selection -->
-            <div style="margin-top: 14px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">
-                        Detected Person Tracks in Scene
-                    </span>
-                    <span style="font-size: 0.7rem; color: var(--accent-cyan); font-family: var(--font-mono);">
-                        SELECT TO INSPECT
-                    </span>
-                </div>
-                <div class="tracks-strip" id="tracksStrip">
-                    <!-- Populated via JS -->
-                </div>
-            </div>
-        </section>
-
-        <!-- Panel 2: Selected Person Dossier & Multi-Modal Biometrics -->
-        <section class="panel" id="panelBiometrics">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                    </svg>
-                    <span>Person Biometrics & Gait Dynamics</span>
-                </div>
-                <span class="badge" id="dossierFaceBadge">FACE EVALUATION</span>
-            </div>
-
-            <!-- Track Header Info -->
-            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;">
-                <div>
-                    <span style="font-size:0.75rem; color:var(--text-muted)">TARGET DOSSIER:</span>
-                    <strong style="font-size:1.2rem; font-family:var(--font-mono); color:var(--accent-cyan)" id="dossierTrackId">SELECT TRACK</strong>
-                </div>
-                <div style="font-size:0.75rem; color:var(--text-secondary)">
-                    Evidence Frame Selection: <strong style="color:var(--accent-emerald)">BEST QUALITY</strong>
-                </div>
-            </div>
-
-            <!-- 3-Part Face Decomposition Matrix -->
-            <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">
-                3-Part Face Partition & Mask Resilience
-            </div>
-            <div class="face-tiers-grid">
-                <div class="face-visual-box">
-                    <div class="face-tier-slice tier-visible" id="sliceUpper">UPPER</div>
-                    <div class="face-tier-slice tier-visible" id="sliceMid">MID</div>
-                    <div class="face-tier-slice tier-masked" id="sliceLower">LOWER</div>
-                </div>
-                <div class="face-details-list">
-                    <div class="tier-row">
-                        <span style="color:var(--text-secondary)">Upper (Forehead/Eyes):</span>
-                        <strong id="valUpperStatus" style="color:var(--text-primary)">Analyzing...</strong>
-                    </div>
-                    <div class="tier-row">
-                        <span style="color:var(--text-secondary)">Mid (Nose/Cheeks):</span>
-                        <strong id="valMidStatus" style="color:var(--text-primary)">Analyzing...</strong>
-                    </div>
-                    <div class="tier-row">
-                        <span style="color:var(--text-secondary)">Lower (Mouth/Jaw):</span>
-                        <strong id="valLowerStatus" style="color:var(--accent-amber)">Masked</strong>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Stature & Body Proportions Metrics -->
-            <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">
-                Perspective Height & Body Length Proportions
-            </div>
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <span class="metric-label">Calibrated Height</span>
-                    <span class="metric-value" id="metricHeight">-- cm</span>
-                    <span class="metric-sub">Perspective Calibrated</span>
-                </div>
-                <div class="metric-card">
-                    <span class="metric-label">Torso / Leg Ratio</span>
-                    <span class="metric-value" id="metricRatio">--</span>
-                    <span class="metric-sub">Anatomical Ratio</span>
-                </div>
-            </div>
-
-            <!-- Clothing Color Signature -->
-            <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">
-                Extracted Clothing Palette
-            </div>
-            <div class="swatch-group" style="margin-bottom: 14px;">
-                <div class="swatch-pill">
-                    <span class="swatch-circle" id="upperSwatch" style="background:#5c4033"></span>
-                    <span>Upper: <strong id="upperHexText">#5c4033</strong></span>
-                </div>
-                <div class="swatch-pill">
-                    <span class="swatch-circle" id="lowerSwatch" style="background:#1f2421"></span>
-                    <span>Lower: <strong id="lowerHexText">#1f2421</strong></span>
-                </div>
-            </div>
-
-            <!-- Gait & Posture Dynamics Section -->
-            <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">
-                Walking Style & Gait Dynamics (Pose Sequence)
-            </div>
-            <div class="metrics-grid" style="margin-bottom: 10px;">
-                <div class="metric-card">
-                    <span class="metric-label">Stride Length</span>
-                    <span class="metric-value" id="metricStride">-- cm</span>
-                    <span class="metric-sub" id="metricCadence">-- steps/s</span>
-                </div>
-                <div class="metric-card">
-                    <span class="metric-label">Spine Lean / Posture</span>
-                    <span class="metric-value" id="metricTilt">--°</span>
-                    <span class="metric-sub" id="metricPosture">--% Correctness</span>
-                </div>
-            </div>
-
-            <!-- Stride Cycle Waveform Canvas -->
-            <div class="waveform-box">
-                <div class="waveform-header">
-                    <span>Temporal Inter-Ankle Stride Oscillation Waveform S(t)</span>
-                    <span style="font-family:var(--font-mono); color:var(--accent-cyan)">HARMONIC GAIT</span>
-                </div>
-                <canvas id="gaitCanvas"></canvas>
-            </div>
-        </section>
-
-        <!-- Panel 3: Criminal Database Matching & Multi-Modal Fusion Matrix -->
-        <section class="panel" id="panelMatches">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-                    </svg>
-                    <span>Criminal Database Fusion Matches</span>
-                </div>
-                <span class="badge" style="color:var(--accent-cyan); border-color:rgba(0,242,254,0.3)">
-                    EVIDENCE FUSION
-                </span>
-            </div>
-
-            <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4; margin-bottom:12px;">
-                Non-binary candidate ranking. If face is masked or occluded, biometric weights dynamically redistribute to Body, Gait, and Calibrated Stature.
-            </div>
-
-            <!-- Ranked Candidate Matches List -->
-            <div class="candidates-container" id="candidatesList">
-                <div style="color:var(--text-muted); font-size:0.85rem; padding:12px;">
-                    Select a track to evaluate database matches...
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- TAB 2: Cross-Camera Spatio-Temporal Trajectory -->
-    <main class="dashboard-grid tab-content" id="tabCrossCamera" style="grid-template-columns: 1fr 1fr;">
-        <section class="panel">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                    </svg>
-                    <span>District CCTV Network Topology Graph</span>
-                </div>
-                <span class="badge online">5 ACTIVE NODES</span>
-            </div>
-            <div id="cameraTopologyGraph" class="topology-container">
-                <!-- Populated via JS -->
-            </div>
-        </section>
-
-        <section class="panel">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/>
-                    </svg>
-                    <span>Reconstructed Suspect Journey Trajectory</span>
-                </div>
-                <span class="badge" id="journeyConfidenceBadge">SPATIO-TEMPORAL BOUNDS</span>
-            </div>
-            <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:12px;">
-                Correlates track observations across camera transitions using travel-time windows: &Delta;t<sub>min</sub> &le; t<sub>camB</sub> - t<sub>camA</sub> &le; &Delta;t<sub>max</sub>.
-            </div>
-            <div id="journeyTimeline" class="journey-timeline">
-                <div style="color:var(--text-muted); font-size:0.85rem; padding:12px;">
-                    Select a track to reconstruct multi-camera journey...
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- TAB 3: Police Governance & Immutable Audit Ledger -->
-    <main class="dashboard-grid tab-content" id="tabCompliance" style="grid-template-columns: 2fr 1fr;">
-        <section class="panel">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
-                    </svg>
-                    <span>Tamper-Evident Cryptographic Audit Ledger (SHA-256 Hash Chain)</span>
-                </div>
-                <button class="btn btn-verify" onclick="runAuditVerification()">Verify Hash-Chain Integrity</button>
-            </div>
-            <div id="auditVerificationBanner" style="display:none; margin-bottom:12px; padding:10px 14px; border-radius:6px; font-size:0.8rem;"></div>
-            <div class="audit-table-wrapper">
-                <table class="audit-table">
-                    <thead>
-                        <tr>
-                            <th>Entry ID</th>
-                            <th>Time</th>
-                            <th>Officer / Badge</th>
-                            <th>Action</th>
-                            <th>Resource</th>
-                            <th>SHA-256 Hash Chaining</th>
-                        </tr>
-                    </thead>
-                    <tbody id="auditTableBody">
-                        <!-- Populated via JS -->
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <section class="panel">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
-                    </svg>
-                    <span>Biometric Governance & Data Minimization</span>
-                </div>
-                <span class="badge online">DPDP ACT COMPLIANT</span>
-            </div>
-            <div class="retention-card" id="retentionStatusCard">
-                <!-- Populated via JS -->
-            </div>
-            <div style="margin-top: 14px;">
-                <button class="btn btn-purge" onclick="triggerPurge()">Execute Authorized Biometric Purge</button>
-            </div>
-        </section>
-    </main>
-
-    <!-- TAB 4: Model Stack Benchmarking, Switching & License Governance -->
-    <main class="dashboard-grid tab-content" id="tabBenchmark" style="grid-template-columns: 1fr 1fr;">
-        <!-- Column 1, Panel A: CMC Retrieval Accuracy -->
-        <section class="panel">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-                    </svg>
-                    <span>Independent CCTV Benchmark & CMC Metrics</span>
-                </div>
-                <span class="badge" id="bmGalleryBadge" style="color:var(--accent-cyan); border-color:rgba(0,242,254,0.3)">40 GALLERY | 8 DISTRACTORS</span>
-            </div>
-            <div class="benchmark-kpi-grid">
-                <div class="kpi-card">
-                    <span class="kpi-label">Rank-1 Retrieval</span>
-                    <span class="kpi-val" id="bmRank1">100.0%</span>
-                </div>
-                <div class="kpi-card">
-                    <span class="kpi-label">Rank-5 Retrieval</span>
-                    <span class="kpi-val" id="bmRank5">100.0%</span>
-                </div>
-                <div class="kpi-card">
-                    <span class="kpi-label">Mean Avg Precision (mAP)</span>
-                    <span class="kpi-val" id="bmMAP">100.0%</span>
-                </div>
-                <div class="kpi-card">
-                    <span class="kpi-label">False Match Rate (FMR)</span>
-                    <span class="kpi-val" id="bmFMR">0.00%</span>
-                </div>
-            </div>
-            <div style="margin-top: 16px;">
-                <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">
-                    Pipeline Latency Breakdown (Throughput: <strong id="bmFPS" style="color:var(--accent-emerald)">23.3 FPS</strong>)
-                </div>
-                <div id="latencyBars" class="latency-container">
-                    <!-- Populated via JS -->
-                </div>
-            </div>
-
-            <!-- 8 CCTV Environmental Conditions Robustness -->
-            <div style="margin-top: 18px; border-top: 1px solid var(--border-color); padding-top: 14px;">
-                <div style="font-size:0.78rem; font-weight:700; color:var(--text-primary); margin-bottom:10px;">
-                    Accuracy Under 8 Adverse CCTV Conditions:
-                </div>
-                <div id="viewpointBars" class="ablation-container">
-                    <!-- Populated via JS -->
-                </div>
-            </div>
-        </section>
-
-        <!-- Column 2, Panel B: Multi-Modal Ablation Study -->
-        <section class="panel">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
-                    </svg>
-                    <span>Multi-Modal Ablation (Proving Fusion Added Value)</span>
-                </div>
-                <span class="badge online">EMPIRICAL ABLATION</span>
-            </div>
-            <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:14px;">
-                Proves single-modality baselines (face-only, body-only, gait-only) suffer catastrophic accuracy drops under occlusion/rear views, whereas our dynamic evidence fusion achieves complete resilience.
-            </div>
-            <div id="ablationBars" class="ablation-container">
-                <!-- Populated via JS -->
-            </div>
-
-            <!-- Head-to-Head Model Comparison Matrix -->
-            <div style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 14px;">
-                <div style="font-size:0.78rem; font-weight:700; color:var(--text-primary); margin-bottom:8px;">
-                    Open-Source Model Candidate Benchmark:
-                </div>
-                <div id="modelComparisonBox" style="font-size:0.75rem;">
-                    <!-- Populated via JS -->
-                </div>
-            </div>
-        </section>
-
-        <!-- Row 2, Panel C: Dynamic Model Architecture Switcher -->
-        <section class="panel">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                    </svg>
-                    <span>Pluggable Model Architecture Switcher</span>
-                </div>
-                <span class="badge" style="color:var(--accent-emerald); border-color:rgba(16,185,129,0.3)">HOT-SWAP</span>
-            </div>
-            <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:14px;">
-                Switch active backends without restarting the platform. Adapters decouple models from downstream fusion logic.
-            </div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <div class="form-group">
-                    <label style="font-size:0.75rem; color:var(--text-muted)">Person Detector</label>
-                    <select id="selDetector" class="form-control" style="background:#151d2f; color:#fff; border:1px solid #2a3a5c; border-radius:6px; padding:6px 10px; width:100%;">
-                        <option value="yolo">YOLO (v8/11) - Ultralytics</option>
-                        <option value="rtdetr">RT-DETR - Baidu Transformer</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label style="font-size:0.75rem; color:var(--text-muted)">Tracking Backend</label>
-                    <select id="selTracker" class="form-control" style="background:#151d2f; color:#fff; border:1px solid #2a3a5c; border-radius:6px; padding:6px 10px; width:100%;">
-                        <option value="bytetrack">ByteTrack (Two-Stage IoU)</option>
-                        <option value="botsort">BoT-SORT (with CMC Camera Motion)</option>
-                        <option value="deepstream">NVIDIA DeepStream (NvTracker)</option>
-                        <option value="mmtracking">MMTracking (OpenMMLab MOT)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label style="font-size:0.75rem; color:var(--text-muted)">Body Re-ID Model</label>
-                    <select id="selReID" class="form-control" style="background:#151d2f; color:#fff; border:1px solid #2a3a5c; border-radius:6px; padding:6px 10px; width:100%;">
-                        <option value="osnet">Torchreid OSNet-512d (Omni-Scale)</option>
-                        <option value="fastreid">FastReID SBS-50 (Stronger Baseline)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label style="font-size:0.75rem; color:var(--text-muted)">Gait Recognition Backend</label>
-                    <select id="selGait" class="form-control" style="background:#151d2f; color:#fff; border:1px solid #2a3a5c; border-radius:6px; padding:6px 10px; width:100%;">
-                        <option value="gaitset">GaitSet Dynamics & Kinematics</option>
-                        <option value="opengait">OpenGait (GaitBase / GaitGL)</option>
-                    </select>
-                </div>
-            </div>
-            <div style="margin-top: 14px; display:flex; justify-content:flex-end;">
-                <button class="btn btn-confirm" onclick="applyModelSelection()" style="padding:8px 18px; font-size:0.82rem;">
-                    Apply Model Stack Selection
-                </button>
-            </div>
-
-            <!-- GitHub Neural Weights & Account Sync Section -->
-            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                    <div style="font-size:0.75rem; font-weight:600; color:var(--accent-blue);">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px; margin-right:4px;">
-                            <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/>
-                        </svg>
-                        GitHub Neural Weights & Repo Sync
-                    </div>
-                    <span id="gitAccountBadge" class="badge" style="font-size:0.65rem; color:var(--accent-cyan); border-color:rgba(6,182,212,0.3)">
-                        GIT: abdulaleemarshad1979
-                    </span>
-                </div>
-                <div id="githubModelsList" style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size:0.72rem; margin-bottom: 10px;">
-                    <!-- Populated dynamically via app.js -->
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span id="downloadStatusText" style="font-size:0.72rem; color:var(--text-muted)">Neural perception weights active</span>
-                    <button class="btn" onclick="downloadAllGitHubModels()" style="padding:5px 12px; font-size:0.75rem; background:rgba(37,99,235,0.2); border:1px solid rgba(59,130,246,0.4); color:var(--accent-blue);">
-                        Sync Models from GitHub
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- Row 2, Panel D: Open-Source Code & Model License Governance -->
-        <section class="panel">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
-                    </svg>
-                    <span>Code & Model Weights License Auditor</span>
-                </div>
-                <span class="badge" id="legalComplianceBadge" style="color:var(--accent-emerald)">CHECKING...</span>
-            </div>
-            <div id="licenseAuditContent" style="font-size:0.76rem; max-height:280px; overflow-y:auto;">
-                <!-- Populated via JS -->
-            </div>
-        </section>
-    </main>
-
-    <!-- MANDATORY HUMAN REVIEW GATE MODAL -->
-    <div class="modal-overlay" id="reviewModal">
-        <div class="modal-card">
-            <div class="modal-header">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="pulse-dot" style="background:var(--accent-amber)"></span>
-                    <strong style="font-size:1.1rem; color:var(--text-primary)">Mandatory Human Investigator Review Gate</strong>
-                </div>
-                <button class="modal-close-btn" onclick="closeReviewModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="review-suspect-summary" id="modalSuspectSummary">
-                    <!-- Populated via JS -->
-                </div>
-
-                <div class="review-form">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Investigating Officer Name</label>
-                            <input type="text" id="officerNameInput" value="Inspector V. R. Sekhar">
-                        </div>
-                        <div class="form-group">
-                            <label>Police Badge Number</label>
-                            <input type="text" id="officerBadgeInput" value="AP-KKD-1042">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Forensic Review & Evidence Justification Notes</label>
-                        <textarea id="reviewNotesInput" rows="3" placeholder="Explain verification of facial structure, height delta, stride dynamics, and clothing match..."></textarea>
-                    </div>
-
-                    <div class="modal-actions">
-                        <button class="btn btn-reject" onclick="confirmReviewDecision('REJECTED_FALSE_POSITIVE')">
-                            Reject as False Positive
-                        </button>
-                        <button class="btn btn-confirm" onclick="confirmReviewDecision('CONFIRMED_MATCH')">
-                            Confirm Match (Issue Warrant)
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <!-- Drawer Toolbar -->
+    <div style="padding: 12px 20px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; background: #f8fafc; font-size: 12px;">
+      <span style="color: #64748b; font-weight: 700;">Live Feed Detections</span>
+      <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #475569;">
+        <input type="checkbox" id="chk-audio-alert" checked style="accent-color: #e11d48; cursor: pointer;">
+        <label for="chk-audio-alert" style="cursor: pointer;">Sound Alarm</label>
+      </div>
     </div>
 
-    <!-- GOTHAM INVESTIGATION REVIEW MODAL -->
-    <div class="modal-overlay" id="investigationReviewModal">
-        <div class="modal-card">
-            <div class="modal-header">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="pulse-dot" style="background:var(--accent-cyan)"></span>
-                    <strong style="font-size:1.1rem; color:var(--text-primary)">Consequential Decision Review Gate</strong>
-                </div>
-                <button class="modal-close-btn" onclick="closeInvestigationReviewModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="review-suspect-summary" id="invModalCandidateSummary">
-                    <!-- Populated via JS -->
-                </div>
-
-                <div class="review-form">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Investigating Officer Name</label>
-                            <input type="text" id="invReviewOfficerName" value="Inspector R. Varma">
-                        </div>
-                        <div class="form-group">
-                            <label>Police Badge Number</label>
-                            <input type="text" id="invReviewOfficerBadge" value="AP-EG-8821">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Forensic Rationale & Modality Attribution Notes</label>
-                        <textarea id="invReviewNotesInput" rows="3" placeholder="Document corroborated evidence: body proportions, northward trajectory, matching backpack, transit travel velocity..."></textarea>
-                    </div>
-
-                    <div class="modal-actions">
-                        <button class="btn btn-reject" onclick="submitAdjudicationDecision('REJECT_ASSOCIATION')">
-                            Reject Association
-                        </button>
-                        <button class="btn" style="background:#334155; color:#fff;" onclick="submitAdjudicationDecision('DEFER_REVIEW')">
-                            Defer Review
-                        </button>
-                        <button class="btn btn-confirm" onclick="submitAdjudicationDecision('CONFIRM_IDENTITY')">
-                            Confirm Association (Promote to Target)
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <!-- Drawer Content / Alert Cards List -->
+    <div id="notif-list" style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="text-align: center; color: #64748b; padding: 40px 16px; font-size: 13px;">
+        No active target alerts detected. All 16 CCTV surveillance feeds are clear.
+      </div>
     </div>
+  </aside>
 
-    <!-- CCTV FULL-VIEW EXPANDED MODAL -->
-    <div class="modal-overlay" id="cctvFullViewModal">
-        <div class="modal-card modal-xl">
-            <div class="modal-header">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span class="cctv-status-dot"></span>
-                    <strong style="font-size:1.15rem; color:var(--text-primary)" id="fullViewModalTitle">CAM 1 | KAKINADA HOSPITAL CORRIDOR</strong>
-                    <span class="cctv-sector-tag" id="fullViewModalSector">Hospital</span>
-                </div>
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <div style="display:flex; gap:6px;">
-                        <button class="btn" style="padding:4px 10px; font-size:0.72rem; background:rgba(56,189,248,0.2); border:1px solid var(--accent-cyan); color:#fff;" id="btnModeClean" onclick="setOverlayMode('clean')">Clean View</button>
-                        <button class="btn" style="padding:4px 10px; font-size:0.72rem; background:#1e293b; border:1px solid #334155; color:#94a3b8;" id="btnModeMinimal" onclick="setOverlayMode('minimal')">Minimal Box</button>
-                    </div>
-                    <button class="modal-close-btn" onclick="closeCctvFullViewModal()">&times;</button>
-                </div>
-            </div>
-            <div class="modal-body" style="padding:16px;">
-                <div class="full-screen-cctv-box" id="fullViewVideoBox">
-                    <img src="/api/video_feed" alt="Full Resolution CCTV Stream" style="width:100%; height:100%; object-fit:contain;" id="fullViewStreamImg">
-                    <div class="cctv-overlay-osd">
-                        <span id="fullViewOsdCam">CAM-001 • HOSPITAL NORTH WING</span>
-                        <span id="fullViewOsdClock">2026-09-19 18:42:11 IST</span>
-                    </div>
-                    <div class="cctv-osd-bottom">
-                        <span>STREAM: RTSP/HLS 1080p • 25.0 FPS</span>
-                        <span>AI HUD: SKELETON CLUTTER HIDDEN (STREAM SMOOTH)</span>
-                    </div>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                    <div style="font-size:0.78rem; color:var(--text-secondary)">
-                        Sector Location: <strong id="fullViewLocationText" style="color:#f1f5f9">Kakinada - Government General Hospital East Zone</strong>
-                    </div>
-                    <div style="display:flex; gap:10px;">
-                        <button class="btn" style="padding:6px 14px; font-size:0.75rem; background:rgba(37,99,235,0.2); border:1px solid #3b82f6; color:#93c5fd;" onclick="triggerLiveCrossCameraSearch()">
-                            🔍 Search Suspect on this Camera
-                        </button>
-                    </div>
-                </div>
-            </div>
+  <!-- Dedicated Full View Modal Overlay -->
+  <div id="full-view-modal" class="full-view-modal hidden">
+    <div class="full-view-backdrop" onclick="closeFullViewModal()"></div>
+    <div class="full-view-content">
+      <div class="full-view-header">
+        <div class="full-view-title-group">
+          <span class="full-view-badge">LIVE MONITORING</span>
+          <h2 id="full-view-title" class="full-view-title">Camera Feed</h2>
         </div>
-    </div>
-
-    <!-- SUSPECT INTAKE & BIOMETRIC STORAGE MODAL -->
-    <div class="modal-overlay" id="suspectIntakeModal">
-        <div class="modal-card" style="max-width:720px; width:92%;">
-            <div class="modal-header">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <div class="pulse-dot" style="background:var(--accent-cyan)"></div>
-                    <strong style="font-size:1.1rem; color:var(--text-primary)">Suspect Biometric Intake & Database Storage</strong>
-                </div>
-                <button class="modal-close-btn" onclick="closeSuspectIntakeModal()">&times;</button>
-            </div>
-            <div class="modal-body" style="padding:18px;">
-                <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:14px; line-height:1.4;">
-                    Register suspect photo or video to extract FRS face features, body Re-ID, skeletal gait movement dynamics, height, and carried objects. The system will store the profile in the central repository and search across all live CCTV feeds.
-                </p>
-
-                <div style="display:grid; grid-template-columns: 180px 1fr; gap:16px; margin-bottom:16px;">
-                    <!-- Photo Upload / Preview -->
-                    <div>
-                        <div style="width:100%; height:200px; background:#0b1120; border:2px dashed #2a3a5c; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; position:relative;" id="intakePhotoDropzone">
-                            <img id="intakePhotoPreview" src="/frontend/assets/suspects/raju.jpg" alt="Suspect Preview" style="width:100%; height:100%; object-fit:cover;">
-                            <input type="file" id="intakePhotoInput" accept="image/*,video/*" style="position:absolute; inset:0; opacity:0; cursor:pointer;" onchange="handleIntakePhotoSelect(event)">
-                        </div>
-                        <button class="btn" style="width:100%; margin-top:8px; padding:6px; font-size:0.72rem; background:#1e293b; color:#94a3b8; border:1px solid #334155;" onclick="document.getElementById('intakePhotoInput').click()">
-                            📁 Upload Photo / Video
-                        </button>
-                    </div>
-
-                    <!-- Intake Form Details -->
-                    <div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Suspect Name</label>
-                                <input type="text" id="intakeName" value="Raju alias 'Shadow'">
-                            </div>
-                            <div class="form-group">
-                                <label>FIR Number</label>
-                                <input type="text" id="intakeFir" value="FIR-2026-AP-0194">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Police Station</label>
-                                <input type="text" id="intakeStation" value="PS-KAKINADA-CENTRAL">
-                            </div>
-                            <div class="form-group">
-                                <label>Acts / Sections</label>
-                                <input type="text" id="intakeActs" value="BNS Section 303(2), Section 111">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Known Height (cm)</label>
-                                <input type="number" id="intakeHeight" value="175">
-                            </div>
-                            <div class="form-group">
-                                <label>Upper Wear Color</label>
-                                <input type="color" id="intakeUpperColor" value="#1b2430" style="height:36px; padding:2px 4px; cursor:pointer;">
-                            </div>
-                            <div class="form-group">
-                                <label>Lower Wear Color</label>
-                                <input type="color" id="intakeLowerColor" value="#2c3539" style="height:36px; padding:2px 4px; cursor:pointer;">
-                            </div>
-                        </div>
-                        <div class="form-group" style="margin-top:6px;">
-                            <label style="font-size:0.74rem; color:var(--text-muted); margin-bottom:4px; display:block;">Carried Items / Accessories</label>
-                            <div style="display:flex; gap:14px; flex-wrap:wrap; font-size:0.78rem;">
-                                <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
-                                    <input type="checkbox" id="chkBackpack" checked> Backpack
-                                </label>
-                                <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
-                                    <input type="checkbox" id="chkShoulderBag"> Shoulder Bag
-                                </label>
-                                <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
-                                    <input type="checkbox" id="chkHandbag"> Handbag
-                                </label>
-                                <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
-                                    <input type="checkbox" id="chkParcel"> Carrying Parcel
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="modal-actions" style="border-top:1px solid rgba(255,255,255,0.08); padding-top:14px; margin-top:8px;">
-                    <button class="btn" style="background:#334155; color:#cbd5e1;" onclick="closeSuspectIntakeModal()">Cancel</button>
-                    <button class="btn btn-confirm" style="background:linear-gradient(135deg, #0284c7, #0369a1); border:1px solid var(--accent-cyan);" onclick="submitSuspectIntake()">
-                        💾 Save to Storage & Search Live Feeds
-                    </button>
-                </div>
-            </div>
+        <div class="full-view-actions">
+          <button class="full-view-btn" onclick="toggleNativeFullscreen()">
+            <svg style="width: 16px; height: 16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+            <span>Native Fullscreen</span>
+          </button>
+          <button class="full-view-close-btn" onclick="closeFullViewModal()">✕</button>
         </div>
+      </div>
+      <div id="full-view-body" class="full-view-body"></div>
     </div>
-
-    <!-- REAL-TIME SUSPECT MATCH ALERT & HITL OFFICER CONFIRMATION MODAL -->
-    <div class="modal-overlay" id="officerConfirmModal">
-        <div class="modal-card" style="max-width:860px; width:94%;">
-            <div class="modal-header" style="background:rgba(239, 68, 68, 0.15); border-bottom:1px solid rgba(239, 68, 68, 0.35);">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <div class="pulse-dot" style="background:var(--accent-crimson); width:14px; height:14px;"></div>
-                    <div>
-                        <strong style="font-size:1.15rem; color:#fca5a5;">🚨 HIGH PRIORITY: SUSPECT MATCH DETECTED ON CCTV</strong>
-                        <div style="font-size:0.74rem; color:#cbd5e1;" id="alertModalSubtitle">Camera: CAM-001 | Hospital North Wing • Timestamp: 18:42:11 IST</div>
-                    </div>
-                </div>
-                <button class="modal-close-btn" onclick="closeOfficerConfirmModal()">&times;</button>
-            </div>
-            <div class="modal-body" style="padding:18px;">
-                <!-- Side-by-side Probe vs Detection -->
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
-                    <div style="background:#0b1120; border:1px solid rgba(245, 158, 11, 0.3); border-radius:8px; padding:12px;">
-                        <div style="font-size:0.75rem; font-weight:700; color:#fbbf24; margin-bottom:8px; display:flex; justify-content:space-between;">
-                            <span>REGISTERED SUSPECT PROBE</span>
-                            <span class="cctv-sector-tag" style="background:rgba(245, 158, 11, 0.2); color:#fbbf24;">KNOWN RECORD</span>
-                        </div>
-                        <div style="display:flex; gap:12px;">
-                            <div style="width:105px; height:135px; background:#000; border-radius:4px; overflow:hidden; flex-shrink:0;">
-                                <img id="alertProbeImg" src="/frontend/assets/suspects/raju.jpg" alt="Suspect Probe" style="width:100%; height:100%; object-fit:cover;">
-                            </div>
-                            <div style="font-size:0.75rem; line-height:1.6; color:#cbd5e1;">
-                                <div>Name: <strong id="alertSuspectName" style="color:#fff">Raju alias 'Shadow'</strong></div>
-                                <div>FIR: <strong id="alertFirNo" style="color:var(--accent-cyan)">FIR-2026-AP-0194</strong></div>
-                                <div>Height: <strong id="alertSuspectHeight">175 cm</strong></div>
-                                <div>Upper Wear: <span class="swatch-circle" id="alertUpperSwatch" style="background:#1b2430; vertical-align:middle; width:12px; height:12px;"></span> <span id="alertUpperText">Dark Black</span></div>
-                                <div>Carried: <strong id="alertCarriedItems" style="color:#fbbf24">Dark Backpack</strong></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="background:#0b1120; border:1px solid rgba(16, 185, 129, 0.3); border-radius:8px; padding:12px;">
-                        <div style="font-size:0.75rem; font-weight:700; color:#10b981; margin-bottom:8px; display:flex; justify-content:space-between;">
-                            <span>LIVE CCTV DETECTION (CAM-001)</span>
-                            <span class="cctv-sector-tag" style="background:rgba(16, 185, 129, 0.2); color:#10b981;">REAL TIME CROP</span>
-                        </div>
-                        <div style="display:flex; gap:12px;">
-                            <div style="width:105px; height:135px; background:#000; border-radius:4px; overflow:hidden; flex-shrink:0; position:relative;">
-                                <img id="alertDetectionImg" src="/frontend/assets/placeholder.jpg" alt="Detected Crop" style="width:100%; height:100%; object-fit:cover;">
-                                <span style="position:absolute; bottom:2px; right:2px; font-size:0.6rem; background:rgba(0,0,0,0.7); color:#10b981; padding:1px 4px; border-radius:2px;">AI Restored</span>
-                            </div>
-                            <div style="font-size:0.75rem; line-height:1.6; color:#cbd5e1;">
-                                <div>Status: <strong style="color:#10b981">MATCH CANDIDATE (88.4%)</strong></div>
-                                <div>Camera: <strong id="alertDetectedCam" style="color:#fff">CAM-001 (Hospital)</strong></div>
-                                <div>Calibrated Height: <strong id="alertDetectedHeight" style="color:#fff">176 cm (Delta: 1cm)</strong></div>
-                                <div>Face Status: <strong id="alertFaceStatus" style="color:#f59e0b">Masked / Occluded</strong></div>
-                                <div>Carried Item: <strong style="color:#10b981">Backpack Confirmed</strong></div>
-                                <button class="btn" style="padding:2px 8px; font-size:0.68rem; margin-top:4px; background:rgba(56,189,248,0.2); border:1px solid var(--accent-cyan); color:var(--accent-cyan);" onclick="openForensicEnhanceModal()">
-                                    🔍 Inspect Enhanced Super-Resolution
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Transparent Evidence Breakdown Matrix -->
-                <div style="font-size:0.74rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">
-                    Multi-Modal Biometric Evidence Breakdown (Court-Defensible)
-                </div>
-                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin-bottom:16px;">
-                    <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; text-align:center;">
-                        <div style="font-size:0.68rem; color:var(--text-muted)">Face (InsightFace)</div>
-                        <div style="font-size:1.1rem; font-weight:800; color:var(--accent-cyan);" id="scoreFace">88%</div>
-                        <div style="font-size:0.62rem; color:#94a3b8">ArcFace 512d</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; text-align:center;">
-                        <div style="font-size:0.68rem; color:var(--text-muted)">Body Re-ID (OSNet)</div>
-                        <div style="font-size:1.1rem; font-weight:800; color:#10b981;" id="scoreBody">92%</div>
-                        <div style="font-size:0.62rem; color:#94a3b8">Appearance & Apparel</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; text-align:center;">
-                        <div style="font-size:0.68rem; color:var(--text-muted)">Gait Dynamics (GaitSet)</div>
-                        <div style="font-size:1.1rem; font-weight:800; color:#38bdf8;" id="scoreGait">87%</div>
-                        <div style="font-size:0.62rem; color:#94a3b8">Stride & Posture Lean</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; text-align:center;">
-                        <div style="font-size:0.68rem; color:var(--text-muted)">Height Calibrated</div>
-                        <div style="font-size:1.1rem; font-weight:800; color:#a855f7;" id="scoreHeight">98%</div>
-                        <div style="font-size:0.62rem; color:#94a3b8">175cm vs 176cm</div>
-                    </div>
-                </div>
-
-                <!-- Mandatory Officer Confirmation Form -->
-                <div style="background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px;">
-                    <div style="font-size:0.76rem; font-weight:700; color:#f8fafc; margin-bottom:8px;">
-                        Mandatory Law Enforcement Sign-Off (BSA Section 63 Compliant)
-                    </div>
-                    <div class="form-row" style="margin-bottom:8px;">
-                        <div class="form-group">
-                            <label>Reviewing Officer Name</label>
-                            <input type="text" id="confirmOfficerName" value="Inspector V. R. Sekhar">
-                        </div>
-                        <div class="form-group">
-                            <label>Police Badge Number</label>
-                            <input type="text" id="confirmOfficerBadge" value="AP-EG-8821">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Officer Confirmation Notes</label>
-                        <input type="text" id="confirmNotes" value="Visual verification confirmed: matching height stature, dark backpack, and posture lean angle. Proceeding with field interception.">
-                    </div>
-                    <div class="modal-actions" style="margin-top:12px;">
-                        <button class="btn btn-reject" onclick="submitOfficerDecision('REJECTED_FALSE_ALARM')">
-                            ❌ Reject as False Positive
-                        </button>
-                        <button class="btn btn-confirm" style="background:linear-gradient(135deg, #10b981, #059669); border-color:#34d399;" onclick="submitOfficerDecision('CONFIRMED_MATCH')">
-                            ✅ Confirm Match & Dispatch Interception Team
-                        </button>
-                    </div>
-                </div>
-            </div>
+  </div>
+  <!-- ==================== SUSPECT STORAGE & INTAKE MODAL ==================== -->
+  <div id="suspectIntakeModal" class="police-modal-overlay hidden">
+    <div class="police-modal-card" style="max-width: 720px;">
+      <div class="police-modal-header">
+        <div class="police-modal-title">
+          <span>🎯 Target Suspect Intake & Multi-Modal Storage</span>
         </div>
-    </div>
-
-    <!-- FORENSIC SUPER-RESOLUTION DUAL-VIEW INSPECTOR MODAL -->
-    <div class="modal-overlay" id="forensicEnhanceModal">
-        <div class="modal-card" style="max-width:840px; width:92%;">
-            <div class="modal-header">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <div class="pulse-dot" style="background:var(--accent-cyan)"></div>
-                    <strong style="font-size:1.1rem; color:var(--text-primary)">Target Crop AI Super-Resolution (CodeFormer + Real-ESRGAN)</strong>
-                </div>
-                <button class="modal-close-btn" onclick="closeForensicEnhanceModal()">&times;</button>
-            </div>
-            <div class="modal-body" style="padding:16px;">
-                <p style="font-size:0.76rem; color:var(--text-secondary); margin-bottom:12px;">
-                    Law enforcement forensic reconstruction: CodeFormer discrete codebook vector quantization restores facial geometry without synthetic hallucinations, while Real-ESRGAN upscales clothing textures and backpack buckles.
-                </p>
-
-                <div class="dual-enhancer-wrapper">
-                    <div class="enhancer-panel">
-                        <div class="enhancer-panel-header">
-                            <span style="color:#94a3b8">RAW CCTV OBSERVATION</span>
-                            <span class="cctv-sector-tag">GRAINY SENSOR</span>
-                        </div>
-                        <div class="enhancer-img-box">
-                            <img id="forensicRawImg" src="/frontend/assets/placeholder.jpg" alt="Raw CCTV Crop">
-                        </div>
-                        <div style="padding:8px; font-family:var(--font-mono); font-size:0.64rem; color:var(--text-muted); background:rgba(0,0,0,0.4);">
-                            SHA-256: a4f891b2c3d4e5f60718293a4b5c6d7e8f90123456789...
-                        </div>
-                    </div>
-
-                    <div class="enhancer-panel enhanced-glow">
-                        <div class="enhancer-panel-header" style="background:rgba(6, 182, 212, 0.1);">
-                            <span style="color:var(--accent-cyan)">AI RESTORED & UPSCALED</span>
-                            <span class="cctv-sector-tag" style="background:rgba(6, 182, 212, 0.2); color:var(--accent-cyan);">2x SUPER-RES</span>
-                        </div>
-                        <div class="enhancer-img-box">
-                            <img id="forensicEnhancedImg" src="/frontend/assets/placeholder.jpg" alt="AI Enhanced Crop">
-                        </div>
-                        <div style="padding:8px; font-family:var(--font-mono); font-size:0.64rem; color:#10b981; background:rgba(0,0,0,0.4);">
-                            SHA-256: cb9876543210fedcba9876543210fedcba987654321... [BSA Sec. 63 Sealed]
-                        </div>
-                    </div>
-                </div>
-
-                <div style="margin-top:14px; display:flex; justify-content:flex-end;">
-                    <button class="btn" style="background:#334155; color:#cbd5e1;" onclick="closeForensicEnhanceModal()">Close Inspector</button>
-                </div>
-            </div>
+        <button onclick="closeSuspectIntakeModal()" class="full-view-close-btn" style="width: 28px; height: 28px; font-size: 14px;">✕</button>
+      </div>
+      <form id="formSuspectIntake" onsubmit="handleSuspectIntakeSubmit(event)" class="police-modal-body">
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Accused / Suspect Full Name *</label>
+            <input type="text" id="intakeName" class="form-input" required placeholder="e.g. K. Ramesh alias 'Phantom'">
+          </div>
+          <div class="form-group">
+            <label class="form-label">FIR / Case Number *</label>
+            <input type="text" id="intakeFir" class="form-input" required placeholder="e.g. FIR-2026-AP-1088">
+          </div>
         </div>
-    </div>
 
-    <!-- App Scripts -->
-    <script src="/frontend/assets/js/app.js"></script>
-    <script src="/frontend/assets/js/investigation.js"></script>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Police Station Jurisdiction</label>
+            <input type="text" id="intakePs" class="form-input" value="Rajahmundry One Town PS">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Acts & BNS Sections</label>
+            <input type="text" id="intakeActs" class="form-input" value="BNS Section 303(2), Section 111">
+          </div>
+        </div>
+
+        <div style="background: #f1f5f9; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
+          <div style="font-size: 11px; font-weight: 800; color: #0369a1; text-transform: uppercase; margin-bottom: 10px;">
+            Exoskeleton, Gait & Stature Biometrics (Police Calibration)
+          </div>
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label">Known Height (cm)</label>
+              <input type="number" id="intakeHeight" class="form-input" value="178" step="0.5" min="120" max="230">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Stride Length (cm)</label>
+              <input type="number" id="intakeStride" class="form-input" value="68" step="0.5" min="40" max="100">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Spine Tilt Angle (°)</label>
+              <input type="number" id="intakeSpine" class="form-input" value="3.5" step="0.5" min="0" max="25">
+            </div>
+          </div>
+          <div class="form-grid-3" style="margin-top: 10px;">
+            <div class="form-group">
+              <label class="form-label">Upper Clothing</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="color" id="intakeUpperColor" value="#121826" style="width: 40px; height: 32px; border: none; cursor: pointer; border-radius: 4px;">
+                <input type="text" id="intakeUpperHex" class="form-input" value="#121826" style="flex: 1;">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Lower Clothing</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="color" id="intakeLowerColor" value="#1f2937" style="width: 40px; height: 32px; border: none; cursor: pointer; border-radius: 4px;">
+                <input type="text" id="intakeLowerHex" class="form-input" value="#1f2937" style="flex: 1;">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Carried Objects</label>
+              <select id="intakeCarried" class="form-select">
+                <option value="backpack" selected>Backpack (Dark)</option>
+                <option value="handbag">Handbag / Shoulder Bag</option>
+                <option value="briefcase">Briefcase / Duffel</option>
+                <option value="none">None Carried</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Reference Probe Photo URL / Local File</label>
+          <input type="text" id="intakePhotoUrl" class="form-input" value="/frontend/assets/placeholder.jpg">
+          <div style="font-size: 11px; color: #64748b; margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+            <input type="checkbox" id="intakeSuperRes" checked style="accent-color: #0284c7;">
+            <label for="intakeSuperRes" style="cursor: pointer;">Automatically apply CodeFormer & Real-ESRGAN AI Super-Resolution to probe</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Brief Crime Facts / Incident Synopsis</label>
+          <textarea id="intakeFacts" class="form-textarea" rows="2" placeholder="Wanted in connection with commercial corridor incident. Last seen wearing dark attire carrying backpack."></textarea>
+        </div>
+
+        <div class="police-modal-footer" style="padding: 12px 0 0 0; margin-top: 4px;">
+          <button type="button" onclick="closeSuspectIntakeModal()" class="btn btn--sample">Cancel</button>
+          <button type="submit" class="btn btn--primary" id="btnSubmitIntake">Register & Index Suspect</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== OFFICER CONFIRMATION GATE (HITL) MODAL ==================== -->
+  <div id="officerConfirmModal" class="police-modal-overlay hidden">
+    <div class="police-modal-card" style="max-width: 860px;">
+      <div class="police-modal-header" style="background: #0f172a; border-bottom: 2px solid #e11d48;">
+        <div class="police-modal-title">
+          <span>⚖️ Human-in-the-Loop (HITL) Officer Confirmation Gate</span>
+        </div>
+        <button onclick="closeOfficerConfirmModal()" class="full-view-close-btn" style="width: 28px; height: 28px; font-size: 14px;">✕</button>
+      </div>
+      <div class="police-modal-body">
+        <div style="background: #fff1f2; border: 1px solid #fecdd3; padding: 10px 14px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="font-weight: 800; color: #9f1239; font-size: 13px;" id="confAlertId">ALT-2026-AP-7711</span>
+            <span style="font-size: 11px; color: #be123c; margin-left: 8px;" id="confCameraLocation">CAM 1 — District Hospital North Wing</span>
+          </div>
+          <span style="font-size: 11px; font-weight: 800; background: #e11d48; color: #fff; padding: 3px 8px; border-radius: 9999px;" id="confConfidenceBadge">78.5% CONFIDENCE</span>
+        </div>
+
+        <!-- Side-by-Side Probe vs CCTV Detection Crop -->
+        <div class="dual-compare-grid">
+          <div class="compare-box">
+            <div class="compare-box-title">
+              <span>Probe Photo (Database Record)</span>
+              <span id="confProbeFir" style="color: #64748b; font-size: 10px;">FIR-2026-AP-1088</span>
+            </div>
+            <div class="compare-img-wrap">
+              <img id="confProbeImg" src="/frontend/assets/placeholder.jpg" class="compare-img" alt="Probe Photo">
+            </div>
+            <div style="font-size: 11px; color: #334155;" id="confProbeMeta">
+              <strong>Suspect:</strong> <span id="confSuspectName">K. Ramesh</span><br>
+              <strong>Known Height:</strong> <span id="confKnownHeight">178 cm</span> | <strong>Bag:</strong> <span id="confSuspectBag">Backpack</span>
+            </div>
+          </div>
+
+          <div class="compare-box">
+            <div class="compare-box-title">
+              <span>Live CCTV Detection Crop</span>
+              <button onclick="inspectCurrentSuperResolution()" class="tile__expand-btn" style="background:#0284c7; color:#fff; border:none; padding:2px 6px;">🔍 Dual AI Inspector</button>
+            </div>
+            <div class="compare-img-wrap">
+              <img id="confDetectionImg" src="/frontend/assets/placeholder.jpg" class="compare-img" alt="CCTV Crop">
+            </div>
+            <div style="font-size: 11px; color: #334155;" id="confDetectionMeta">
+              <strong>Detected:</strong> <span id="confTrackMeta">Track #144 on CAM 1</span><br>
+              <strong>Est. Height:</strong> <span id="confEstHeight">178.4 cm (Δ 0.4cm)</span> | <strong>Gait Match:</strong> <span id="confGaitMatch">94.2%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Multi-Modal Biometric Evidence Breakdown -->
+        <table class="score-matrix-table">
+          <thead>
+            <tr>
+              <th>Biometric Vector</th>
+              <th>Live Metric</th>
+              <th>Suspect Reference</th>
+              <th>Match Score</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="confBiometricTableBody">
+            <tr>
+              <td><strong>Calibrated Height</strong></td>
+              <td id="tdLiveHeight">178.4 cm</td>
+              <td id="tdKnownHeight">178.0 cm</td>
+              <td id="tdHeightScore">97.1%</td>
+              <td><span style="color:#15803d; font-weight:700;">✓ MATCH (Δ &lt; 2cm)</span></td>
+            </tr>
+            <tr>
+              <td><strong>Gait & Posture Dynamics</strong></td>
+              <td id="tdLiveGait">Stride 68cm, Tilt 3.8°</td>
+              <td id="tdKnownGait">Stride 68cm, Tilt 3.5°</td>
+              <td id="tdGaitScore">91.5%</td>
+              <td><span style="color:#15803d; font-weight:700;">✓ KINEMATICS PASSED</span></td>
+            </tr>
+            <tr>
+              <td><strong>Body & Carried Objects</strong></td>
+              <td id="tdLiveBody">Dark Attire + Backpack</td>
+              <td id="tdKnownBody">#121826 + Backpack</td>
+              <td id="tdBodyScore">88.2%</td>
+              <td><span style="color:#15803d; font-weight:700;">✓ PAR MATCH</span></td>
+            </tr>
+            <tr>
+              <td><strong>Facial ArcFace (FRS)</strong></td>
+              <td id="tdLiveFace">Face Masked / Occluded</td>
+              <td id="tdKnownFace">ArcFace 512D Profile</td>
+              <td id="tdFaceScore">N/A (Shifted)</td>
+              <td><span style="color:#b45309; font-weight:700;">⚠ WEIGHT SHIFTED</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Officer Authorization Sign-off -->
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px;">
+          <div style="font-size: 11px; font-weight: 800; color: #0f172a; text-transform: uppercase; margin-bottom: 8px;">
+            Law Enforcement Officer Sign-Off (Section 63 BSA Mandate)
+          </div>
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label">Verifying Officer</label>
+              <input type="text" id="officerName" class="form-input" value="Inspector K. Sitarama Raju">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Badge / General No.</label>
+              <input type="text" id="officerBadge" class="form-input" value="AP-POL-7718">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Police Station</label>
+              <input type="text" id="officerPs" class="form-input" value="Rajahmundry Central PS">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top: 8px;">
+            <label class="form-label">Forensic Notes / Observation Confirmation</label>
+            <input type="text" id="officerNotes" class="form-input" value="Verified gait characteristics, height 178cm, and black backpack. Candidate confirmed.">
+          </div>
+        </div>
+
+        <div id="bsaCertContainer" class="bsa-cert-badge hidden">
+          <div style="font-weight: 800; color: #166534;">📜 SECTION 63 BSA DIGITAL EVIDENCE CERTIFICATE ISSUED</div>
+          <div>Digest: <span id="bsaCertDigest" style="word-break: break-all;">867db636bd0f1c52dd1dc2508d3f69206b3c5216a8e9df7b1bb909727771fb56</span></div>
+          <div style="font-size: 10px; color: #15803d;" id="bsaCertTimestamp">Timestamped: 2026-09-19 | Signer: AP-POL-7718</div>
+        </div>
+      </div>
+
+      <div class="police-modal-footer">
+        <button type="button" onclick="submitOfficerConfirmation('REJECTED_SUPPRESSED')" class="btn" style="background:#fecdd3; color:#be123c; border:1px solid #fda4af;">
+          Reject Candidate (Humility Veto)
+        </button>
+        <button type="button" onclick="submitOfficerConfirmation('CONFIRMED_MATCH')" class="btn" style="background:#15803d; color:#ffffff; font-weight:700;">
+          Confirm Match & Dispatch Intercept (Sec 63 BSA)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== DUAL AI SUPER-RESOLUTION INSPECTOR MODAL ==================== -->
+  <div id="forensicEnhanceModal" class="police-modal-overlay hidden">
+    <div class="police-modal-card" style="max-width: 820px;">
+      <div class="police-modal-header">
+        <div class="police-modal-title">
+          <span>🔬 AI Super-Resolution Forensic Inspector</span>
+        </div>
+        <button onclick="closeDualEnhancerModal()" class="full-view-close-btn" style="width: 28px; height: 28px; font-size: 14px;">✕</button>
+      </div>
+      <div class="police-modal-body">
+        <div style="font-size: 12px; color: #475569;">
+          Comparison of raw CCTV optical capture versus edge-preserving AI CodeFormer & Real-ESRGAN restoration.
+        </div>
+        <div class="dual-compare-grid">
+          <div class="compare-box">
+            <div class="compare-box-title">
+              <span>Raw Optical Capture</span>
+              <span style="color: #64748b; font-size: 10px;">Native CCTV Sensor</span>
+            </div>
+            <div class="compare-img-wrap" style="height: 260px;">
+              <img id="dualRawImg" src="/frontend/assets/placeholder.jpg" class="compare-img" alt="Raw Surveillance Capture">
+            </div>
+            <div style="font-size: 10px; font-family: monospace; color: #64748b;" id="dualRawHash">
+              SHA-256: a4f891b2c3d4e5f60718293a4b5c6d7e8f90...
+            </div>
+          </div>
+
+          <div class="compare-box">
+            <div class="compare-box-title">
+              <span style="color: #15803d;">AI Enhanced Super-Resolution</span>
+              <span style="color: #15803d; font-size: 10px;">CodeFormer + Real-ESRGAN</span>
+            </div>
+            <div class="compare-img-wrap" style="height: 260px;">
+              <img id="dualEnhancedImg" src="/frontend/assets/placeholder.jpg" class="compare-img" alt="AI Enhanced Crop">
+            </div>
+            <div style="font-size: 10px; font-family: monospace; color: #15803d;" id="dualEnhancedHash">
+              SHA-256: cb9876543210fedcba9876543210fedcba98...
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 12px;">
+          <div>
+            <strong>Restoration Fidelity Weight:</strong>
+            <span id="lblFidelityVal" style="color: #0284c7; font-weight: 700; margin-left: 6px;">0.75</span>
+          </div>
+          <input type="range" id="rngFidelity" min="0.1" max="1.0" step="0.05" value="0.75" style="width: 200px; accent-color: #0284c7;" oninput="document.getElementById('lblFidelityVal').textContent = this.value">
+        </div>
+      </div>
+      <div class="police-modal-footer">
+        <button type="button" onclick="closeDualEnhancerModal()" class="btn btn--primary">Close Inspector</button>
+      </div>
+    </div>
+  </div>
 </body>
+
 </html>
