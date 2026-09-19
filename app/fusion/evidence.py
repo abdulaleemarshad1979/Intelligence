@@ -1,6 +1,7 @@
 """Multi-Modal Evidence Fusion Engine dynamically combining Face, Body, Gait, and Height biometrics
 with built-in humility vetoes and calibrated confidence scoring for police-grade accuracy."""
 
+import json
 import math
 from typing import Dict, Any, Tuple, List
 from app.database.models import CriminalRecord, TrackObservation
@@ -35,8 +36,43 @@ class EvidenceFusionEngine:
     def __init__(self, height_veto_threshold_cm: float = 12.0):
         self.height_veto_threshold_cm = height_veto_threshold_cm
 
-    def evaluate_candidate(self, track: TrackObservation, suspect: CriminalRecord) -> Dict[str, Any]:
+    def evaluate_candidate(self, track: Any, suspect: CriminalRecord) -> Dict[str, Any]:
         """Perform multi-criteria evidence fusion between a live CCTV track and a known record."""
+        if isinstance(track, dict):
+            def parse_if_json(val, default):
+                if isinstance(val, str):
+                    try:
+                        return json.loads(val)
+                    except Exception:
+                        return default
+                return val if val is not None else default
+
+            track = TrackObservation(
+                track_id=str(track.get("track_id", "0001")),
+                camera_id=str(track.get("camera_id", "CAM-001")),
+                first_seen=float(track.get("first_seen", 0.0) or 0.0),
+                last_seen=float(track.get("last_seen", 0.0) or 0.0),
+                frame_count=int(track.get("frame_count", 0) or 0),
+                best_frame_path=str(track.get("best_frame_path", "")),
+                face_visible=bool(track.get("face_visible", False)),
+                face_status=str(track.get("face_status", "UNAVAILABLE")),
+                face_tier_details=parse_if_json(track.get("face_tier_details"), {}),
+                estimated_height_cm=float(track.get("estimated_height_cm", 170.0) or 170.0),
+                body_proportions=parse_if_json(track.get("body_proportions"), {}),
+                clothing_upper=str(track.get("clothing_upper", "#000000") or "#000000"),
+                clothing_lower=str(track.get("clothing_lower", "#000000") or "#000000"),
+                carried_objects=parse_if_json(track.get("carried_objects"), []),
+                stride_length_px=float(track.get("stride_length_px", 0.0) or 0.0),
+                stride_length_cm=float(track.get("stride_length_cm", 65.0) or 65.0),
+                cadence_steps_per_sec=float(track.get("cadence_steps_per_sec", 0.0) or 0.0),
+                spine_tilt_deg=float(track.get("spine_tilt_deg", 0.0) or 0.0),
+                posture_score=float(track.get("posture_score", 0.85) or 0.85),
+                gait_wave=parse_if_json(track.get("gait_wave"), []),
+                face_embedding=parse_if_json(track.get("face_embedding"), []),
+                body_embedding=parse_if_json(track.get("body_embedding"), []),
+                gait_embedding=parse_if_json(track.get("gait_embedding"), [])
+            )
+
         # 1. FACE EVIDENCE (YuNet + SFace / ArcFace)
         face_available = track.face_visible and track.face_status != "UNAVAILABLE"
         if face_available:
@@ -60,7 +96,16 @@ class EvidenceFusionEngine:
         lower_sim = compute_color_similarity(track.clothing_lower, suspect.clothing_lower_color)
         clothing_score = 0.6 * upper_sim + 0.4 * lower_sim
 
-        body_score = round(0.45 * body_emb_sim + 0.30 * ratio_score + 0.25 * clothing_score, 3)
+        # Carried objects match (backpacks, bags, etc.)
+        suspect_items = getattr(suspect, "carried_objects", []) or []
+        track_items = getattr(track, "carried_objects", []) or []
+        if suspect_items:
+            common = set(suspect_items).intersection(set(track_items))
+            carried_score = len(common) / max(1, len(suspect_items))
+            body_score = round(0.40 * body_emb_sim + 0.25 * ratio_score + 0.20 * clothing_score + 0.15 * carried_score, 3)
+        else:
+            carried_score = 1.0
+            body_score = round(0.45 * body_emb_sim + 0.30 * ratio_score + 0.25 * clothing_score, 3)
 
         # 3. GAIT & POSTURE DYNAMICS (Bonus Vote / Nudge Modifier)
         gait_emb_sim = cosine_similarity(track.gait_embedding, suspect.gait_embedding)
@@ -183,6 +228,9 @@ class EvidenceFusionEngine:
                 "track_clothing": {"upper": track.clothing_upper, "lower": track.clothing_lower},
                 "suspect_clothing": {"upper": suspect.clothing_upper_color, "lower": suspect.clothing_lower_color},
                 "track_posture_score": track.posture_score,
-                "suspect_posture_score": suspect.posture_correctness
+                "suspect_posture_score": suspect.posture_correctness,
+                "track_carried_objects": track_items,
+                "suspect_carried_objects": suspect_items,
+                "carried_objects_matched": bool(set(suspect_items).intersection(set(track_items))) if suspect_items else True
             }
         }

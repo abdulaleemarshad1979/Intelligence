@@ -45,9 +45,21 @@ def init_db(db_path: Optional[str] = None):
         face_embedding TEXT,
         body_embedding TEXT,
         gait_embedding TEXT,
+        carried_objects TEXT DEFAULT '[]',
+        enhanced_photo_url TEXT DEFAULT '',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+    
+    # Safe column migrations for existing SQLite databases
+    try:
+        cursor.execute("ALTER TABLE criminal_records ADD COLUMN carried_objects TEXT DEFAULT '[]'")
+    except Exception:
+        pass
+    try:
+        cursor.execute("ALTER TABLE criminal_records ADD COLUMN enhanced_photo_url TEXT DEFAULT ''")
+    except Exception:
+        pass
     
     # 2. Tracks Table
     cursor.execute("""

@@ -32,6 +32,10 @@ class CriminalRecord:
     clothing_upper_color: str = "#334455"
     clothing_lower_color: str = "#112233"
     
+    # Carried Items & Forensic Enhancement
+    carried_objects: List[str] = field(default_factory=list)
+    enhanced_photo_url: str = ""
+    
     # Embeddings
     face_embedding: List[float] = field(default_factory=list)
     body_embedding: List[float] = field(default_factory=list)
@@ -54,6 +58,7 @@ class TrackObservation:
     body_proportions: Dict[str, float] = field(default_factory=dict)
     clothing_upper: str = "#000000"
     clothing_lower: str = "#000000"
+    carried_objects: List[str] = field(default_factory=list)
     
     # Gait Biometrics
     stride_length_px: float = 0.0

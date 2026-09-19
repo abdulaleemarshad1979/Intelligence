@@ -18,6 +18,8 @@ class Repository:
         conn = get_db_connection(self.db_path)
         cursor = conn.cursor()
         try:
+            carried_json = json.dumps(getattr(record, "carried_objects", []))
+            enhanced_url = getattr(record, "enhanced_photo_url", "")
             cursor.execute("""
             INSERT OR REPLACE INTO criminal_records (
                 id, fir_no, unit_name, subdivision, police_station, accused_name,
@@ -25,8 +27,9 @@ class Repository:
                 status_of_case, photo_url, known_height_cm, torso_leg_ratio,
                 stride_length_cm, posture_lean_angle, posture_correctness,
                 clothing_upper_color, clothing_lower_color,
-                face_embedding, body_embedding, gait_embedding
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                face_embedding, body_embedding, gait_embedding,
+                carried_objects, enhanced_photo_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 record.id, record.fir_no, record.unit_name, record.subdivision, record.police_station,
                 record.accused_name, record.alias, record.age, record.gender, record.acts_sec,
@@ -34,7 +37,8 @@ class Repository:
                 record.photo_url, record.known_height_cm, record.torso_leg_ratio, record.stride_length_cm,
                 record.posture_lean_angle, record.posture_correctness, record.clothing_upper_color,
                 record.clothing_lower_color, json.dumps(record.face_embedding),
-                json.dumps(record.body_embedding), json.dumps(record.gait_embedding)
+                json.dumps(record.body_embedding), json.dumps(record.gait_embedding),
+                carried_json, enhanced_url
             ))
             conn.commit()
             return True
@@ -72,6 +76,8 @@ class Repository:
                     posture_correctness=r["posture_correctness"] or 0.85,
                     clothing_upper_color=r["clothing_upper_color"] or "#334455",
                     clothing_lower_color=r["clothing_lower_color"] or "#112233",
+                    carried_objects=json.loads(r["carried_objects"]) if ("carried_objects" in r.keys() and r["carried_objects"]) else [],
+                    enhanced_photo_url=r["enhanced_photo_url"] if ("enhanced_photo_url" in r.keys() and r["enhanced_photo_url"]) else "",
                     face_embedding=json.loads(r["face_embedding"]) if r["face_embedding"] else [],
                     body_embedding=json.loads(r["body_embedding"]) if r["body_embedding"] else [],
                     gait_embedding=json.loads(r["gait_embedding"]) if r["gait_embedding"] else []
@@ -112,6 +118,8 @@ class Repository:
                 posture_correctness=r["posture_correctness"] or 0.85,
                 clothing_upper_color=r["clothing_upper_color"] or "#334455",
                 clothing_lower_color=r["clothing_lower_color"] or "#112233",
+                carried_objects=json.loads(r["carried_objects"]) if ("carried_objects" in r.keys() and r["carried_objects"]) else [],
+                enhanced_photo_url=r["enhanced_photo_url"] if ("enhanced_photo_url" in r.keys() and r["enhanced_photo_url"]) else "",
                 face_embedding=json.loads(r["face_embedding"]) if r["face_embedding"] else [],
                 body_embedding=json.loads(r["body_embedding"]) if r["body_embedding"] else [],
                 gait_embedding=json.loads(r["gait_embedding"]) if r["gait_embedding"] else []

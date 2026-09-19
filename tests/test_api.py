@@ -99,3 +99,58 @@ def test_api_cross_camera_deepstream_mtmc(client):
     data = res.json()
     assert "custom_spatio_temporal_latency_ms" in data
     assert "deepstream_mtmc_latency_ms" in data
+
+
+def test_api_tracking_retrograde(client):
+    res = client.post("/api/tracking/retrograde", json={
+        "incident_camera_id": "CAM-002",
+        "active_attributes": ["backpack", "upper_black", "lower_blue"]
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "SUCCESS"
+    assert data["origin_isolated"] is True
+    assert "trajectory" in data
+    assert len(data["trajectory"]) >= 2
+
+
+def test_api_tracking_topology(client):
+    res = client.get("/api/tracking/topology")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "SUCCESS"
+    assert "topology" in data
+    assert "nodes" in data["topology"]
+    assert "edges" in data["topology"]
+
+
+def test_api_alerts_live_and_dual_signoff(client):
+    # 1. Get live alerts
+    res = client.get("/api/alerts/live")
+    assert res.status_code == 200
+    alerts = res.json()["alerts"]
+    assert len(alerts) >= 1
+
+    alert_id = alerts[0]["alert_id"]
+
+    # 2. Perform dual-operator sign-off
+    signoff_res = client.post("/api/alerts/dual-signoff", json={
+        "alert_id": alert_id,
+        "desk_officer_badge": "DESK_AP_4412",
+        "supervisor_badge": "SUPV_AP_1002",
+        "decision": "CONFIRMED_DISPATCH",
+        "discrepancy_verification_passed": True,
+        "notes": "Verified suspect identity against CCTNS dossier."
+    })
+    assert signoff_res.status_code == 200
+    s_data = signoff_res.json()
+    assert s_data["status"] == "SUCCESS"
+    assert s_data["decision"] == "HUMAN_VERIFIED_DISPATCHED"
+    assert "certificate_digest" in s_data
+
+    # 3. Export Section 63 BSA certificate
+    cert_res = client.get(f"/api/alerts/bsa-certificate/{alerts[0]['incident_id']}")
+    assert cert_res.status_code == 200
+    cert = cert_res.json()["certificate"]
+    assert cert["legal_framework"] == "Section 63 Bharatiya Sakshya Adhiniyam, 2023"
+

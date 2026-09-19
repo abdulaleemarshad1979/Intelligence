@@ -10,7 +10,86 @@
     <link rel="stylesheet" href="/frontend/assets/css/style.css">
 </head>
 <body>
-    <!-- Tactical Top Header -->
+    <!-- Official Andhra Pradesh Police Department Command Banner -->
+    <div class="police-banner">
+        <div class="police-brand-block">
+            <div class="police-crest" title="Andhra Pradesh Police Seal">
+                <!-- AP Police Gold Insignia Emblem SVG -->
+                <svg viewBox="0 0 24 24" width="30" height="30" fill="#ffffff">
+                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4.18l6 2.67v4.15c0 4.25-2.88 8.23-6 9.2-3.12-.97-6-4.95-6-9.2V7.85l6-2.67zM11 11H9v2h2v3h2v-3h2v-2h-2V8h-2v3z"/>
+                </svg>
+            </div>
+            <div class="police-title-text">
+                <h1>ANDHRA PRADESH POLICE DEPARTMENT</h1>
+                <p>East Godavari District CCTV Surveillance & Intelligence Command Center</p>
+            </div>
+        </div>
+
+        <div class="police-leaders-deck">
+            <div class="leader-card">
+                <div class="leader-avatar">
+                    <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                </div>
+                <div class="leader-info">
+                    <div class="leader-name">Sri N. Chandrababu Naidu</div>
+                    <div class="leader-role">Hon'ble Chief Minister</div>
+                </div>
+            </div>
+            <div class="leader-card">
+                <div class="leader-avatar">
+                    <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1 6h2v2h-2V7zm0 4h2v6h-2v-6z"/></svg>
+                </div>
+                <div class="leader-info">
+                    <div class="leader-name">Sri Harish Kumar Gupta, IPS</div>
+                    <div class="leader-role">DGP, Andhra Pradesh</div>
+                </div>
+            </div>
+            <div class="leader-card">
+                <div class="leader-avatar">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                </div>
+                <div class="leader-info">
+                    <div class="leader-name">Sri D. Narasimha Kishore, IPS</div>
+                    <div class="leader-role">SP, East Godavari</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Operations & Filter Toolbar -->
+    <div class="cctv-filter-toolbar">
+        <div class="cctv-filter-pills">
+            <button class="filter-pill-btn active" onclick="filterCctvGrid('ALL')">All Streams (16)</button>
+            <button class="filter-pill-btn" onclick="filterCctvGrid('ACTIVE')">Active Feeds</button>
+            <button class="filter-pill-btn" onclick="filterCctvGrid('Pushkaralu')">Pushkaralu Ghats</button>
+            <button class="filter-pill-btn" onclick="filterCctvGrid('Rjy')">Rjy Central</button>
+            <button class="filter-pill-btn" onclick="filterCctvGrid('Hospital')">Hospital Corridor</button>
+            <button class="filter-pill-btn" onclick="filterCctvGrid('Port')">Port Area</button>
+            <button class="filter-pill-btn" onclick="filterCctvGrid('Sector4')">Sector 4 Plaza</button>
+        </div>
+
+        <div class="cctv-action-buttons">
+            <button class="btn-action-pill pill-warning" onclick="openOfficerConfirmModal()">
+                <span class="pulse-dot" style="background:var(--accent-crimson)"></span>
+                <span>Stampede / Suspect Alerts (<strong id="badgeAlertCount">1</strong>)</span>
+            </button>
+            <button class="btn-action-pill pill-export" onclick="exportForensicCSV()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                <span>Download Forecast CSV</span>
+            </button>
+            <button class="btn-action-pill" style="background:rgba(2,132,199,0.2); border-color:rgba(56,189,248,0.4); color:var(--accent-cyan);" onclick="toggleViewingCountingMode()">
+                <span id="lblModeViewingCounting">Viewing</span>
+            </button>
+            <button class="btn-action-pill pill-primary" onclick="openSuspectIntakeModal()">
+                <span>🎯 Suspect Storage & Intake</span>
+            </button>
+            <button class="btn-action-pill" style="background:#1e293b; color:#cbd5e1; border-color:#334155;" onclick="triggerLiveCrossCameraSearch()">
+                <span>🔍 Search Live Feeds</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Tactical Navigation Bar -->
     <header class="header">
         <div class="brand">
             <div class="brand-icon" title="CCTV Camera Surveillance">
@@ -25,20 +104,21 @@
 
         <!-- Navigation Tabs -->
         <nav class="nav-tabs">
-            <button class="nav-tab-btn active" id="tabBtnSurveillance" onclick="switchMainTab('surveillance')">Live CCTV Surveillance</button>
+            <button class="nav-tab-btn active" id="tabBtnCctvGrid" onclick="switchMainTab('cctv-grid')">District CCTV Grid (16)</button>
+            <button class="nav-tab-btn" id="tabBtnSurveillance" onclick="switchMainTab('surveillance')">Single-Cam Deep Dossier</button>
             <button class="nav-tab-btn" id="tabBtnInvestigation" onclick="switchMainTab('investigation')">Target Investigation Graph</button>
             <button class="nav-tab-btn" id="tabBtnCrossCamera" onclick="switchMainTab('cross-camera')">Cross-Camera Network</button>
             <button class="nav-tab-btn" id="tabBtnCompliance" onclick="switchMainTab('compliance')">Police Audit & Governance</button>
-            <button class="nav-tab-btn" id="tabBtnBenchmark" onclick="switchMainTab('benchmark')">Model Stack Benchmark</button>
+            <button class="nav-tab-btn" id="tabBtnBenchmark" onclick="switchMainTab('benchmark')">Model Benchmark</button>
         </nav>
 
         <div class="system-badges">
             <div class="badge online">
                 <span class="pulse-dot"></span>
-                <span>FEED: ACTIVE (CAM-001)</span>
+                <span>FEEDS: 16 CAMERAS ONLINE</span>
             </div>
             <div class="badge">
-                <span>SUSPECT GALLERY: <strong id="statSuspects" style="color:var(--accent-cyan)">40</strong></span>
+                <span>SUSPECTS: <strong id="statSuspects" style="color:var(--accent-cyan)">40</strong></span>
             </div>
             <div class="badge">
                 <span>TRACKS: <strong id="statTracks" style="color:var(--accent-blue)">0</strong></span>
@@ -71,6 +151,13 @@
         <span class="model-chip" id="chipGait" title="Gait Recognition">GAIT: <strong id="lblGait">GaitSet</strong></span>
         <span class="model-chip highlight" id="chipLicense" title="Open-Source Legal Compliance">LEGAL: <strong id="lblLicense">COMMERCIAL READY</strong></span>
     </div>
+
+    <!-- TAB: Standalone District CCTV Multi-Camera Grid (16 Cameras) -->
+    <main class="tab-content active" id="tabCctvGrid" style="display: block;">
+        <div class="cctv-streams-grid" id="cctvStreamsGrid">
+            <!-- Dynamically populated with 16 CCTV camera cards via app.js -->
+        </div>
+    </main>
 
     <!-- TAB 0: Palantir Gotham-Style Target Investigation Graph Hub -->
     <main class="dashboard-grid tab-content" id="tabInvestigation" style="grid-template-columns: 1fr; display: flex; flex-direction: column; gap: 16px;">
@@ -231,7 +318,7 @@
     </main>
 
     <!-- TAB 1: Main Command Center Grid -->
-    <main class="dashboard-grid tab-content active" id="tabSurveillance">
+    <main class="dashboard-grid tab-content" id="tabSurveillance">
         <!-- Panel 1: Live CCTV Stream & Camera Network Matrix -->
         <section class="panel" id="panelLiveCCTV">
             <div class="panel-header">
@@ -768,6 +855,310 @@
                             Confirm Association (Promote to Target)
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CCTV FULL-VIEW EXPANDED MODAL -->
+    <div class="modal-overlay" id="cctvFullViewModal">
+        <div class="modal-card modal-xl">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="cctv-status-dot"></span>
+                    <strong style="font-size:1.15rem; color:var(--text-primary)" id="fullViewModalTitle">CAM 1 | KAKINADA HOSPITAL CORRIDOR</strong>
+                    <span class="cctv-sector-tag" id="fullViewModalSector">Hospital</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="display:flex; gap:6px;">
+                        <button class="btn" style="padding:4px 10px; font-size:0.72rem; background:rgba(56,189,248,0.2); border:1px solid var(--accent-cyan); color:#fff;" id="btnModeClean" onclick="setOverlayMode('clean')">Clean View</button>
+                        <button class="btn" style="padding:4px 10px; font-size:0.72rem; background:#1e293b; border:1px solid #334155; color:#94a3b8;" id="btnModeMinimal" onclick="setOverlayMode('minimal')">Minimal Box</button>
+                    </div>
+                    <button class="modal-close-btn" onclick="closeCctvFullViewModal()">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body" style="padding:16px;">
+                <div class="full-screen-cctv-box" id="fullViewVideoBox">
+                    <img src="/api/video_feed" alt="Full Resolution CCTV Stream" style="width:100%; height:100%; object-fit:contain;" id="fullViewStreamImg">
+                    <div class="cctv-overlay-osd">
+                        <span id="fullViewOsdCam">CAM-001 • HOSPITAL NORTH WING</span>
+                        <span id="fullViewOsdClock">2026-09-19 18:42:11 IST</span>
+                    </div>
+                    <div class="cctv-osd-bottom">
+                        <span>STREAM: RTSP/HLS 1080p • 25.0 FPS</span>
+                        <span>AI HUD: SKELETON CLUTTER HIDDEN (STREAM SMOOTH)</span>
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                    <div style="font-size:0.78rem; color:var(--text-secondary)">
+                        Sector Location: <strong id="fullViewLocationText" style="color:#f1f5f9">Kakinada - Government General Hospital East Zone</strong>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn" style="padding:6px 14px; font-size:0.75rem; background:rgba(37,99,235,0.2); border:1px solid #3b82f6; color:#93c5fd;" onclick="triggerLiveCrossCameraSearch()">
+                            🔍 Search Suspect on this Camera
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUSPECT INTAKE & BIOMETRIC STORAGE MODAL -->
+    <div class="modal-overlay" id="suspectIntakeModal">
+        <div class="modal-card" style="max-width:720px; width:92%;">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <div class="pulse-dot" style="background:var(--accent-cyan)"></div>
+                    <strong style="font-size:1.1rem; color:var(--text-primary)">Suspect Biometric Intake & Database Storage</strong>
+                </div>
+                <button class="modal-close-btn" onclick="closeSuspectIntakeModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:18px;">
+                <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:14px; line-height:1.4;">
+                    Register suspect photo or video to extract FRS face features, body Re-ID, skeletal gait movement dynamics, height, and carried objects. The system will store the profile in the central repository and search across all live CCTV feeds.
+                </p>
+
+                <div style="display:grid; grid-template-columns: 180px 1fr; gap:16px; margin-bottom:16px;">
+                    <!-- Photo Upload / Preview -->
+                    <div>
+                        <div style="width:100%; height:200px; background:#0b1120; border:2px dashed #2a3a5c; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; position:relative;" id="intakePhotoDropzone">
+                            <img id="intakePhotoPreview" src="/frontend/assets/suspects/raju.jpg" alt="Suspect Preview" style="width:100%; height:100%; object-fit:cover;">
+                            <input type="file" id="intakePhotoInput" accept="image/*,video/*" style="position:absolute; inset:0; opacity:0; cursor:pointer;" onchange="handleIntakePhotoSelect(event)">
+                        </div>
+                        <button class="btn" style="width:100%; margin-top:8px; padding:6px; font-size:0.72rem; background:#1e293b; color:#94a3b8; border:1px solid #334155;" onclick="document.getElementById('intakePhotoInput').click()">
+                            📁 Upload Photo / Video
+                        </button>
+                    </div>
+
+                    <!-- Intake Form Details -->
+                    <div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Suspect Name</label>
+                                <input type="text" id="intakeName" value="Raju alias 'Shadow'">
+                            </div>
+                            <div class="form-group">
+                                <label>FIR Number</label>
+                                <input type="text" id="intakeFir" value="FIR-2026-AP-0194">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Police Station</label>
+                                <input type="text" id="intakeStation" value="PS-KAKINADA-CENTRAL">
+                            </div>
+                            <div class="form-group">
+                                <label>Acts / Sections</label>
+                                <input type="text" id="intakeActs" value="BNS Section 303(2), Section 111">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Known Height (cm)</label>
+                                <input type="number" id="intakeHeight" value="175">
+                            </div>
+                            <div class="form-group">
+                                <label>Upper Wear Color</label>
+                                <input type="color" id="intakeUpperColor" value="#1b2430" style="height:36px; padding:2px 4px; cursor:pointer;">
+                            </div>
+                            <div class="form-group">
+                                <label>Lower Wear Color</label>
+                                <input type="color" id="intakeLowerColor" value="#2c3539" style="height:36px; padding:2px 4px; cursor:pointer;">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top:6px;">
+                            <label style="font-size:0.74rem; color:var(--text-muted); margin-bottom:4px; display:block;">Carried Items / Accessories</label>
+                            <div style="display:flex; gap:14px; flex-wrap:wrap; font-size:0.78rem;">
+                                <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                                    <input type="checkbox" id="chkBackpack" checked> Backpack
+                                </label>
+                                <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                                    <input type="checkbox" id="chkShoulderBag"> Shoulder Bag
+                                </label>
+                                <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                                    <input type="checkbox" id="chkHandbag"> Handbag
+                                </label>
+                                <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                                    <input type="checkbox" id="chkParcel"> Carrying Parcel
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions" style="border-top:1px solid rgba(255,255,255,0.08); padding-top:14px; margin-top:8px;">
+                    <button class="btn" style="background:#334155; color:#cbd5e1;" onclick="closeSuspectIntakeModal()">Cancel</button>
+                    <button class="btn btn-confirm" style="background:linear-gradient(135deg, #0284c7, #0369a1); border:1px solid var(--accent-cyan);" onclick="submitSuspectIntake()">
+                        💾 Save to Storage & Search Live Feeds
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REAL-TIME SUSPECT MATCH ALERT & HITL OFFICER CONFIRMATION MODAL -->
+    <div class="modal-overlay" id="officerConfirmModal">
+        <div class="modal-card" style="max-width:860px; width:94%;">
+            <div class="modal-header" style="background:rgba(239, 68, 68, 0.15); border-bottom:1px solid rgba(239, 68, 68, 0.35);">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="pulse-dot" style="background:var(--accent-crimson); width:14px; height:14px;"></div>
+                    <div>
+                        <strong style="font-size:1.15rem; color:#fca5a5;">🚨 HIGH PRIORITY: SUSPECT MATCH DETECTED ON CCTV</strong>
+                        <div style="font-size:0.74rem; color:#cbd5e1;" id="alertModalSubtitle">Camera: CAM-001 | Hospital North Wing • Timestamp: 18:42:11 IST</div>
+                    </div>
+                </div>
+                <button class="modal-close-btn" onclick="closeOfficerConfirmModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:18px;">
+                <!-- Side-by-side Probe vs Detection -->
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
+                    <div style="background:#0b1120; border:1px solid rgba(245, 158, 11, 0.3); border-radius:8px; padding:12px;">
+                        <div style="font-size:0.75rem; font-weight:700; color:#fbbf24; margin-bottom:8px; display:flex; justify-content:space-between;">
+                            <span>REGISTERED SUSPECT PROBE</span>
+                            <span class="cctv-sector-tag" style="background:rgba(245, 158, 11, 0.2); color:#fbbf24;">KNOWN RECORD</span>
+                        </div>
+                        <div style="display:flex; gap:12px;">
+                            <div style="width:105px; height:135px; background:#000; border-radius:4px; overflow:hidden; flex-shrink:0;">
+                                <img id="alertProbeImg" src="/frontend/assets/suspects/raju.jpg" alt="Suspect Probe" style="width:100%; height:100%; object-fit:cover;">
+                            </div>
+                            <div style="font-size:0.75rem; line-height:1.6; color:#cbd5e1;">
+                                <div>Name: <strong id="alertSuspectName" style="color:#fff">Raju alias 'Shadow'</strong></div>
+                                <div>FIR: <strong id="alertFirNo" style="color:var(--accent-cyan)">FIR-2026-AP-0194</strong></div>
+                                <div>Height: <strong id="alertSuspectHeight">175 cm</strong></div>
+                                <div>Upper Wear: <span class="swatch-circle" id="alertUpperSwatch" style="background:#1b2430; vertical-align:middle; width:12px; height:12px;"></span> <span id="alertUpperText">Dark Black</span></div>
+                                <div>Carried: <strong id="alertCarriedItems" style="color:#fbbf24">Dark Backpack</strong></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background:#0b1120; border:1px solid rgba(16, 185, 129, 0.3); border-radius:8px; padding:12px;">
+                        <div style="font-size:0.75rem; font-weight:700; color:#10b981; margin-bottom:8px; display:flex; justify-content:space-between;">
+                            <span>LIVE CCTV DETECTION (CAM-001)</span>
+                            <span class="cctv-sector-tag" style="background:rgba(16, 185, 129, 0.2); color:#10b981;">REAL TIME CROP</span>
+                        </div>
+                        <div style="display:flex; gap:12px;">
+                            <div style="width:105px; height:135px; background:#000; border-radius:4px; overflow:hidden; flex-shrink:0; position:relative;">
+                                <img id="alertDetectionImg" src="/frontend/assets/placeholder.jpg" alt="Detected Crop" style="width:100%; height:100%; object-fit:cover;">
+                                <span style="position:absolute; bottom:2px; right:2px; font-size:0.6rem; background:rgba(0,0,0,0.7); color:#10b981; padding:1px 4px; border-radius:2px;">AI Restored</span>
+                            </div>
+                            <div style="font-size:0.75rem; line-height:1.6; color:#cbd5e1;">
+                                <div>Status: <strong style="color:#10b981">MATCH CANDIDATE (88.4%)</strong></div>
+                                <div>Camera: <strong id="alertDetectedCam" style="color:#fff">CAM-001 (Hospital)</strong></div>
+                                <div>Calibrated Height: <strong id="alertDetectedHeight" style="color:#fff">176 cm (Delta: 1cm)</strong></div>
+                                <div>Face Status: <strong id="alertFaceStatus" style="color:#f59e0b">Masked / Occluded</strong></div>
+                                <div>Carried Item: <strong style="color:#10b981">Backpack Confirmed</strong></div>
+                                <button class="btn" style="padding:2px 8px; font-size:0.68rem; margin-top:4px; background:rgba(56,189,248,0.2); border:1px solid var(--accent-cyan); color:var(--accent-cyan);" onclick="openForensicEnhanceModal()">
+                                    🔍 Inspect Enhanced Super-Resolution
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transparent Evidence Breakdown Matrix -->
+                <div style="font-size:0.74rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">
+                    Multi-Modal Biometric Evidence Breakdown (Court-Defensible)
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin-bottom:16px;">
+                    <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; text-align:center;">
+                        <div style="font-size:0.68rem; color:var(--text-muted)">Face (InsightFace)</div>
+                        <div style="font-size:1.1rem; font-weight:800; color:var(--accent-cyan);" id="scoreFace">88%</div>
+                        <div style="font-size:0.62rem; color:#94a3b8">ArcFace 512d</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; text-align:center;">
+                        <div style="font-size:0.68rem; color:var(--text-muted)">Body Re-ID (OSNet)</div>
+                        <div style="font-size:1.1rem; font-weight:800; color:#10b981;" id="scoreBody">92%</div>
+                        <div style="font-size:0.62rem; color:#94a3b8">Appearance & Apparel</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; text-align:center;">
+                        <div style="font-size:0.68rem; color:var(--text-muted)">Gait Dynamics (GaitSet)</div>
+                        <div style="font-size:1.1rem; font-weight:800; color:#38bdf8;" id="scoreGait">87%</div>
+                        <div style="font-size:0.62rem; color:#94a3b8">Stride & Posture Lean</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; text-align:center;">
+                        <div style="font-size:0.68rem; color:var(--text-muted)">Height Calibrated</div>
+                        <div style="font-size:1.1rem; font-weight:800; color:#a855f7;" id="scoreHeight">98%</div>
+                        <div style="font-size:0.62rem; color:#94a3b8">175cm vs 176cm</div>
+                    </div>
+                </div>
+
+                <!-- Mandatory Officer Confirmation Form -->
+                <div style="background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px;">
+                    <div style="font-size:0.76rem; font-weight:700; color:#f8fafc; margin-bottom:8px;">
+                        Mandatory Law Enforcement Sign-Off (BSA Section 63 Compliant)
+                    </div>
+                    <div class="form-row" style="margin-bottom:8px;">
+                        <div class="form-group">
+                            <label>Reviewing Officer Name</label>
+                            <input type="text" id="confirmOfficerName" value="Inspector V. R. Sekhar">
+                        </div>
+                        <div class="form-group">
+                            <label>Police Badge Number</label>
+                            <input type="text" id="confirmOfficerBadge" value="AP-EG-8821">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Officer Confirmation Notes</label>
+                        <input type="text" id="confirmNotes" value="Visual verification confirmed: matching height stature, dark backpack, and posture lean angle. Proceeding with field interception.">
+                    </div>
+                    <div class="modal-actions" style="margin-top:12px;">
+                        <button class="btn btn-reject" onclick="submitOfficerDecision('REJECTED_FALSE_ALARM')">
+                            ❌ Reject as False Positive
+                        </button>
+                        <button class="btn btn-confirm" style="background:linear-gradient(135deg, #10b981, #059669); border-color:#34d399;" onclick="submitOfficerDecision('CONFIRMED_MATCH')">
+                            ✅ Confirm Match & Dispatch Interception Team
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FORENSIC SUPER-RESOLUTION DUAL-VIEW INSPECTOR MODAL -->
+    <div class="modal-overlay" id="forensicEnhanceModal">
+        <div class="modal-card" style="max-width:840px; width:92%;">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <div class="pulse-dot" style="background:var(--accent-cyan)"></div>
+                    <strong style="font-size:1.1rem; color:var(--text-primary)">Target Crop AI Super-Resolution (CodeFormer + Real-ESRGAN)</strong>
+                </div>
+                <button class="modal-close-btn" onclick="closeForensicEnhanceModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:16px;">
+                <p style="font-size:0.76rem; color:var(--text-secondary); margin-bottom:12px;">
+                    Law enforcement forensic reconstruction: CodeFormer discrete codebook vector quantization restores facial geometry without synthetic hallucinations, while Real-ESRGAN upscales clothing textures and backpack buckles.
+                </p>
+
+                <div class="dual-enhancer-wrapper">
+                    <div class="enhancer-panel">
+                        <div class="enhancer-panel-header">
+                            <span style="color:#94a3b8">RAW CCTV OBSERVATION</span>
+                            <span class="cctv-sector-tag">GRAINY SENSOR</span>
+                        </div>
+                        <div class="enhancer-img-box">
+                            <img id="forensicRawImg" src="/frontend/assets/placeholder.jpg" alt="Raw CCTV Crop">
+                        </div>
+                        <div style="padding:8px; font-family:var(--font-mono); font-size:0.64rem; color:var(--text-muted); background:rgba(0,0,0,0.4);">
+                            SHA-256: a4f891b2c3d4e5f60718293a4b5c6d7e8f90123456789...
+                        </div>
+                    </div>
+
+                    <div class="enhancer-panel enhanced-glow">
+                        <div class="enhancer-panel-header" style="background:rgba(6, 182, 212, 0.1);">
+                            <span style="color:var(--accent-cyan)">AI RESTORED & UPSCALED</span>
+                            <span class="cctv-sector-tag" style="background:rgba(6, 182, 212, 0.2); color:var(--accent-cyan);">2x SUPER-RES</span>
+                        </div>
+                        <div class="enhancer-img-box">
+                            <img id="forensicEnhancedImg" src="/frontend/assets/placeholder.jpg" alt="AI Enhanced Crop">
+                        </div>
+                        <div style="padding:8px; font-family:var(--font-mono); font-size:0.64rem; color:#10b981; background:rgba(0,0,0,0.4);">
+                            SHA-256: cb9876543210fedcba9876543210fedcba987654321... [BSA Sec. 63 Sealed]
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:14px; display:flex; justify-content:flex-end;">
+                    <button class="btn" style="background:#334155; color:#cbd5e1;" onclick="closeForensicEnhanceModal()">Close Inspector</button>
                 </div>
             </div>
         </div>
