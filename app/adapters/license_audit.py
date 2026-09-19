@@ -112,6 +112,16 @@ MODEL_LICENSE_CATALOG: Dict[str, ModelLicenseInfo] = {
         restriction_notice="CRITICAL: InsightFace source code is MIT, but public pretrained recognition model weights (buffalo_l, antelopev2) are restricted to non-commercial research. Commercial deployment requires separate commercial licensing or in-house retrained weights.",
         official_repo="https://github.com/deepinsight/insightface"
     ),
+    "sface": ModelLicenseInfo(
+        model_id="sface",
+        component_name="OpenCV Zoo (YuNet + SFace)",
+        capability="Face Detection & SFace Recognition",
+        code_license="Apache-2.0",
+        weights_license="Apache-2.0",
+        is_commercial_ready=True,
+        restriction_notice="Permissive Apache-2.0 / BSD license from OpenCV Model Zoo. Fully cleared for commercial enterprise and public safety operations without academic-only restrictions.",
+        official_repo="https://github.com/opencv/opencv_zoo"
+    ),
     # Pose
     "rtmpose": ModelLicenseInfo(
         model_id="rtmpose",

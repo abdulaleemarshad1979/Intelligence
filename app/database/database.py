@@ -183,9 +183,32 @@ def init_db(db_path: Optional[str] = None):
         zone TEXT DEFAULT 'Central Division',
         view_direction TEXT DEFAULT 'NORTH',
         connected_topology_json TEXT DEFAULT '[]',
-        is_active INTEGER DEFAULT 1
+        is_active INTEGER DEFAULT 1,
+        ip_address TEXT DEFAULT '127.0.0.1',
+        rtsp_url TEXT DEFAULT '',
+        manufacturer TEXT DEFAULT 'Generic ONVIF',
+        model_name TEXT DEFAULT 'IP Camera',
+        mac_address TEXT DEFAULT '',
+        discovery_status TEXT DEFAULT 'APPROVED'
     )
     """)
+
+    # Safe column migration for existing databases
+    try:
+        existing_cols = [r[1] for r in cursor.execute("PRAGMA table_info(cameras)").fetchall()]
+        new_cols = [
+            ("ip_address", "TEXT DEFAULT '127.0.0.1'"),
+            ("rtsp_url", "TEXT DEFAULT ''"),
+            ("manufacturer", "TEXT DEFAULT 'Generic ONVIF'"),
+            ("model_name", "TEXT DEFAULT 'IP Camera'"),
+            ("mac_address", "TEXT DEFAULT ''"),
+            ("discovery_status", "TEXT DEFAULT 'APPROVED'")
+        ]
+        for col_name, col_def in new_cols:
+            if col_name not in existing_cols:
+                cursor.execute(f"ALTER TABLE cameras ADD COLUMN {col_name} {col_def}")
+    except Exception:
+        pass
 
     # 10. Gotham Ontology: Events
     cursor.execute("""

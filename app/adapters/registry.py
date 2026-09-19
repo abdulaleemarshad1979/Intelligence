@@ -45,7 +45,8 @@ class ModelRegistry:
             "fastreid": FastReIDAdapter(model_name="fastreid_sbs_r50")
         }
         self.face_analyzers: Dict[str, BaseCCTVFaceAnalyzer] = {
-            "insightface": InsightFaceArcFaceAdapter(model_name="buffalo_l")
+            "insightface": InsightFaceArcFaceAdapter(model_name="buffalo_l"),
+            "sface": InsightFaceArcFaceAdapter(model_name="sface")
         }
         self.pose_estimators: Dict[str, BaseSkeletalPoseEstimator] = {
             "rtmpose": RTMPoseAdapter(model_name="rtmpose-m"),

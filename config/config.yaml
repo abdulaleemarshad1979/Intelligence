@@ -61,18 +61,18 @@ thresholds:
 # Active Model Stack & Open-Source Ecosystem Adapters
 models:
   detection:
-    active: "yolo"              # Options: yolo, rtdetr
+    active: "rtdetr"            # Options: yolo, rtdetr (Apache-2.0 commercial safe)
     device: "cpu"
     conf_threshold: 0.35
   tracking:
-    active: "bytetrack"         # Options: bytetrack, botsort, deepstream, mmtracking
+    active: "botsort"           # Options: bytetrack, botsort, deepstream, mmtracking
   reid:
     active: "osnet"             # Options: osnet, fastreid
     embedding_dim: 512
   face:
-    active: "insightface"       # Options: insightface
+    active: "sface"             # Options: sface (Apache-2.0 commercial safe), insightface
     embedding_dim: 512
-    require_commercial_license: false
+    require_commercial_license: true
   pose:
     active: "rtmpose"           # Options: rtmpose, mmpose
   gait:

@@ -436,10 +436,15 @@ class Repository:
             cursor.execute("""
             INSERT OR REPLACE INTO cameras (
                 camera_id, name, latitude, longitude, zone, view_direction,
-                connected_topology_json, is_active
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (cam.camera_id, cam.name, cam.latitude, cam.longitude, cam.zone,
-                  cam.view_direction, json.dumps(cam.connected_topology), 1 if cam.is_active else 0))
+                connected_topology_json, is_active, ip_address, rtsp_url,
+                manufacturer, model_name, mac_address, discovery_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                cam.camera_id, cam.name, cam.latitude, cam.longitude, cam.zone,
+                cam.view_direction, json.dumps(cam.connected_topology), 1 if cam.is_active else 0,
+                cam.ip_address, cam.rtsp_url, cam.manufacturer, cam.model_name,
+                cam.mac_address, cam.discovery_status
+            ))
             conn.commit()
             return True
         finally:
@@ -451,21 +456,75 @@ class Repository:
         try:
             cursor.execute("SELECT * FROM cameras WHERE is_active = 1")
             rows = cursor.fetchall()
-            return [
-                CameraEntity(
-                    camera_id=r["camera_id"],
-                    name=r["name"],
-                    latitude=r["latitude"],
-                    longitude=r["longitude"],
-                    zone=r["zone"] or "Central Division",
-                    view_direction=r["view_direction"] or "NORTH",
-                    connected_topology=json.loads(r["connected_topology_json"]) if r["connected_topology_json"] else [],
-                    is_active=bool(r["is_active"])
-                )
-                for r in rows
-            ]
+            return [self._row_to_camera(r) for r in rows]
         finally:
             conn.close()
+
+    def get_camera_by_id(self, camera_id: str) -> Optional[CameraEntity]:
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT * FROM cameras WHERE camera_id = ?", (camera_id,))
+            r = cursor.fetchone()
+            if not r:
+                return None
+            return self._row_to_camera(r)
+        finally:
+            conn.close()
+
+    def get_discovered_cameras(self, status: Optional[str] = None) -> List[CameraEntity]:
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            if status:
+                cursor.execute("SELECT * FROM cameras WHERE discovery_status = ? ORDER BY camera_id", (status,))
+            else:
+                cursor.execute("SELECT * FROM cameras ORDER BY camera_id")
+            rows = cursor.fetchall()
+            return [self._row_to_camera(r) for r in rows]
+        finally:
+            conn.close()
+
+    def approve_discovered_camera(
+        self,
+        camera_id: str,
+        name: str,
+        latitude: float,
+        longitude: float,
+        zone: str = "East Zone"
+    ) -> bool:
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+            UPDATE cameras
+            SET name = ?, latitude = ?, longitude = ?, zone = ?, discovery_status = 'APPROVED', is_active = 1
+            WHERE camera_id = ?
+            """, (name, latitude, longitude, zone, camera_id))
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def _row_to_camera(self, r: Any) -> CameraEntity:
+        # Gracefully handle row indexing across sqlite3.Row
+        keys = r.keys() if hasattr(r, "keys") else []
+        return CameraEntity(
+            camera_id=r["camera_id"],
+            name=r["name"],
+            latitude=r["latitude"],
+            longitude=r["longitude"],
+            zone=r["zone"] if "zone" in keys and r["zone"] else "Central Division",
+            view_direction=r["view_direction"] if "view_direction" in keys and r["view_direction"] else "NORTH",
+            connected_topology=json.loads(r["connected_topology_json"]) if "connected_topology_json" in keys and r["connected_topology_json"] else [],
+            is_active=bool(r["is_active"]),
+            ip_address=r["ip_address"] if "ip_address" in keys and r["ip_address"] else "127.0.0.1",
+            rtsp_url=r["rtsp_url"] if "rtsp_url" in keys and r["rtsp_url"] else "",
+            manufacturer=r["manufacturer"] if "manufacturer" in keys and r["manufacturer"] else "Generic ONVIF",
+            model_name=r["model_name"] if "model_name" in keys and r["model_name"] else "IP Camera",
+            mac_address=r["mac_address"] if "mac_address" in keys and r["mac_address"] else "",
+            discovery_status=r["discovery_status"] if "discovery_status" in keys and r["discovery_status"] else "APPROVED"
+        )
 
     def save_relationship(self, rel: RelationshipLink) -> bool:
         conn = get_db_connection(self.db_path)

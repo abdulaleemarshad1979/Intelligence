@@ -13,21 +13,20 @@
     <!-- Tactical Top Header -->
     <header class="header">
         <div class="brand">
-            <div class="brand-icon">
+            <div class="brand-icon" title="CCTV Camera Surveillance">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="#06090e">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                    <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
                 </svg>
             </div>
             <div class="brand-title">
-                <span>CCTV INTELLIGENCE CORE <small style="font-size:0.68rem; color:var(--accent-cyan); font-family:var(--font-mono)">v2.0 ENTERPRISE</small></span>
-                <span class="brand-subtitle">East Godavari Police Command • Multi-Modal Person Re-ID & Behavioral Governance</span>
+                <span>CCTV INTELLIGENCE</span>
             </div>
         </div>
 
         <!-- Navigation Tabs -->
         <nav class="nav-tabs">
-            <button class="nav-tab-btn active" id="tabBtnInvestigation" onclick="switchMainTab('investigation')">Target Investigation Graph (Gotham)</button>
-            <button class="nav-tab-btn" id="tabBtnSurveillance" onclick="switchMainTab('surveillance')">Live Surveillance & Re-ID</button>
+            <button class="nav-tab-btn active" id="tabBtnSurveillance" onclick="switchMainTab('surveillance')">Live CCTV Surveillance</button>
+            <button class="nav-tab-btn" id="tabBtnInvestigation" onclick="switchMainTab('investigation')">Target Investigation Graph</button>
             <button class="nav-tab-btn" id="tabBtnCrossCamera" onclick="switchMainTab('cross-camera')">Cross-Camera Network</button>
             <button class="nav-tab-btn" id="tabBtnCompliance" onclick="switchMainTab('compliance')">Police Audit & Governance</button>
             <button class="nav-tab-btn" id="tabBtnBenchmark" onclick="switchMainTab('benchmark')">Model Stack Benchmark</button>
@@ -74,7 +73,7 @@
     </div>
 
     <!-- TAB 0: Palantir Gotham-Style Target Investigation Graph Hub -->
-    <main class="dashboard-grid tab-content active" id="tabInvestigation" style="grid-template-columns: 1fr; display: flex; flex-direction: column; gap: 16px;">
+    <main class="dashboard-grid tab-content" id="tabInvestigation" style="grid-template-columns: 1fr; display: flex; flex-direction: column; gap: 16px;">
         <!-- Header: Investigation Banner -->
         <div class="inv-case-header">
             <div class="inv-case-title">
@@ -232,7 +231,7 @@
     </main>
 
     <!-- TAB 1: Main Command Center Grid -->
-    <main class="dashboard-grid tab-content" id="tabSurveillance">
+    <main class="dashboard-grid tab-content active" id="tabSurveillance">
         <!-- Panel 1: Live CCTV Stream & Camera Network Matrix -->
         <section class="panel" id="panelLiveCCTV">
             <div class="panel-header">

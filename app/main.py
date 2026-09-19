@@ -23,7 +23,7 @@ from pydantic import BaseModel
 
 from app.database.database import init_db
 from app.database.repository import Repository
-from app.database.models import TrackObservation, MatchEvent
+from app.database.models import TrackObservation, MatchEvent, CameraEntity
 from app.reid.gallery import SuspectGallery
 from app.reid.matcher import CandidateMatcher
 from app.reid.cross_camera import CrossCameraTracker
@@ -39,6 +39,8 @@ from app.adapters.registry import model_registry
 from app.adapters.license_audit import MODEL_LICENSE_CATALOG
 from app.adapters.downloader import model_downloader
 from app.features.height import HeightEstimator
+from app.features.enhancement import stream_enhancer, candidate_enhancer
+from app.discovery.onvif_scanner import onvif_scanner
 
 # Gotham Investigation Modules
 from app.search.person_search import PersonSearchCoordinator
@@ -74,6 +76,23 @@ class AdjudicationReviewPayload(BaseModel):
     decision: str  # CONFIRM_IDENTITY, REJECT_ASSOCIATION, DEFER_REVIEW
     review_notes: Optional[str] = ""
     target_id: Optional[str] = None
+
+class StreamEnhancementPayload(BaseModel):
+    enable_clahe: Optional[bool] = None
+    enable_denoise: Optional[bool] = None
+    clahe_clip_limit: Optional[float] = None
+
+class ApproveCameraPayload(BaseModel):
+    camera_id: str
+    name: str
+    latitude: float
+    longitude: float
+    zone: Optional[str] = "East Zone"
+    view_direction: Optional[str] = "NORTH"
+
+class ScanNetworkPayload(BaseModel):
+    timeout_seconds: Optional[float] = 1.5
+    include_simulated_if_empty: Optional[bool] = True
 
 app = FastAPI(
     title="City-Wide Intelligent CCTV Intelligence Platform",
@@ -272,6 +291,97 @@ async def get_models_benchmark_comparison():
 async def get_cameras():
     cameras = load_camera_config()
     return cameras
+
+@app.post("/api/discovery/scan")
+async def scan_network_cameras(payload: Optional[ScanNetworkPayload] = None):
+    """Scan local network subnet via ONVIF WS-Discovery to find plug-and-play CCTV cameras."""
+    t_wait = payload.timeout_seconds if payload else 1.5
+    include_sim = payload.include_simulated_if_empty if payload else True
+    discovered = onvif_scanner.scan_network(timeout=t_wait, include_simulated_if_empty=include_sim)
+    
+    saved_count = 0
+    for cam in discovered:
+        existing = repo.get_camera_by_id(cam.camera_id)
+        if not existing:
+            entity = CameraEntity(
+                camera_id=cam.camera_id,
+                name=f"{cam.manufacturer} {cam.model_name} ({cam.ip_address})",
+                latitude=16.9890,
+                longitude=82.2475,
+                zone="Unassigned / Discovered",
+                view_direction="NORTH",
+                connected_topology=[],
+                is_active=False,
+                ip_address=cam.ip_address,
+                rtsp_url=cam.rtsp_url,
+                manufacturer=cam.manufacturer,
+                model_name=cam.model_name,
+                mac_address=cam.mac_address,
+                discovery_status="DISCOVERED"
+            )
+            repo.save_camera(entity)
+            saved_count += 1
+            
+    return {
+        "status": "SUCCESS",
+        "found_count": len(discovered),
+        "newly_registered_count": saved_count,
+        "cameras": [c.to_dict() for c in discovered]
+    }
+
+@app.get("/api/discovery/cameras")
+async def list_discovered_cameras(status: Optional[str] = None):
+    """Retrieve discovered and approved cameras from the database registry."""
+    cams = repo.get_discovered_cameras(status=status)
+    return {
+        "status": "SUCCESS",
+        "count": len(cams),
+        "cameras": [
+            {
+                "camera_id": c.camera_id,
+                "name": c.name,
+                "ip_address": c.ip_address,
+                "rtsp_url": c.rtsp_url,
+                "manufacturer": c.manufacturer,
+                "model_name": c.model_name,
+                "mac_address": c.mac_address,
+                "latitude": c.latitude,
+                "longitude": c.longitude,
+                "zone": c.zone,
+                "discovery_status": c.discovery_status,
+                "is_active": c.is_active
+            }
+            for c in cams
+        ]
+    }
+
+@app.post("/api/discovery/approve")
+async def approve_camera(payload: ApproveCameraPayload):
+    """Approve a discovered camera, assigning an officer-friendly name and map coordinates."""
+    ok = repo.approve_discovered_camera(
+        camera_id=payload.camera_id,
+        name=payload.name,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        zone=payload.zone or "East Zone"
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"Camera '{payload.camera_id}' not found")
+
+    cam = repo.get_camera_by_id(payload.camera_id)
+    return {
+        "status": "SUCCESS",
+        "message": f"Camera '{payload.name}' approved and activated on the map",
+        "camera": {
+            "camera_id": cam.camera_id,
+            "name": cam.name,
+            "latitude": cam.latitude,
+            "longitude": cam.longitude,
+            "zone": cam.zone,
+            "status": cam.discovery_status,
+            "is_active": cam.is_active
+        } if cam else None
+    }
 
 @app.get("/api/tracks")
 async def get_all_tracks():
@@ -546,6 +656,9 @@ def generate_mjpeg_stream():
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             continue
 
+        # Step 1: Always-on instant frame enhancement (CLAHE + Fast Denoising)
+        frame = stream_enhancer.enhance_stream_frame(frame)
+
         frame_id += 1
         h, w = frame.shape[:2]
 
@@ -609,6 +722,33 @@ def generate_mjpeg_stream():
 async def video_feed():
     return StreamingResponse(generate_mjpeg_stream(), media_type="multipart/x-mixed-replace; boundary=frame")
 
+@app.get("/api/stream/enhancement")
+async def get_stream_enhancement():
+    """Retrieve current Step 1 stream pre-processing settings (CLAHE & Denoising)."""
+    return {
+        "status": "SUCCESS",
+        "enhancement": stream_enhancer.get_status()
+    }
+
+@app.post("/api/stream/enhancement")
+async def update_stream_enhancement(payload: StreamEnhancementPayload):
+    """Dynamically toggle or configure CLAHE and Denoising on live streams."""
+    if payload.enable_clahe is not None:
+        stream_enhancer.enable_clahe = payload.enable_clahe
+    if payload.enable_denoise is not None:
+        stream_enhancer.enable_denoise = payload.enable_denoise
+    if payload.clahe_clip_limit is not None:
+        stream_enhancer.clahe_clip_limit = max(0.5, min(10.0, payload.clahe_clip_limit))
+        stream_enhancer._clahe = cv2.createCLAHE(
+            clipLimit=stream_enhancer.clahe_clip_limit,
+            tileGridSize=stream_enhancer.clahe_grid_size
+        )
+    return {
+        "status": "SUCCESS",
+        "message": "Stream enhancement configuration updated",
+        "enhancement": stream_enhancer.get_status()
+    }
+
 # ==================== GOTHAM INVESTIGATION API ROUTES ====================
 
 @app.get("/api/investigation/incidents")
@@ -664,6 +804,9 @@ async def find_person_investigation(payload: FindPersonPayload):
     """Core 'FIND THIS PERSON' investigation query across the CCTV observation database."""
     inc_id = payload.incident_id or "INC-2026-0041"
     inc = repo.get_incident_by_id(inc_id)
+    if not inc:
+        seed_gotham_demo(repo)
+        inc = repo.get_incident_by_id(inc_id)
 
     probe_track_id = payload.probe_track_id or (inc.seed_track_id if inc else "481")
     if not probe_track_id:

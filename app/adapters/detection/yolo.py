@@ -78,14 +78,21 @@ class YOLODetectorAdapter(BasePedestrianDetector):
         # Fallback detection
         dets = self.fallback_detector.detect(frame)
         for d in dets:
-            x1, y1, x2, y2 = d.box
+            if isinstance(d, dict):
+                box = d.get("box", [0, 0, 0, 0])
+                conf = d.get("confidence", 0.5)
+            else:
+                box = getattr(d, "box", [0, 0, 0, 0])
+                conf = getattr(d, "confidence", 0.5)
+
+            x1, y1, x2, y2 = box
             w = max(1, x2 - x1)
             h = max(1, y2 - y1)
             results.append(DetectionResult(
                 bbox=(x1, y1, w, h),
-                confidence=round(d.confidence, 3),
+                confidence=round(conf, 3),
                 class_name="person",
-                track_id=None
+                track_id=1
             ))
         return results
 

@@ -110,6 +110,12 @@ class CameraEntity:
     view_direction: str = "NORTH"
     connected_topology: List[Dict[str, Any]] = field(default_factory=list)
     is_active: bool = True
+    ip_address: str = "127.0.0.1"
+    rtsp_url: str = ""
+    manufacturer: str = "Generic ONVIF"
+    model_name: str = "IP Camera"
+    mac_address: str = ""
+    discovery_status: str = "APPROVED"  # DISCOVERED, APPROVED, REJECTED
 
 @dataclass
 class IncidentCase:

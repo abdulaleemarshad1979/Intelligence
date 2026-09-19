@@ -1,10 +1,12 @@
-"""Multi-Modal Evidence Fusion Engine dynamically combining Face, Body, Gait, and Height biometrics."""
+"""Multi-Modal Evidence Fusion Engine dynamically combining Face, Body, Gait, and Height biometrics
+with built-in humility vetoes and calibrated confidence scoring for police-grade accuracy."""
 
 import math
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, List
 from app.database.models import CriminalRecord, TrackObservation
 from app.reid.embedding import cosine_similarity
 from app.features.partial_face import compute_partial_face_similarity
+
 
 def hex_to_rgb(hex_str: str) -> Tuple[int, int, int]:
     hex_clean = hex_str.lstrip('#')
@@ -12,21 +14,30 @@ def hex_to_rgb(hex_str: str) -> Tuple[int, int, int]:
         return (50, 50, 50)
     return (int(hex_clean[0:2], 16), int(hex_clean[2:4], 16), int(hex_clean[4:6], 16))
 
+
 def compute_color_similarity(c1_hex: str, c2_hex: str) -> float:
     r1, g1, b1 = hex_to_rgb(c1_hex)
     r2, g2, b2 = hex_to_rgb(c2_hex)
     dist = math.sqrt((r1 - r2)**2 + (g1 - g2)**2 + (b1 - b2)**2)
-    # Max possible distance is sqrt(3 * 255^2) ~= 441.67
     sim = max(0.0, 1.0 - (dist / 220.0))
     return round(sim, 3)
 
+
 class EvidenceFusionEngine:
-    def __init__(self):
-        pass
+    """Combines facial, body Re-ID, skeletal posture, gait bonus, and calibrated stature.
+
+    Integrates 'Humility Vetoes':
+    A system that says 'I don't know' is essential for law enforcement credibility.
+    If physical attributes contradict (e.g. height difference > 12cm), false matches are
+    actively suppressed and flagged for human investigator review.
+    """
+
+    def __init__(self, height_veto_threshold_cm: float = 12.0):
+        self.height_veto_threshold_cm = height_veto_threshold_cm
 
     def evaluate_candidate(self, track: TrackObservation, suspect: CriminalRecord) -> Dict[str, Any]:
-        """Perform multi-criteria evidence fusion between a live CCTV track and a known criminal record."""
-        # 1. FACE EVIDENCE
+        """Perform multi-criteria evidence fusion between a live CCTV track and a known record."""
+        # 1. FACE EVIDENCE (YuNet + SFace / ArcFace)
         face_available = track.face_visible and track.face_status != "UNAVAILABLE"
         if face_available:
             mask_track = (track.face_status == "MASKED_LOWER")
@@ -36,7 +47,7 @@ class EvidenceFusionEngine:
             face_score = 0.0
             face_evidence_status = "UNAVAILABLE (Masked/Rear/Blur)"
 
-        # 2. BODY BIOMETRICS & PROPORTIONS
+        # 2. BODY BIOMETRICS & PROPORTIONS (OSNet Re-ID Backbone)
         body_emb_sim = cosine_similarity(track.body_embedding, suspect.body_embedding)
 
         # Torso / Leg Ratio similarity
@@ -51,7 +62,7 @@ class EvidenceFusionEngine:
 
         body_score = round(0.45 * body_emb_sim + 0.30 * ratio_score + 0.25 * clothing_score, 3)
 
-        # 3. GAIT & POSTURE DYNAMICS
+        # 3. GAIT & POSTURE DYNAMICS (Bonus Vote / Nudge Modifier)
         gait_emb_sim = cosine_similarity(track.gait_embedding, suspect.gait_embedding)
 
         # Stride length match (cm)
@@ -69,7 +80,6 @@ class EvidenceFusionEngine:
 
         # 4. CALIBRATED HEIGHT STATURE
         h_diff = abs(track.estimated_height_cm - suspect.known_height_cm)
-        # 0 diff -> 1.0, 10cm diff -> 0.4, >15cm -> 0.0
         height_score = round(max(0.0, 1.0 - (h_diff / 14.0)), 3)
 
         # 5. DYNAMIC WEIGHT FUSION
@@ -79,13 +89,12 @@ class EvidenceFusionEngine:
             w_gait = 0.25
             w_height = 0.10
         else:
-            # Shift weight dynamically to body, gait, and height!
             w_face = 0.00
             w_body = 0.40
             w_gait = 0.45
             w_height = 0.15
 
-        total_confidence = round(
+        raw_confidence = round(
             (w_face * face_score) +
             (w_body * body_score) +
             (w_gait * gait_score) +
@@ -93,16 +102,48 @@ class EvidenceFusionEngine:
             3
         )
 
-        # 6. INVESTIGATION STATUS DETERMINATION
-        if total_confidence >= 0.78:
-            status = "HIGH_CONFIDENCE"
-            recommendation = "Immediate Authorized Intercept & Verification"
-        elif total_confidence >= 0.52:
-            status = "REVIEW_REQUIRED"
-            recommendation = "Multi-Criteria Candidate Match: Human Investigator Review Required"
-        else:
+        # 6. BIOMETRIC HUMILITY & CONTRADICTION VETOES
+        veto_reasons: List[str] = []
+        is_vetoed = False
+
+        # Height contradiction: cannot grow or shrink by >12cm
+        if h_diff > self.height_veto_threshold_cm:
+            is_vetoed = True
+            veto_reasons.append(
+                f"HUMILITY_VETO: Height disparity ({h_diff:.1f}cm > {self.height_veto_threshold_cm:.1f}cm) "
+                f"contradicts suspect profile (Track: {track.estimated_height_cm:.0f}cm vs Suspect: {suspect.known_height_cm:.0f}cm)."
+            )
+
+        # Facial contradiction: if face is fully visible but SFace score is very poor, reject match
+        if face_available and face_score < 0.25:
+            is_vetoed = True
+            veto_reasons.append(
+                f"HUMILITY_VETO: Frontal face visible but facial similarity ({face_score:.2f}) contradicts suspect face."
+            )
+
+        # Body contradiction: when face is unavailable and body embedding similarity is low, gait alone cannot trigger match
+        if not face_available and body_emb_sim < 0.22:
+            is_vetoed = True
+            veto_reasons.append(
+                f"HUMILITY_VETO: Rear/occluded view with poor body embedding similarity ({body_emb_sim:.2f} < 0.22). Match rejected."
+            )
+
+        # Final calibrated confidence
+        if is_vetoed:
+            total_confidence = min(raw_confidence, 0.42)
             status = "UNKNOWN_PERSON"
-            recommendation = "Non-Matching Track / Incident Logging Only"
+            recommendation = f"Humility Veto: Potential False Positive Suppressed ({'; '.join(veto_reasons)})"
+        else:
+            total_confidence = raw_confidence
+            if total_confidence >= 0.78:
+                status = "HIGH_CONFIDENCE"
+                recommendation = "Immediate Authorized Intercept & Verification"
+            elif total_confidence >= 0.52:
+                status = "REVIEW_REQUIRED"
+                recommendation = "Multi-Criteria Candidate Match: Human Investigator Review Required"
+            else:
+                status = "UNKNOWN_PERSON"
+                recommendation = "Non-Matching Track / Incident Logging Only"
 
         return {
             "suspect_id": suspect.id,
@@ -111,10 +152,14 @@ class EvidenceFusionEngine:
             "police_station": suspect.police_station,
             "acts_sec": suspect.acts_sec,
             "total_confidence": total_confidence,
+            "raw_confidence": raw_confidence,
             "status": status,
             "recommendation": recommendation,
             "is_face_available": face_available,
             "face_evidence_status": face_evidence_status,
+            "is_vetoed": is_vetoed,
+            "veto_reasons": veto_reasons,
+            "humility_status": "VETO_TRIGGERED" if is_vetoed else "PASSED",
             "scores": {
                 "face_score": round(face_score, 3),
                 "body_score": body_score,
