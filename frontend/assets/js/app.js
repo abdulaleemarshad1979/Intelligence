@@ -794,8 +794,64 @@ async function fetchModelRegistryAndLicenses() {
             }
             licContainer.innerHTML = html;
         }
+
+        // Fetch GitHub neural weights status
+        await fetchGitHubModelsStatus();
     } catch (e) {
         console.error("Error fetching model registry/licenses:", e);
+    }
+}
+
+async function fetchGitHubModelsStatus() {
+    try {
+        const resp = await fetch("/api/models/download-status");
+        if (!resp.ok) return;
+        const catalog = await resp.json();
+        const container = document.getElementById("githubModelsList");
+        if (!container) return;
+
+        let html = "";
+        for (const [key, info] of Object.entries(catalog)) {
+            const isReady = info.is_downloaded;
+            const badgeColor = isReady ? "var(--accent-emerald)" : "var(--accent-amber)";
+            const badgeBg = isReady ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)";
+            const statusLabel = isReady ? `READY (${info.size_mb} MB)` : `MISSING (${info.expected_size_mb} MB)`;
+
+            html += `
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:6px 8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:600; color:#cbd5e1;">${info.name}</span>
+                        <span style="font-size:0.65rem; color:${badgeColor}; background:${badgeBg}; padding:2px 6px; border-radius:4px; font-weight:600;">
+                            ${statusLabel}
+                        </span>
+                    </div>
+                    <div style="color:var(--text-muted); font-size:0.68rem; margin-top:2px;">
+                        ${info.source} &bull; ${info.filename}
+                    </div>
+                </div>
+            `;
+        }
+        container.innerHTML = html;
+    } catch (e) {
+        console.error("Error fetching GitHub models status:", e);
+    }
+}
+
+async function downloadAllGitHubModels() {
+    const statusText = document.getElementById("downloadStatusText");
+    if (statusText) statusText.innerText = "Downloading models from GitHub releases...";
+    try {
+        const resp = await fetch("/api/models/download", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ all: true })
+        });
+        await resp.json();
+        if (statusText) statusText.innerText = "All models downloaded and verified from GitHub!";
+        await fetchGitHubModelsStatus();
+        await fetchStatus();
+    } catch (e) {
+        if (statusText) statusText.innerText = "Download failed: " + e.message;
     }
 }
 
