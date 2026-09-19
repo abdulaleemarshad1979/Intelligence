@@ -1,0 +1,82 @@
+# CCTV Multi-Modal Person Re-Identification & Intelligence Platform Configuration
+
+system:
+  name: "CCTV Intelligence Core"
+  version: "1.0.0"
+  log_level: "INFO"
+  data_dir: "data"
+  tracks_dir: "data/tracks"
+  db_path: "data/police_records.db"
+
+video:
+  default_source: "data/samples/cctv_sample.mp4"
+  stream_fps: 25
+  process_width: 1024
+  process_height: 576
+  skip_frames: 1  # Process every Nth frame for performance (1 = every frame, 2 = alternate)
+
+detection:
+  confidence_threshold: 0.35
+  nms_threshold: 0.45
+  min_person_height: 70     # pixels
+  min_person_width: 25      # pixels
+
+tracking:
+  max_age: 30               # frames to keep lost track alive
+  min_hits: 3               # detections before track is confirmed
+  iou_threshold: 0.25
+  max_track_history: 60     # rolling frame buffer per track
+
+features:
+  face:
+    min_face_size: 20       # min pixels
+    upper_tier_ratio: 0.33  # 0 to 33% forehead/eyes
+    mid_tier_ratio: 0.66    # 33% to 66% nose/cheeks
+    lower_tier_ratio: 1.0   # 66% to 100% mouth/chin
+    mask_texture_threshold: 18.0
+  gait:
+    window_size: 24         # frame sequence for gait cycle
+    min_stride_frames: 8
+  height:
+    default_camera_id: "CAM-001"
+
+fusion_weights:
+  # When face is visible
+  face_visible:
+    face: 0.40
+    body: 0.25
+    gait: 0.25
+    height: 0.10
+  # When face is occluded/masked/rear-view
+  face_unavailable:
+    face: 0.00
+    body: 0.40
+    gait: 0.45
+    height: 0.15
+
+thresholds:
+  high_confidence_match: 0.78
+  candidate_review_match: 0.55
+
+# Active Model Stack & Open-Source Ecosystem Adapters
+models:
+  detection:
+    active: "yolo"              # Options: yolo, rtdetr
+    device: "cpu"
+    conf_threshold: 0.35
+  tracking:
+    active: "bytetrack"         # Options: bytetrack, botsort, deepstream, mmtracking
+  reid:
+    active: "osnet"             # Options: osnet, fastreid
+    embedding_dim: 512
+  face:
+    active: "insightface"       # Options: insightface
+    embedding_dim: 512
+    require_commercial_license: false
+  pose:
+    active: "rtmpose"           # Options: rtmpose, mmpose
+  gait:
+    active: "opengait"          # Options: opengait, gaitset
+    architecture: "GaitBase"    # Options: GaitBase, GaitGL, GaitSet
+    allow_academic_license: true
+

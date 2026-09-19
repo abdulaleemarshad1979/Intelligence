@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCTV Intelligence Core | City-Wide Person Re-ID & Police Governance Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/frontend/assets/css/style.css">
+</head>
+<body>
+    <!-- Tactical Top Header -->
+    <header class="header">
+        <div class="brand">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="#06090e">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                </svg>
+            </div>
+            <div class="brand-title">
+                <span>CCTV INTELLIGENCE CORE <small style="font-size:0.68rem; color:var(--accent-cyan); font-family:var(--font-mono)">v2.0 ENTERPRISE</small></span>
+                <span class="brand-subtitle">East Godavari Police Command • Multi-Modal Person Re-ID & Behavioral Governance</span>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="nav-tab-btn active" id="tabBtnInvestigation" onclick="switchMainTab('investigation')">Target Investigation Graph (Gotham)</button>
+            <button class="nav-tab-btn" id="tabBtnSurveillance" onclick="switchMainTab('surveillance')">Live Surveillance & Re-ID</button>
+            <button class="nav-tab-btn" id="tabBtnCrossCamera" onclick="switchMainTab('cross-camera')">Cross-Camera Network</button>
+            <button class="nav-tab-btn" id="tabBtnCompliance" onclick="switchMainTab('compliance')">Police Audit & Governance</button>
+            <button class="nav-tab-btn" id="tabBtnBenchmark" onclick="switchMainTab('benchmark')">Model Stack Benchmark</button>
+        </nav>
+
+        <div class="system-badges">
+            <div class="badge online">
+                <span class="pulse-dot"></span>
+                <span>FEED: ACTIVE (CAM-001)</span>
+            </div>
+            <div class="badge">
+                <span>SUSPECT GALLERY: <strong id="statSuspects" style="color:var(--accent-cyan)">40</strong></span>
+            </div>
+            <div class="badge">
+                <span>TRACKS: <strong id="statTracks" style="color:var(--accent-blue)">0</strong></span>
+            </div>
+            <div class="badge alert">
+                <span>CANDIDATES: <strong id="statMatches" style="color:var(--accent-amber)">0</strong></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Behavioral Alert Ticker Banner -->
+    <div class="alert-ticker-bar" id="alertTickerBar">
+        <div class="alert-ticker-label">
+            <span class="pulse-dot" style="background:var(--accent-crimson)"></span>
+            <strong>ACTIVE BEHAVIORAL ALERTS:</strong>
+        </div>
+        <div class="alert-ticker-content" id="alertTickerContent">
+            Monitoring CCTV streams for loitering, sudden sprinting, and erratic pacing...
+        </div>
+    </div>
+
+    <!-- Active Perception Model Stack Bar -->
+    <div class="model-stack-bar">
+        <span class="model-stack-title">NEURAL PERCEPTION STACK:</span>
+        <span class="model-chip" id="chipDetector" title="Pedestrian Detection">DET: <strong id="lblDetector">YOLO</strong></span>
+        <span class="model-chip" id="chipTracker" title="Tracking Association">TRACK: <strong id="lblTracker">ByteTrack</strong></span>
+        <span class="model-chip" id="chipReID" title="Body Re-Identification">RE-ID: <strong id="lblReID">OSNet-512d</strong></span>
+        <span class="model-chip" id="chipFace" title="3-Tier Face & Mask Resilience">FACE: <strong id="lblFace">InsightFace 3-Tier</strong></span>
+        <span class="model-chip" id="chipPose" title="17-Keypoint Skeletal Estimation">POSE: <strong id="lblPose">RTMPose</strong></span>
+        <span class="model-chip" id="chipGait" title="Gait Recognition">GAIT: <strong id="lblGait">GaitSet</strong></span>
+        <span class="model-chip highlight" id="chipLicense" title="Open-Source Legal Compliance">LEGAL: <strong id="lblLicense">COMMERCIAL READY</strong></span>
+    </div>
+
+    <!-- TAB 0: Palantir Gotham-Style Target Investigation Graph Hub -->
+    <main class="dashboard-grid tab-content active" id="tabInvestigation" style="grid-template-columns: 1fr; display: flex; flex-direction: column; gap: 16px;">
+        <!-- Header: Investigation Banner -->
+        <div class="inv-case-header">
+            <div class="inv-case-title">
+                <div class="pulse-dot" style="background:var(--accent-crimson); width:12px; height:12px;"></div>
+                <div class="inv-case-badge">INVESTIGATION <span id="invCaseNumberTitle" style="color:var(--accent-cyan)">#INC-2026-0041</span></div>
+                <span class="inv-pill pill-amber" id="invPriorityBadge">CRITICAL PRIORITY</span>
+                <span class="inv-pill pill-cyan" id="invOfficerBadge">OFFICER: AP-EG-8821</span>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <span class="inv-pill pill-green">ACTIVE CASE</span>
+                <button class="btn" style="background:#1e293b; color:#94a3b8; border:1px solid #334155; font-size:0.75rem; padding:6px 12px; cursor:pointer;" onclick="reseedGothamDemo()">
+                    ↺ Reset Scenario
+                </button>
+            </div>
+        </div>
+
+        <!-- Row 1: Incident Origin, Person of Interest Probe, and "FIND THIS PERSON" Action -->
+        <div class="inv-overview-grid">
+            <!-- Box A: Incident Details -->
+            <section class="panel" style="margin:0;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                        </svg>
+                        <span>Incident Origin</span>
+                    </div>
+                    <span class="inv-pill pill-cyan">CAM-017</span>
+                </div>
+                <div style="font-size:0.82rem; margin-top:8px;">
+                    <div style="color:var(--accent-cyan); font-weight:700; font-family:var(--font-mono); font-size:1.05rem;">
+                        CAM-017 | 18:42:11
+                    </div>
+                    <div style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">
+                        Sector 4 Commercial Plaza North Exit
+                    </div>
+                    <div style="margin-top:12px; font-size:0.78rem; color:var(--text-secondary); line-height:1.4;">
+                        Incident initiation: Person of interest observed departing crime scene northward. Face covered / unavailable, carrying dark backpack.
+                    </div>
+                </div>
+            </section>
+
+            <!-- Box B: Person of Interest (Seed Target) -->
+            <section class="panel" style="margin:0;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                        </svg>
+                        <span>Person of Interest (Seed Probe)</span>
+                    </div>
+                    <span class="inv-pill pill-amber">TRACK 481</span>
+                </div>
+                <div style="display:flex; gap:14px; margin-top:8px;">
+                    <div style="width:70px; height:95px; background:#0b1120; border:1px solid #233354; border-radius:4px; overflow:hidden; flex-shrink:0;">
+                        <img src="/frontend/assets/placeholder.jpg" alt="Probe Crop" style="width:100%; height:100%; object-fit:cover;">
+                    </div>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px; align-content:flex-start;">
+                        <span class="inv-pill pill-amber" id="probeFaceBadge">Face: unavailable</span>
+                        <span class="inv-pill pill-cyan" id="probeBodyBadge">Body: available</span>
+                        <span class="inv-pill pill-green" id="probeGaitBadge">Gait: available</span>
+                        <span class="inv-pill pill-blue" id="probeClothingBadge">Clothing: available</span>
+                        <span class="inv-pill pill-purple" id="probeHeightBadge">Height: 178 cm (±3cm)</span>
+                        <span class="inv-pill pill-amber" id="probeObjectBadge">Backpack: detected</span>
+                        <span class="inv-pill pill-teal" id="probeDirectionBadge">Direction: NORTH</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Box C: FIND THIS PERSON Action Button -->
+            <section class="panel" style="margin:0; display:flex; flex-direction:column; justify-content:center; padding:12px;">
+                <button class="btn-find-person" id="btnFindPerson" onclick="executeFindPerson()">
+                    <span>🔍 FIND THIS PERSON ACROSS CCTV NETWORK</span>
+                    <small style="font-size:0.68rem; font-weight:400; opacity:0.85; text-align:center;">
+                        Searches observation database, tests spatio-temporal travel velocity, & fuses multi-modal evidence
+                    </small>
+                </button>
+            </section>
+        </div>
+
+        <!-- Row 2: Movement Timeline -->
+        <section class="panel" style="margin:0;">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H6v-2h6v2zm4-4H6v-2h10v2zm0-4H6V7h10v2z"/>
+                    </svg>
+                    <span>Movement Timeline (Cross-Camera Transit Sequence)</span>
+                </div>
+                <span class="inv-pill pill-teal">CAM-017 ── CAM-018 ── CAM-021 ── CAM-023</span>
+            </div>
+            <div class="timeline-reel" id="movementTimelineReel">
+                <!-- Dynamically populated via investigation.js -->
+            </div>
+        </section>
+
+        <!-- Row 3: Associated Observations & Transparent Evidence Matrix -->
+        <div style="display:grid; grid-template-columns: 1.1fr 1.4fr; gap: 16px;">
+            <!-- Column A: Associated Observations Reel -->
+            <section class="panel" style="margin:0;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/>
+                        </svg>
+                        <span>Associated Observations</span>
+                    </div>
+                    <span class="inv-pill pill-cyan">CLICK TO INSPECT</span>
+                </div>
+                <div class="assoc-grid" id="associatedObservationsGrid" style="margin-top:10px;">
+                    <!-- Populated via investigation.js -->
+                </div>
+            </section>
+
+            <!-- Column B: Transparent Defensible Evidence Matrix -->
+            <section class="panel" style="margin:0;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                        </svg>
+                        <span>Transparent Evidence Matrix (Defensible Breakdown)</span>
+                    </div>
+                    <span class="inv-pill pill-purple">NO OPAQUE MATCH SCORES</span>
+                </div>
+                <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
+                    Multi-modal evidence is itemized independently for forensic transparency and courtroom defensibility.
+                </div>
+                <div class="evidence-matrix-list" id="evidenceMatrixList">
+                    <!-- Populated via investigation.js -->
+                </div>
+                <div style="margin-top:14px; display:flex; justify-content:flex-end;">
+                    <button class="btn btn-confirm" id="btnReviewAssociation" style="padding:8px 18px; font-size:0.82rem; font-weight:700;">
+                        ⚖️ REVIEW ASSOCIATION (CONSEQUENTIAL DECISION)
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Row 4: Investigation Graph Canvas -->
+        <section class="panel" style="margin:0;">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                    </svg>
+                    <span>Investigation Graph (Incidents, Targets, Tracks, Cameras)</span>
+                </div>
+                <span class="inv-pill pill-green">INTERACTIVE NODE-EDGE TOPOLOGY</span>
+            </div>
+            <div class="graph-canvas-box">
+                <canvas id="investigationGraphCanvas"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <!-- TAB 1: Main Command Center Grid -->
+    <main class="dashboard-grid tab-content" id="tabSurveillance">
+        <!-- Panel 1: Live CCTV Stream & Camera Network Matrix -->
+        <section class="panel" id="panelLiveCCTV">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                    </svg>
+                    <span>CCTV Video Analytics Feed</span>
+                </div>
+                <span class="badge online" id="camResolutionTag">1024 x 576 • 25 FPS</span>
+            </div>
+
+            <!-- Video Player -->
+            <div class="video-wrapper">
+                <img src="/api/video_feed" alt="Live CCTV Stream" class="video-player" id="liveVideoPlayer">
+                <div class="camera-hud">
+                    <div class="hud-rec">
+                        <span class="pulse-dot"></span>
+                        <span id="camOverlayTitle">CAM-001 | HOSPITAL NORTH CORRIDOR</span>
+                    </div>
+                    <div style="color: var(--accent-cyan)">AI MULTI-CRITERIA HUD: ON</div>
+                </div>
+            </div>
+
+            <!-- Camera Network Selector -->
+            <div style="margin-top: 14px;">
+                <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">
+                    District Camera Topology Switcher
+                </div>
+                <div class="camera-selector" id="cameraSelector">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- Live Track Stream Selection -->
+            <div style="margin-top: 14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">
+                        Detected Person Tracks in Scene
+                    </span>
+                    <span style="font-size: 0.7rem; color: var(--accent-cyan); font-family: var(--font-mono);">
+                        SELECT TO INSPECT
+                    </span>
+                </div>
+                <div class="tracks-strip" id="tracksStrip">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Panel 2: Selected Person Dossier & Multi-Modal Biometrics -->
+        <section class="panel" id="panelBiometrics">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                    <span>Person Biometrics & Gait Dynamics</span>
+                </div>
+                <span class="badge" id="dossierFaceBadge">FACE EVALUATION</span>
+            </div>
+
+            <!-- Track Header Info -->
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;">
+                <div>
+                    <span style="font-size:0.75rem; color:var(--text-muted)">TARGET DOSSIER:</span>
+                    <strong style="font-size:1.2rem; font-family:var(--font-mono); color:var(--accent-cyan)" id="dossierTrackId">SELECT TRACK</strong>
+                </div>
+                <div style="font-size:0.75rem; color:var(--text-secondary)">
+                    Evidence Frame Selection: <strong style="color:var(--accent-emerald)">BEST QUALITY</strong>
+                </div>
+            </div>
+
+            <!-- 3-Part Face Decomposition Matrix -->
+            <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">
+                3-Part Face Partition & Mask Resilience
+            </div>
+            <div class="face-tiers-grid">
+                <div class="face-visual-box">
+                    <div class="face-tier-slice tier-visible" id="sliceUpper">UPPER</div>
+                    <div class="face-tier-slice tier-visible" id="sliceMid">MID</div>
+                    <div class="face-tier-slice tier-masked" id="sliceLower">LOWER</div>
+                </div>
+                <div class="face-details-list">
+                    <div class="tier-row">
+                        <span style="color:var(--text-secondary)">Upper (Forehead/Eyes):</span>
+                        <strong id="valUpperStatus" style="color:var(--text-primary)">Analyzing...</strong>
+                    </div>
+                    <div class="tier-row">
+                        <span style="color:var(--text-secondary)">Mid (Nose/Cheeks):</span>
+                        <strong id="valMidStatus" style="color:var(--text-primary)">Analyzing...</strong>
+                    </div>
+                    <div class="tier-row">
+                        <span style="color:var(--text-secondary)">Lower (Mouth/Jaw):</span>
+                        <strong id="valLowerStatus" style="color:var(--accent-amber)">Masked</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stature & Body Proportions Metrics -->
+            <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">
+                Perspective Height & Body Length Proportions
+            </div>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <span class="metric-label">Calibrated Height</span>
+                    <span class="metric-value" id="metricHeight">-- cm</span>
+                    <span class="metric-sub">Perspective Calibrated</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Torso / Leg Ratio</span>
+                    <span class="metric-value" id="metricRatio">--</span>
+                    <span class="metric-sub">Anatomical Ratio</span>
+                </div>
+            </div>
+
+            <!-- Clothing Color Signature -->
+            <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">
+                Extracted Clothing Palette
+            </div>
+            <div class="swatch-group" style="margin-bottom: 14px;">
+                <div class="swatch-pill">
+                    <span class="swatch-circle" id="upperSwatch" style="background:#5c4033"></span>
+                    <span>Upper: <strong id="upperHexText">#5c4033</strong></span>
+                </div>
+                <div class="swatch-pill">
+                    <span class="swatch-circle" id="lowerSwatch" style="background:#1f2421"></span>
+                    <span>Lower: <strong id="lowerHexText">#1f2421</strong></span>
+                </div>
+            </div>
+
+            <!-- Gait & Posture Dynamics Section -->
+            <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">
+                Walking Style & Gait Dynamics (Pose Sequence)
+            </div>
+            <div class="metrics-grid" style="margin-bottom: 10px;">
+                <div class="metric-card">
+                    <span class="metric-label">Stride Length</span>
+                    <span class="metric-value" id="metricStride">-- cm</span>
+                    <span class="metric-sub" id="metricCadence">-- steps/s</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Spine Lean / Posture</span>
+                    <span class="metric-value" id="metricTilt">--°</span>
+                    <span class="metric-sub" id="metricPosture">--% Correctness</span>
+                </div>
+            </div>
+
+            <!-- Stride Cycle Waveform Canvas -->
+            <div class="waveform-box">
+                <div class="waveform-header">
+                    <span>Temporal Inter-Ankle Stride Oscillation Waveform S(t)</span>
+                    <span style="font-family:var(--font-mono); color:var(--accent-cyan)">HARMONIC GAIT</span>
+                </div>
+                <canvas id="gaitCanvas"></canvas>
+            </div>
+        </section>
+
+        <!-- Panel 3: Criminal Database Matching & Multi-Modal Fusion Matrix -->
+        <section class="panel" id="panelMatches">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    <span>Criminal Database Fusion Matches</span>
+                </div>
+                <span class="badge" style="color:var(--accent-cyan); border-color:rgba(0,242,254,0.3)">
+                    EVIDENCE FUSION
+                </span>
+            </div>
+
+            <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4; margin-bottom:12px;">
+                Non-binary candidate ranking. If face is masked or occluded, biometric weights dynamically redistribute to Body, Gait, and Calibrated Stature.
+            </div>
+
+            <!-- Ranked Candidate Matches List -->
+            <div class="candidates-container" id="candidatesList">
+                <div style="color:var(--text-muted); font-size:0.85rem; padding:12px;">
+                    Select a track to evaluate database matches...
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- TAB 2: Cross-Camera Spatio-Temporal Trajectory -->
+    <main class="dashboard-grid tab-content" id="tabCrossCamera" style="grid-template-columns: 1fr 1fr;">
+        <section class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                    </svg>
+                    <span>District CCTV Network Topology Graph</span>
+                </div>
+                <span class="badge online">5 ACTIVE NODES</span>
+            </div>
+            <div id="cameraTopologyGraph" class="topology-container">
+                <!-- Populated via JS -->
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/>
+                    </svg>
+                    <span>Reconstructed Suspect Journey Trajectory</span>
+                </div>
+                <span class="badge" id="journeyConfidenceBadge">SPATIO-TEMPORAL BOUNDS</span>
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:12px;">
+                Correlates track observations across camera transitions using travel-time windows: &Delta;t<sub>min</sub> &le; t<sub>camB</sub> - t<sub>camA</sub> &le; &Delta;t<sub>max</sub>.
+            </div>
+            <div id="journeyTimeline" class="journey-timeline">
+                <div style="color:var(--text-muted); font-size:0.85rem; padding:12px;">
+                    Select a track to reconstruct multi-camera journey...
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- TAB 3: Police Governance & Immutable Audit Ledger -->
+    <main class="dashboard-grid tab-content" id="tabCompliance" style="grid-template-columns: 2fr 1fr;">
+        <section class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
+                    </svg>
+                    <span>Tamper-Evident Cryptographic Audit Ledger (SHA-256 Hash Chain)</span>
+                </div>
+                <button class="btn btn-verify" onclick="runAuditVerification()">Verify Hash-Chain Integrity</button>
+            </div>
+            <div id="auditVerificationBanner" style="display:none; margin-bottom:12px; padding:10px 14px; border-radius:6px; font-size:0.8rem;"></div>
+            <div class="audit-table-wrapper">
+                <table class="audit-table">
+                    <thead>
+                        <tr>
+                            <th>Entry ID</th>
+                            <th>Time</th>
+                            <th>Officer / Badge</th>
+                            <th>Action</th>
+                            <th>Resource</th>
+                            <th>SHA-256 Hash Chaining</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditTableBody">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                    </svg>
+                    <span>Biometric Governance & Data Minimization</span>
+                </div>
+                <span class="badge online">DPDP ACT COMPLIANT</span>
+            </div>
+            <div class="retention-card" id="retentionStatusCard">
+                <!-- Populated via JS -->
+            </div>
+            <div style="margin-top: 14px;">
+                <button class="btn btn-purge" onclick="triggerPurge()">Execute Authorized Biometric Purge</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- TAB 4: Model Stack Benchmarking, Switching & License Governance -->
+    <main class="dashboard-grid tab-content" id="tabBenchmark" style="grid-template-columns: 1fr 1fr;">
+        <!-- Column 1, Panel A: CMC Retrieval Accuracy -->
+        <section class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                    </svg>
+                    <span>Independent CCTV Benchmark & CMC Metrics</span>
+                </div>
+                <span class="badge" id="bmGalleryBadge" style="color:var(--accent-cyan); border-color:rgba(0,242,254,0.3)">40 GALLERY | 8 DISTRACTORS</span>
+            </div>
+            <div class="benchmark-kpi-grid">
+                <div class="kpi-card">
+                    <span class="kpi-label">Rank-1 Retrieval</span>
+                    <span class="kpi-val" id="bmRank1">100.0%</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">Rank-5 Retrieval</span>
+                    <span class="kpi-val" id="bmRank5">100.0%</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">Mean Avg Precision (mAP)</span>
+                    <span class="kpi-val" id="bmMAP">100.0%</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">False Match Rate (FMR)</span>
+                    <span class="kpi-val" id="bmFMR">0.00%</span>
+                </div>
+            </div>
+            <div style="margin-top: 16px;">
+                <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">
+                    Pipeline Latency Breakdown (Throughput: <strong id="bmFPS" style="color:var(--accent-emerald)">23.3 FPS</strong>)
+                </div>
+                <div id="latencyBars" class="latency-container">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- 8 CCTV Environmental Conditions Robustness -->
+            <div style="margin-top: 18px; border-top: 1px solid var(--border-color); padding-top: 14px;">
+                <div style="font-size:0.78rem; font-weight:700; color:var(--text-primary); margin-bottom:10px;">
+                    Accuracy Under 8 Adverse CCTV Conditions:
+                </div>
+                <div id="viewpointBars" class="ablation-container">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Column 2, Panel B: Multi-Modal Ablation Study -->
+        <section class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                    </svg>
+                    <span>Multi-Modal Ablation (Proving Fusion Added Value)</span>
+                </div>
+                <span class="badge online">EMPIRICAL ABLATION</span>
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:14px;">
+                Proves single-modality baselines (face-only, body-only, gait-only) suffer catastrophic accuracy drops under occlusion/rear views, whereas our dynamic evidence fusion achieves complete resilience.
+            </div>
+            <div id="ablationBars" class="ablation-container">
+                <!-- Populated via JS -->
+            </div>
+
+            <!-- Head-to-Head Model Comparison Matrix -->
+            <div style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 14px;">
+                <div style="font-size:0.78rem; font-weight:700; color:var(--text-primary); margin-bottom:8px;">
+                    Open-Source Model Candidate Benchmark:
+                </div>
+                <div id="modelComparisonBox" style="font-size:0.75rem;">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Row 2, Panel C: Dynamic Model Architecture Switcher -->
+        <section class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    </svg>
+                    <span>Pluggable Model Architecture Switcher</span>
+                </div>
+                <span class="badge" style="color:var(--accent-emerald); border-color:rgba(16,185,129,0.3)">HOT-SWAP</span>
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:14px;">
+                Switch active backends without restarting the platform. Adapters decouple models from downstream fusion logic.
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label style="font-size:0.75rem; color:var(--text-muted)">Person Detector</label>
+                    <select id="selDetector" class="form-control" style="background:#151d2f; color:#fff; border:1px solid #2a3a5c; border-radius:6px; padding:6px 10px; width:100%;">
+                        <option value="yolo">YOLO (v8/11) - Ultralytics</option>
+                        <option value="rtdetr">RT-DETR - Baidu Transformer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.75rem; color:var(--text-muted)">Tracking Backend</label>
+                    <select id="selTracker" class="form-control" style="background:#151d2f; color:#fff; border:1px solid #2a3a5c; border-radius:6px; padding:6px 10px; width:100%;">
+                        <option value="bytetrack">ByteTrack (Two-Stage IoU)</option>
+                        <option value="botsort">BoT-SORT (with CMC Camera Motion)</option>
+                        <option value="deepstream">NVIDIA DeepStream (NvTracker)</option>
+                        <option value="mmtracking">MMTracking (OpenMMLab MOT)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.75rem; color:var(--text-muted)">Body Re-ID Model</label>
+                    <select id="selReID" class="form-control" style="background:#151d2f; color:#fff; border:1px solid #2a3a5c; border-radius:6px; padding:6px 10px; width:100%;">
+                        <option value="osnet">Torchreid OSNet-512d (Omni-Scale)</option>
+                        <option value="fastreid">FastReID SBS-50 (Stronger Baseline)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.75rem; color:var(--text-muted)">Gait Recognition Backend</label>
+                    <select id="selGait" class="form-control" style="background:#151d2f; color:#fff; border:1px solid #2a3a5c; border-radius:6px; padding:6px 10px; width:100%;">
+                        <option value="gaitset">GaitSet Dynamics & Kinematics</option>
+                        <option value="opengait">OpenGait (GaitBase / GaitGL)</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top: 14px; display:flex; justify-content:flex-end;">
+                <button class="btn btn-confirm" onclick="applyModelSelection()" style="padding:8px 18px; font-size:0.82rem;">
+                    Apply Model Stack Selection
+                </button>
+            </div>
+        </section>
+
+        <!-- Row 2, Panel D: Open-Source Code & Model License Governance -->
+        <section class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                    </svg>
+                    <span>Code & Model Weights License Auditor</span>
+                </div>
+                <span class="badge" id="legalComplianceBadge" style="color:var(--accent-emerald)">CHECKING...</span>
+            </div>
+            <div id="licenseAuditContent" style="font-size:0.76rem; max-height:280px; overflow-y:auto;">
+                <!-- Populated via JS -->
+            </div>
+        </section>
+    </main>
+
+    <!-- MANDATORY HUMAN REVIEW GATE MODAL -->
+    <div class="modal-overlay" id="reviewModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="pulse-dot" style="background:var(--accent-amber)"></span>
+                    <strong style="font-size:1.1rem; color:var(--text-primary)">Mandatory Human Investigator Review Gate</strong>
+                </div>
+                <button class="modal-close-btn" onclick="closeReviewModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="review-suspect-summary" id="modalSuspectSummary">
+                    <!-- Populated via JS -->
+                </div>
+
+                <div class="review-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Investigating Officer Name</label>
+                            <input type="text" id="officerNameInput" value="Inspector V. R. Sekhar">
+                        </div>
+                        <div class="form-group">
+                            <label>Police Badge Number</label>
+                            <input type="text" id="officerBadgeInput" value="AP-KKD-1042">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Forensic Review & Evidence Justification Notes</label>
+                        <textarea id="reviewNotesInput" rows="3" placeholder="Explain verification of facial structure, height delta, stride dynamics, and clothing match..."></textarea>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button class="btn btn-reject" onclick="confirmReviewDecision('REJECTED_FALSE_POSITIVE')">
+                            Reject as False Positive
+                        </button>
+                        <button class="btn btn-confirm" onclick="confirmReviewDecision('CONFIRMED_MATCH')">
+                            Confirm Match (Issue Warrant)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GOTHAM INVESTIGATION REVIEW MODAL -->
+    <div class="modal-overlay" id="investigationReviewModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="pulse-dot" style="background:var(--accent-cyan)"></span>
+                    <strong style="font-size:1.1rem; color:var(--text-primary)">Consequential Decision Review Gate</strong>
+                </div>
+                <button class="modal-close-btn" onclick="closeInvestigationReviewModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="review-suspect-summary" id="invModalCandidateSummary">
+                    <!-- Populated via JS -->
+                </div>
+
+                <div class="review-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Investigating Officer Name</label>
+                            <input type="text" id="invReviewOfficerName" value="Inspector R. Varma">
+                        </div>
+                        <div class="form-group">
+                            <label>Police Badge Number</label>
+                            <input type="text" id="invReviewOfficerBadge" value="AP-EG-8821">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Forensic Rationale & Modality Attribution Notes</label>
+                        <textarea id="invReviewNotesInput" rows="3" placeholder="Document corroborated evidence: body proportions, northward trajectory, matching backpack, transit travel velocity..."></textarea>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button class="btn btn-reject" onclick="submitAdjudicationDecision('REJECT_ASSOCIATION')">
+                            Reject Association
+                        </button>
+                        <button class="btn" style="background:#334155; color:#fff;" onclick="submitAdjudicationDecision('DEFER_REVIEW')">
+                            Defer Review
+                        </button>
+                        <button class="btn btn-confirm" onclick="submitAdjudicationDecision('CONFIRM_IDENTITY')">
+                            Confirm Association (Promote to Target)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Scripts -->
+    <script src="/frontend/assets/js/app.js"></script>
+    <script src="/frontend/assets/js/investigation.js"></script>
+</body>
+</html>

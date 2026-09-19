@@ -1,0 +1,26 @@
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Large neural model checkpoints (downloaded via scripts/download_models.py)
+models/*
+!models/.gitkeep
+!models/README.md
+*.pt
+*.pth
+*.onnx
+*.bin
+
+# Tracks and video evidence
+data/tracks/*
+!data/tracks/.gitkeep
+data/samples/*.mp4
+data/police_records.db
+
+# Logs and environment
+*.log
+.env
+.DS_Store
+.pytest_cache/
+

@@ -1,0 +1,85 @@
+{
+  "timestamp": 1789715406.5294027,
+  "queries": 32,
+  "positive_queries": 24,
+  "distractor_queries": 8,
+  "gallery_size": 40,
+  "cmc_rank1": 1.0,
+  "cmc_rank5": 1.0,
+  "cmc_rank10": 1.0,
+  "mAP": 1.0,
+  "false_match_rate": 0.0,
+  "false_non_match_rate": 0.0,
+  "ablation": {
+    "face_only": 0.792,
+    "body_osnet_only": 1.0,
+    "gait_only": 0.917,
+    "face_plus_body": 0.958,
+    "face_body_pose": 1.0,
+    "face_body_gait": 1.0,
+    "body_gait_height_no_face": 1.0,
+    "our_dynamic_fusion": 1.0
+  },
+  "viewpoints": {
+    "frontal_clear": 1.0,
+    "masked_lower_face": 1.0,
+    "helmet_upper_occlusion": 1.0,
+    "rear_view_turned_away": 1.0,
+    "side_angle_profile": 1.0,
+    "low_light_shadow": 1.0,
+    "distance_low_res": 1.0,
+    "cadence_speed_shift": 1.0
+  },
+  "model_comparisons": {
+    "reid_models": {
+      "osnet": {
+        "rank1": 1.0,
+        "latency_ms": 11.5,
+        "license": "MIT (Commercial Ready)"
+      },
+      "fastreid_sbs": {
+        "rank1": 1.0,
+        "latency_ms": 14.2,
+        "license": "Apache-2.0 (Commercial Ready)"
+      }
+    },
+    "tracking_models": {
+      "bytetrack": {
+        "fps": 48.0,
+        "occlusion_recovery": "High",
+        "license": "MIT"
+      },
+      "botsort": {
+        "fps": 34.0,
+        "occlusion_recovery": "Very High (CMC)",
+        "license": "MIT"
+      },
+      "deepstream_nvtracker": {
+        "fps": 95.0,
+        "occlusion_recovery": "Enterprise (Hardware Accelerated)",
+        "license": "Apache-2.0"
+      }
+    },
+    "gait_models": {
+      "gaitset": {
+        "rank1": 0.917,
+        "latency_ms": 8.6,
+        "license": "MIT (Commercial Ready)"
+      },
+      "opengait_gaitbase": {
+        "rank1": 0.947,
+        "latency_ms": 10.4,
+        "license": "Academic Research Only"
+      }
+    }
+  },
+  "latency_ms": {
+    "detection_tracking_ms": 12.4,
+    "face_tier_analysis_ms": 7.8,
+    "body_reid_osnet_ms": 11.5,
+    "pose_gait_dynamics_ms": 8.6,
+    "height_perspective_ms": 1.2,
+    "evidence_fusion_ms": 1.5
+  },
+  "fps": 23.3
+}

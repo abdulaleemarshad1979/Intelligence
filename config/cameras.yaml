@@ -1,0 +1,128 @@
+# CCTV Camera Topology & Calibration Registry
+
+cameras:
+  CAM-001:
+    name: "District Hospital North Wing Entrance"
+    location: "Kakinada - Government General Hospital"
+    subdivision: "East Zone"
+    police_station: "II Town Police Station"
+    latitude: 16.9890
+    longitude: 82.2475
+    resolution: [1024, 576]
+    mounting_height_m: 4.2
+    tilt_angle_deg: 35.0
+    focal_length_px: 950.0
+    ground_plane_y: 530
+    adjacent_cameras: ["CAM-002", "CAM-007"]
+
+  CAM-002:
+    name: "Main Hospital Gate & Ambulance Bay"
+    location: "Kakinada - Hospital Junction"
+    subdivision: "East Zone"
+    police_station: "II Town Police Station"
+    latitude: 16.9898
+    longitude: 82.2482
+    resolution: [1920, 1080]
+    mounting_height_m: 5.0
+    tilt_angle_deg: 40.0
+    focal_length_px: 1200.0
+    ground_plane_y: 980
+    adjacent_cameras: ["CAM-001", "CAM-003", "CAM-004"]
+
+  CAM-003:
+    name: "Main Road Bus Shelter North"
+    location: "Main Road Anaparthi"
+    subdivision: "Anaparthi Circle"
+    police_station: "Anaparthi PS"
+    latitude: 16.8692
+    longitude: 81.9462
+    resolution: [1920, 1080]
+    mounting_height_m: 4.5
+    tilt_angle_deg: 32.0
+    focal_length_px: 1100.0
+    ground_plane_y: 960
+    adjacent_cameras: ["CAM-002", "CAM-004"]
+
+  CAM-004:
+    name: "Anaparthi Canal Bridge Checkpoint"
+    location: "Canal Road"
+    subdivision: "Anaparthi Circle"
+    police_station: "Anaparthi PS"
+    latitude: 16.8745
+    longitude: 81.9510
+    resolution: [1280, 720]
+    mounting_height_m: 4.8
+    tilt_angle_deg: 38.0
+    focal_length_px: 1020.0
+    ground_plane_y: 680
+    adjacent_cameras: ["CAM-003", "CAM-007"]
+
+  CAM-007:
+    name: "Railway Feeder Road Junction"
+    location: "Rajahmundry Central Feeder"
+    subdivision: "Central Division"
+    police_station: "Rajahmundry I Town"
+    latitude: 17.0005
+    longitude: 81.7800
+    resolution: [1920, 1080]
+    mounting_height_m: 5.5
+    tilt_angle_deg: 42.0
+    focal_length_px: 1350.0
+    ground_plane_y: 1010
+    adjacent_cameras: ["CAM-001", "CAM-004"]
+
+  CAM-017:
+    name: "Sector 4 Commercial Plaza North Exit"
+    location: "Kakinada - Sector 4 Commercial Corridor"
+    subdivision: "Central Division"
+    police_station: "I Town Police Station"
+    latitude: 16.9920
+    longitude: 82.2450
+    resolution: [1920, 1080]
+    mounting_height_m: 4.8
+    tilt_angle_deg: 36.0
+    focal_length_px: 1150.0
+    ground_plane_y: 980
+    adjacent_cameras: ["CAM-018"]
+
+  CAM-018:
+    name: "North Transit Avenue Checkpoint"
+    location: "Kakinada - Transit Avenue & 5th Cross"
+    subdivision: "Central Division"
+    police_station: "I Town Police Station"
+    latitude: 16.9958
+    longitude: 82.2455
+    resolution: [1920, 1080]
+    mounting_height_m: 5.0
+    tilt_angle_deg: 38.0
+    focal_length_px: 1200.0
+    ground_plane_y: 1000
+    adjacent_cameras: ["CAM-017", "CAM-021"]
+
+  CAM-021:
+    name: "Metro Junction North Underpass"
+    location: "Kakinada - Metro Junction Underpass Gate"
+    subdivision: "Central Division"
+    police_station: "I Town Police Station"
+    latitude: 16.9998
+    longitude: 82.2460
+    resolution: [1920, 1080]
+    mounting_height_m: 4.6
+    tilt_angle_deg: 34.0
+    focal_length_px: 1100.0
+    ground_plane_y: 950
+    adjacent_cameras: ["CAM-018", "CAM-023"]
+
+  CAM-023:
+    name: "Ring Road North Terminal Perimeter"
+    location: "Kakinada - Ring Road North Terminal"
+    subdivision: "North Division"
+    police_station: "North Sub-Station"
+    latitude: 17.0045
+    longitude: 82.2468
+    resolution: [1920, 1080]
+    mounting_height_m: 5.2
+    tilt_angle_deg: 40.0
+    focal_length_px: 1280.0
+    ground_plane_y: 1020
+    adjacent_cameras: ["CAM-021"]
