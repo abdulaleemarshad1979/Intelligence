@@ -44,6 +44,7 @@ from app.adapters.downloader import model_downloader
 from app.features.height import HeightEstimator
 from app.features.enhancement import stream_enhancer, candidate_enhancer
 from app.discovery.onvif_scanner import onvif_scanner
+from app.ingestion.stream_manager import get_stream_manager, CameraStreamManager, build_matrix_rtsp_url
 
 # Gotham Investigation Modules
 from app.search.person_search import PersonSearchCoordinator
@@ -53,6 +54,15 @@ from app.investigation.graph import InvestigationGraphBuilder
 from app.investigation.review import HumanAdjudicationGate
 from app.investigation.demo_seed import seed_gotham_demo
 from app.database.models import RelationshipLink
+
+class MatrixCameraConnectPayload(BaseModel):
+    camera_id: str
+    ip: str
+    port: int = 554
+    username: Optional[str] = ""
+    password: Optional[str] = ""
+    stream_type: Optional[str] = "media/video1"
+    name: Optional[str] = None
 
 class ModelSelectionPayload(BaseModel):
     category: str
@@ -138,6 +148,10 @@ if os.path.exists(os.path.join(DATA_DIR, "tracks")):
     app.mount("/data/tracks", StaticFiles(directory=os.path.join(DATA_DIR, "tracks")), name="tracks")
 os.makedirs(os.path.join(DATA_DIR, "suspects"), exist_ok=True)
 app.mount("/data/suspects", StaticFiles(directory=os.path.join(DATA_DIR, "suspects")), name="suspects")
+os.makedirs(os.path.join(DATA_DIR, "captures"), exist_ok=True)
+app.mount("/data/captures", StaticFiles(directory=os.path.join(DATA_DIR, "captures")), name="captures")
+os.makedirs(os.path.join(DATA_DIR, "targets"), exist_ok=True)
+app.mount("/data/targets", StaticFiles(directory=os.path.join(DATA_DIR, "targets")), name="targets")
 
 # Load camera configs & initialize Cross-Camera Tracker
 def load_camera_config() -> Dict[str, Any]:
@@ -174,6 +188,7 @@ timeline_generator = TimelineGenerator()
 graph_builder = InvestigationGraphBuilder()
 human_adjudication_gate = HumanAdjudicationGate(repo)
 person_search_coordinator = PersonSearchCoordinator(repo, camera_configs)
+stream_mgr = get_stream_manager(DATA_DIR)
 
 # Auto-seed the reference Gotham investigation demo scenario
 if not repo.get_incident_by_id("INC-2026-0041"):
@@ -661,84 +676,101 @@ STREAM_OVERLAY_CONFIG = {
     "show_face_mesh": False
 }
 
-def generate_mjpeg_stream():
-    video_path = os.path.join(DATA_DIR, "samples", "cctv_sample.mp4")
-    if not os.path.exists(video_path):
-        video_path = "/home/abdul-aleem-arshad/Downloads/WhatsApp Video 2026-09-17 at 4.40.40 PM.mp4"
-
-    cap = cv2.VideoCapture(video_path)
-    frame_id = 0
-
-    while True:
-        if not cap.isOpened():
-            cap = cv2.VideoCapture(video_path)
-
-        ret, frame = cap.read()
-        if not ret:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            continue
-
-        # Step 1: Always-on instant frame enhancement (CLAHE + Fast Denoising)
-        frame = stream_enhancer.enhance_stream_frame(frame)
-
-        frame_id += 1
-        h, w = frame.shape[:2]
-
-        # Use pluggable detector adapter from registry
-        active_det = model_registry.detector
-        detections = active_det.detect_and_track(frame, frame_id)
-        active_face = model_registry.face
-        active_pose = model_registry.pose
-        active_reid_name = model_registry.active_keys["reid"].upper()
-        active_gait_name = model_registry.active_keys["gait"].upper()
-
-        overlay_mode = STREAM_OVERLAY_CONFIG.get("mode", "clean")
-
-        # Subtle Authentic Police CCTV Header Watermark
-        if overlay_mode == "clean":
-            cv2.putText(frame, "CAM-001 | AP POLICE CCTV LIVE", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 240, 255), 1)
-        elif overlay_mode == "minimal":
-            cv2.putText(frame, "CAM-001 | AP POLICE CCTV | ACTIVE TRACKING", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 240, 255), 1)
-        else:
-            cv2.putText(frame, "CAM-001 | HOSPITAL NORTH CORRIDOR | POLICE FEED", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 1)
-            cv2.putText(frame, f"DET: {active_det.backend} | RE-ID: {active_reid_name} | GAIT: {active_gait_name}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0, 255, 0), 1)
-
-        for det in detections:
-            x, y, bw, bh = det.bbox
-            x1, y1 = max(0, x), max(0, y)
-            x2, y2 = min(w, x + bw), min(h, y + bh)
-            person_crop = frame[y1:y2, x1:x2]
-
-            # All background vision engines run at full capacity for downstream fusion & tracking
-            face_res = active_face.analyze_face(person_crop) if person_crop.size > 0 else None
-            h_res = height_estimator.estimate_height_cm([x, y, x + bw, y + bh], frame_height=h)
-            pose_res = active_pose.estimate_pose(person_crop) if person_crop.size > 0 else None
-
-            # Clean mode: 100% natural, pristine video feed (no synthetic boxes or circles)
-            if overlay_mode == "clean":
-                continue
-
-            # In minimal mode, only display a subtle clean 1px bounding box and small track badge
-            color = (0, 255, 0) if (face_res and face_res.is_available) else (0, 165, 255)
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
-
-            tid_text = f"TRACK-{det.track_id:04d}" if det.track_id else "TRACK"
-            badge = f"{tid_text} | H:{h_res['estimated_height_cm']:.0f}cm"
-            cv2.putText(frame, badge, (x1, max(18, y1 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.40, color, 1)
-
-            # NOTE: Exoskeleton / skeleton keypoint circles and face division grids are NEVER drawn on video stream!
-
-        ret_enc, jpeg = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
-        if not ret_enc:
-            continue
-
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
-        time.sleep(0.04)
+def generate_mjpeg_stream(camera_id: str = "CAM-001", quality: int = 85):
+    """Ultra-low latency MJPEG frame generator decoupled from heavy inference."""
+    overlay_mode = STREAM_OVERLAY_CONFIG.get("mode", "clean")
+    return stream_mgr.generate_mjpeg_stream(camera_id=camera_id, overlay_mode=overlay_mode, quality=quality)
 
 @app.get("/api/video_feed")
-async def video_feed():
-    return StreamingResponse(generate_mjpeg_stream(), media_type="multipart/x-mixed-replace; boundary=frame")
+async def video_feed(camera_id: str = "CAM-001", quality: int = 85):
+    """Real-time zero-latency MJPEG video stream (supports CAM-001 to CAM-016 and Matrix cams)."""
+    return StreamingResponse(
+        generate_mjpeg_stream(camera_id=camera_id, quality=quality),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
+@app.get("/api/video_feed/{camera_id}")
+async def video_feed_by_cam(camera_id: str, quality: int = 85):
+    """Camera-specific direct stream URL for grid tiles and inspector modals."""
+    return StreamingResponse(
+        generate_mjpeg_stream(camera_id=camera_id, quality=quality),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
+@app.post("/api/cameras/connect_matrix")
+async def connect_matrix_camera(payload: MatrixCameraConnectPayload):
+    """Directly connect or reassign a Matrix Comsec IP camera to any camera slot with low latency."""
+    rtsp_url = build_matrix_rtsp_url(
+        ip=payload.ip,
+        port=payload.port,
+        username=payload.username or "",
+        password=payload.password or "",
+        stream_type=payload.stream_type or "media/video1"
+    )
+    cam_name = payload.name or f"Matrix CCTV ({payload.ip})"
+    
+    worker = stream_mgr.attach_matrix_camera(
+        camera_id=payload.camera_id,
+        ip=payload.ip,
+        port=payload.port,
+        username=payload.username or "",
+        password=payload.password or "",
+        stream_type=payload.stream_type or "media/video1",
+        name=cam_name
+    )
+    
+    # Update active registry
+    for c in CCTV_CAMERAS_REGISTRY:
+        if c["camera_id"] == payload.camera_id:
+            c["name"] = cam_name
+            c["rtmp"] = rtsp_url
+            c["status"] = "ACTIVE"
+            break
+            
+    # Persist in camera repository
+    existing = repo.get_camera_by_id(payload.camera_id)
+    if existing:
+        existing.rtsp_url = rtsp_url
+        existing.name = cam_name
+        existing.ip_address = payload.ip
+        existing.manufacturer = "Matrix Comsec"
+        existing.model_name = "SATATYA IP Cam"
+        existing.is_active = True
+        repo.save_camera(existing)
+    else:
+        entity = CameraEntity(
+            camera_id=payload.camera_id,
+            name=cam_name,
+            latitude=16.9890,
+            longitude=82.2475,
+            zone="East Zone",
+            view_direction="NORTH",
+            connected_topology=[],
+            is_active=True,
+            ip_address=payload.ip,
+            rtsp_url=rtsp_url,
+            manufacturer="Matrix Comsec",
+            model_name="SATATYA IP Cam",
+            discovery_status="APPROVED"
+        )
+        repo.save_camera(entity)
+        
+    return {
+        "status": "SUCCESS",
+        "message": f"Matrix Camera connected successfully to slot {payload.camera_id}",
+        "camera_id": payload.camera_id,
+        "rtsp_url": rtsp_url,
+        "stream_info": worker.get_stats()
+    }
+
+@app.get("/api/cameras/{camera_id}/stream_info")
+async def get_camera_stream_info(camera_id: str):
+    """Retrieve live camera operational telemetry (FPS, AI FPS, latency ms, resolution, status)."""
+    worker = stream_mgr.get_or_create_worker(camera_id)
+    return {
+        "status": "SUCCESS",
+        "stream_info": worker.get_stats()
+    }
 
 @app.get("/api/stream/overlay")
 async def get_stream_overlay():
@@ -1505,3 +1537,92 @@ async def confirm_officer_alert(payload: OfficerConfirmPayload):
         "certificate_digest": cert["certificate_digest"],
         "message": f"Alert {payload.alert_id} verified by {payload.officer_name} ({payload.officer_badge})."
     }
+
+
+# ==================== LIVE FACE WATCH & AUTO-CAPTURE ENDPOINTS ====================
+
+class TargetFaceEnrollPayload(BaseModel):
+    name: str
+    image_base64: Optional[str] = None
+    image_path: Optional[str] = None
+    target_id: Optional[str] = None
+    threshold: Optional[float] = 0.55
+    notes: Optional[str] = ""
+
+
+@app.post("/api/watchlist/target-face")
+async def enroll_target_face_api(payload: TargetFaceEnrollPayload):
+    """Enroll a target face into live CCTV surveillance with auto-capture."""
+    from app.vision.face_watch import live_face_watcher
+    raw_input = payload.image_base64 or payload.image_path
+    if not raw_input:
+        raise HTTPException(status_code=400, detail="Either image_base64 or image_path must be provided.")
+    try:
+        res = live_face_watcher.enroll_target_face(
+            image_input=raw_input,
+            name=payload.name,
+            target_id=payload.target_id,
+            threshold=payload.threshold,
+            notes=payload.notes or ""
+        )
+        audit_logger.log_action(
+            action_type="TARGET_FACE_ENROLLED",
+            resource_id=res["target_id"],
+            details={"name": payload.name, "threshold": payload.threshold}
+        )
+        return {
+            "status": "SUCCESS",
+            "message": f"Target face '{payload.name}' enrolled into live feed surveillance.",
+            "target": res
+        }
+    except Exception as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
+
+
+@app.get("/api/watchlist/target-faces")
+async def list_target_faces_api():
+    """List all enrolled target faces currently being monitored on live feeds."""
+    from app.vision.face_watch import live_face_watcher
+    targets = live_face_watcher.get_targets()
+    return {
+        "status": "SUCCESS",
+        "total": len(targets),
+        "targets": targets
+    }
+
+
+@app.delete("/api/watchlist/target-faces/{target_id}")
+async def delete_target_face_api(target_id: str):
+    """Remove a target face from live CCTV monitoring."""
+    from app.vision.face_watch import live_face_watcher
+    removed = live_face_watcher.remove_target(target_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail=f"Target {target_id} not found.")
+    return {
+        "status": "SUCCESS",
+        "message": f"Target {target_id} removed from live surveillance."
+    }
+
+
+@app.get("/api/watchlist/captures")
+async def list_face_captures_api(limit: int = 50):
+    """Retrieve automatically captured snapshot events from live camera feeds."""
+    from app.vision.face_watch import live_face_watcher
+    captures = live_face_watcher.get_captures(limit=limit)
+    return {
+        "status": "SUCCESS",
+        "total": len(captures),
+        "captures": captures
+    }
+
+
+@app.post("/api/watchlist/clear")
+async def clear_watchlist_api():
+    """Clear all enrolled target faces."""
+    from app.vision.face_watch import live_face_watcher
+    live_face_watcher.clear_targets()
+    return {
+        "status": "SUCCESS",
+        "message": "Watchlist cleared."
+    }
+

@@ -12,15 +12,21 @@ models/*
 *.onnx
 *.bin
 
-# Tracks and video evidence
+# Tracks, captures and video evidence
 data/tracks/*
 !data/tracks/.gitkeep
+data/captures/*
+!data/captures/.gitkeep
+data/targets/*
+!data/targets/.gitkeep
 data/samples/*.mp4
 data/police_records.db
+*.db
 
 # Logs and environment
 *.log
 .env
 .DS_Store
 .pytest_cache/
+
 

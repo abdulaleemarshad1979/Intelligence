@@ -30,6 +30,17 @@ class FaceBiometricEngine:
         self.sface_recognizer = None
         self.embedding_dim = 512
 
+        # Auto-discover local models if not explicitly passed
+        import os
+        if yunet_model_path is None or sface_model_path is None:
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            default_yunet = os.path.join(base_dir, "models", "face_detection_yunet_2023mar.onnx")
+            default_sface = os.path.join(base_dir, "models", "face_recognition_sface_2021dec.onnx")
+            if yunet_model_path is None and os.path.isfile(default_yunet):
+                yunet_model_path = default_yunet
+            if sface_model_path is None and os.path.isfile(default_sface):
+                sface_model_path = default_sface
+
         # Initialize OpenCV YuNet FaceDetectorYN if model exists
         if yunet_model_path:
             try:

@@ -245,7 +245,9 @@ class ONVIFDiscoveryScanner:
     def _synthesize_rtsp_url(self, manufacturer: str, ip: str, port: int) -> str:
         """Derive standard primary RTSP video stream URI by manufacturer profile."""
         m = manufacturer.lower()
-        if "hikvision" in m:
+        if "matrix" in m or "matricex" in m:
+            return f"rtsp://{ip}:554/media/video1"
+        elif "hikvision" in m:
             return f"rtsp://{ip}:554/Streaming/Channels/101"
         elif "dahua" in m or "cp plus" in m:
             return f"rtsp://{ip}:554/cam/realmonitor?channel=1&subtype=0"
@@ -289,6 +291,23 @@ class ONVIFDiscoveryScanner:
                     "onvif://www.onvif.org/name/CPPlus",
                     "onvif://www.onvif.org/hardware/CP-UNC-TA41ZL4-VMD",
                     "onvif://www.onvif.org/location/Kakinada-MainJunction-West"
+                ],
+                discovery_status="DISCOVERED"
+            ),
+            DiscoveredCamera(
+                camera_id="CAM-ONVIF-192-168-1-130-80",
+                ip_address="192.168.1.130",
+                port=80,
+                onvif_service_url="http://192.168.1.130:80/onvif/device_service",
+                rtsp_url="rtsp://192.168.1.130:554/media/video1",
+                manufacturer="Matrix Comsec",
+                model_name="SATATYA CIDR20FL28CWP",
+                mac_address="70:B3:D5:12:34:56",
+                scopes=[
+                    "onvif://www.onvif.org/type/NetworkVideoTransmitter",
+                    "onvif://www.onvif.org/name/MatrixComsec",
+                    "onvif://www.onvif.org/hardware/SATATYA-CIDR20FL28CWP",
+                    "onvif://www.onvif.org/location/Hospital-NorthGate"
                 ],
                 discovery_status="DISCOVERED"
             )

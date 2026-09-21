@@ -24,8 +24,8 @@ class FastEnhancer:
         self,
         clahe_clip_limit: float = 2.0,
         clahe_grid_size: Tuple[int, int] = (8, 8),
-        enable_clahe: bool = True,
-        enable_denoise: bool = True
+        enable_clahe: bool = False,
+        enable_denoise: bool = False
     ):
         self.clahe_clip_limit = clahe_clip_limit
         self.clahe_grid_size = clahe_grid_size
@@ -50,8 +50,10 @@ class FastEnhancer:
         if frame is None or frame.size == 0:
             return frame
 
-        # d=5, sigmaColor=35, sigmaSpace=35 runs in ~1.0 ms while cleaning high-ISO static
-        return cv2.bilateralFilter(frame, d=5, sigmaColor=35, sigmaSpace=35)
+        # Adaptive filter diameter: d=3 for full video frames (<4ms budget), d=5 for small crops
+        h, w = frame.shape[:2]
+        d = 5 if (h <= 240 and w <= 320) else 3
+        return cv2.bilateralFilter(frame, d=d, sigmaColor=25, sigmaSpace=25)
 
     def enhance_frame(self, frame: np.ndarray) -> np.ndarray:
         """Execute the Tier 1 pipeline: CLAHE -> Bilateral Filter."""

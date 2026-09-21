@@ -39,6 +39,56 @@ MODEL_LICENSE_CATALOG: Dict[str, ModelLicenseInfo] = {
         restriction_notice="Permissive Apache-2.0 license. Fully cleared for commercial enterprise and public law-enforcement deployment without copyleft constraints.",
         official_repo="https://github.com/lyuwenyu/RT-DETR"
     ),
+    "rtdetr_x": ModelLicenseInfo(
+        model_id="rtdetr_x",
+        component_name="RT-DETR-X (X-Large Real-Time DEtection TRansformer)",
+        capability="Dense Pedestrian Detection",
+        code_license="Apache-2.0",
+        weights_license="Apache-2.0",
+        is_commercial_ready=True,
+        restriction_notice="Permissive Apache-2.0 license. Superior NMS-free crowd recall. Fully commercial ready.",
+        official_repo="https://github.com/lyuwenyu/RT-DETR"
+    ),
+    "yolo11x": ModelLicenseInfo(
+        model_id="yolo11x",
+        component_name="Ultralytics YOLO11 X-Large",
+        capability="Person Detection",
+        code_license="AGPL-3.0 / Commercial",
+        weights_license="AGPL-3.0 / Commercial",
+        is_commercial_ready=False,
+        restriction_notice="AGPL-3.0 copyleft or Ultralytics enterprise license required.",
+        official_repo="https://github.com/ultralytics/ultralytics"
+    ),
+    "yolov8x": ModelLicenseInfo(
+        model_id="yolov8x",
+        component_name="Ultralytics YOLOv8 X-Large",
+        capability="Person Detection",
+        code_license="AGPL-3.0 / Commercial",
+        weights_license="AGPL-3.0 / Commercial",
+        is_commercial_ready=False,
+        restriction_notice="AGPL-3.0 copyleft or Ultralytics enterprise license required.",
+        official_repo="https://github.com/ultralytics/ultralytics"
+    ),
+    "fullbody_pose": ModelLicenseInfo(
+        model_id="fullbody_pose",
+        component_name="Full-Body 17-Keypoint Pose & Pedestrian Detector",
+        capability="Full Body & Skeleton Detection",
+        code_license="Apache-2.0 / AGPL-3.0",
+        weights_license="Apache-2.0 / AGPL-3.0",
+        is_commercial_ready=True,
+        restriction_notice="Dual-licensed: RTMPose backend is Apache-2.0 commercial safe; YOLO-Pose backend is AGPL-3.0.",
+        official_repo="https://github.com/open-mmlab/mmpose"
+    ),
+    "ensemble": ModelLicenseInfo(
+        model_id="ensemble",
+        component_name="SOTA Multi-Architecture Pedestrian Ensemble",
+        capability="Consensus Pedestrian Detection",
+        code_license="Apache-2.0",
+        weights_license="Apache-2.0 / Dual",
+        is_commercial_ready=True,
+        restriction_notice="Weighted Box Fusion consensus combining RT-DETR and ConvNet candidate detections.",
+        official_repo="https://github.com/ZFTurbo/Weighted-Boxes-Fusion"
+    ),
     # Tracking
     "bytetrack": ModelLicenseInfo(
         model_id="bytetrack",

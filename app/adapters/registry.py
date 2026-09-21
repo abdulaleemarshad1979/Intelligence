@@ -11,7 +11,13 @@ switching perception adapters:
 """
 
 from typing import Dict, Any, List, Optional
-from app.adapters.detection import BasePedestrianDetector, YOLODetectorAdapter, RTDETRDetectorAdapter
+from app.adapters.detection import (
+    BasePedestrianDetector,
+    YOLODetectorAdapter,
+    RTDETRDetectorAdapter,
+    FullBodyPoseDetectorAdapter,
+    EnsemblePedestrianDetector
+)
 from app.adapters.tracking import (
     BaseMOTTracker, ByteTrackAdapter, BoTSORTAdapter,
     DeepStreamTrackerAdapter, MMTrackingAdapter
@@ -32,7 +38,12 @@ class ModelRegistry:
         # Registered factories / classes
         self.detectors: Dict[str, BasePedestrianDetector] = {
             "yolo": YOLODetectorAdapter(model_name="yolov8n.pt"),
-            "rtdetr": RTDETRDetectorAdapter(model_name="rtdetr-l.pt")
+            "yolo11x": YOLODetectorAdapter(model_name="yolo11x.pt"),
+            "yolov8x": YOLODetectorAdapter(model_name="yolov8x.pt"),
+            "rtdetr": RTDETRDetectorAdapter(model_name="rtdetr-l.pt"),
+            "rtdetr_x": RTDETRDetectorAdapter(model_name="rtdetr-x.pt"),
+            "fullbody_pose": FullBodyPoseDetectorAdapter(model_name="yolov8n-pose.pt"),
+            "ensemble": EnsemblePedestrianDetector()
         }
         self.trackers: Dict[str, BaseMOTTracker] = {
             "bytetrack": ByteTrackAdapter(),

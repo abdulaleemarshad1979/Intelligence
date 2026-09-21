@@ -56,26 +56,40 @@ class RTDETRDetector:
 
     def _init_backend(self):
         """Initializes TensorRT, Ultralytics RT-DETR, or PyTorch backend."""
-        if self.model_path and self.model_path.endswith(".engine"):
+        import os
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+        resolved_path = self.model_path
+        if not resolved_path:
+            for cand in ["rtdetr-l.pt", "rtdetr-x.pt", "yolov8n.pt"]:
+                p = os.path.join(base_dir, "models", cand)
+                if os.path.isfile(p):
+                    resolved_path = p
+                    break
+
+        if resolved_path and resolved_path.endswith(".engine"):
             try:
-                # Attempt TensorRT runner if tensorrt is installed
                 import tensorrt as trt
                 self.backend = "TENSORRT"
-                logger.info(f"Loaded RT-DETR TensorRT engine from {self.model_path}")
+                logger.info(f"Loaded RT-DETR TensorRT engine from {resolved_path}")
                 return
             except Exception as e:
                 logger.debug(f"TensorRT engine loading fallback: {e}")
 
         # Attempt Ultralytics RT-DETR / YOLO backend if installed
         try:
-            from ultralytics import RTDETR
-            if self.model_path and (self.model_path.endswith(".pt") or "rtdetr" in self.model_path):
-                self._model = RTDETR(self.model_path)
-                self.backend = "ULTRALYTICS_RTDETR"
-                logger.info("Initialized Ultralytics RT-DETR perception runner.")
+            from ultralytics import RTDETR, YOLO
+            if resolved_path and os.path.isfile(resolved_path):
+                if "rtdetr" in resolved_path.lower():
+                    self._model = RTDETR(resolved_path)
+                    self.backend = f"ULTRALYTICS_RTDETR_{os.path.basename(resolved_path).upper()}"
+                else:
+                    self._model = YOLO(resolved_path)
+                    self.backend = f"ULTRALYTICS_{os.path.basename(resolved_path).upper()}"
+                logger.info(f"Initialized neural detector runner from {resolved_path}")
                 return
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Neural detector loading fallback: {e}")
 
         self.backend = "SIMULATED_HIGH_RES"
 
@@ -87,7 +101,7 @@ class RTDETRDetector:
         th = conf_threshold if conf_threshold is not None else self.conf_threshold
         h, w = frame.shape[:2]
 
-        if self.backend == "ULTRALYTICS_RTDETR" and self._model is not None:
+        if "ULTRALYTICS" in self.backend and self._model is not None:
             try:
                 results = self._model.predict(frame, conf=th, classes=[0], verbose=False)
                 dets: List[Detection] = []

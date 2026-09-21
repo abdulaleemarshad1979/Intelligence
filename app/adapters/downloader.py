@@ -86,6 +86,61 @@ GITHUB_MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "is_essential": False,
         "source": "Ultralytics / RT-DETR GitHub Releases",
         "description": "Real-time end-to-end detection transformer for high-accuracy crowded surveillance."
+    },
+    "rtdetr_x": {
+        "model_id": "rtdetr_x",
+        "name": "RT-DETR-X Transformer Detector (X-Large)",
+        "category": "detection",
+        "filename": "rtdetr-x.pt",
+        "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/rtdetr-x.pt",
+        "size_bytes": 134000000,
+        "is_essential": False,
+        "source": "Ultralytics / RT-DETR GitHub Releases",
+        "description": "Top-tier SOTA detection transformer for extreme crowd occlusion."
+    },
+    "yolo11x": {
+        "model_id": "yolo11x",
+        "name": "YOLO11 X-Large Pedestrian Detector",
+        "category": "detection",
+        "filename": "yolo11x.pt",
+        "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11x.pt",
+        "size_bytes": 113000000,
+        "is_essential": False,
+        "source": "Ultralytics GitHub Releases",
+        "description": "2024 flagship heavyweight detector with maximum pedestrian localization mAP."
+    },
+    "yolo11l": {
+        "model_id": "yolo11l",
+        "name": "YOLO11 Large Pedestrian Detector",
+        "category": "detection",
+        "filename": "yolo11l.pt",
+        "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11l.pt",
+        "size_bytes": 53000000,
+        "is_essential": False,
+        "source": "Ultralytics GitHub Releases",
+        "description": "2024 SOTA large detector balancing speed and accuracy."
+    },
+    "yolov8x": {
+        "model_id": "yolov8x",
+        "name": "YOLOv8 X-Large Pedestrian Detector",
+        "category": "detection",
+        "filename": "yolov8x.pt",
+        "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8x.pt",
+        "size_bytes": 136000000,
+        "is_essential": False,
+        "source": "Ultralytics GitHub Releases",
+        "description": "Heavyweight benchmark detector for high-resolution CCTV."
+    },
+    "yolo11x_pose": {
+        "model_id": "yolo11x_pose",
+        "name": "YOLO11 X-Large 17-Keypoint Pose Estimator",
+        "category": "pose",
+        "filename": "yolo11x-pose.pt",
+        "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11x-pose.pt",
+        "size_bytes": 118000000,
+        "is_essential": False,
+        "source": "Ultralytics GitHub Releases",
+        "description": "Top-tier 17-joint full body skeleton and posture dynamics estimator."
     }
 }
 

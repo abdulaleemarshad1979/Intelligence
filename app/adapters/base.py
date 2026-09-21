@@ -35,6 +35,7 @@ class DetectionResult:
     class_name: str = "person"
     track_id: Optional[int] = None
     mask: Optional[np.ndarray] = None
+    keypoints: Optional[Dict[str, Any]] = None
 
 
 @dataclass

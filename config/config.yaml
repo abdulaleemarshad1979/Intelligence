@@ -61,8 +61,8 @@ thresholds:
 # Active Model Stack & Open-Source Ecosystem Adapters
 models:
   detection:
-    active: "rtdetr"            # Options: yolo, rtdetr (Apache-2.0 commercial safe)
-    device: "cpu"
+    active: "rtdetr"            # Options: yolo, yolo11x, yolov8x, rtdetr, rtdetr_x, fullbody_pose, ensemble
+    device: "cpu"               # Options: cpu, cuda, mps (auto-selects fastest hardware)
     conf_threshold: 0.35
   tracking:
     active: "botsort"           # Options: bytetrack, botsort, deepstream, mmtracking
