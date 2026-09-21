@@ -306,6 +306,23 @@
       justify-content: center;
     }
 
+    .full-view-body .tile__player-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .full-view-body .tile__video {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain !important;
+      image-rendering: high-quality;
+      image-rendering: -webkit-optimize-contrast;
+      box-shadow: 0 0 35px rgba(0, 0, 0, 0.85);
+    }
+
     .tile__expand-btn {
       background: rgba(15, 23, 42, 0.75);
       color: #ffffff;
@@ -2303,12 +2320,27 @@
       requestAnimationFrame(renderSimFrame);
     }
 
+    let currentStreamQuality = 95;
+
+    window.updateActiveStreamQuality = function(val) {
+      currentStreamQuality = parseInt(val) || 95;
+      if (activeFullViewCamId) {
+        const container = document.getElementById(`player-container-${activeFullViewCamId}`);
+        if (container) {
+          const img = container.querySelector("img");
+          if (img) {
+            img.src = `/api/video_feed?camera_id=${encodeURIComponent(activeFullViewCamId)}&quality=${currentStreamQuality}&t=${Date.now()}`;
+          }
+        }
+      }
+    };
+
     function setupVideoFeed(cam) {
       const container = document.getElementById(`player-container-${cam.id}`);
       if (!container) return;
-      const targetSrc = `/api/video_feed?camera_id=${encodeURIComponent(cam.id)}&quality=85`;
+      const targetSrc = `/api/video_feed?camera_id=${encodeURIComponent(cam.id)}&quality=${currentStreamQuality}`;
       const existingImg = container.querySelector("img");
-      if (existingImg && existingImg.src && existingImg.src.includes(targetSrc)) {
+      if (existingImg && existingImg.src && existingImg.src.includes(`/api/video_feed?camera_id=${encodeURIComponent(cam.id)}`)) {
         container.classList.remove("hidden");
         return;
       }
@@ -2329,6 +2361,7 @@
       img.style.height = "100%";
       img.style.objectFit = "cover";
       img.style.display = "block";
+      img.style.imageRendering = "high-quality";
       container.appendChild(img);
       return;
     }
@@ -3000,7 +3033,7 @@
             if (container) {
               const img = container.querySelector("img");
               if (img) {
-                img.src = `/api/video_feed?camera_id=${encodeURIComponent(camId)}&quality=85&t=${Date.now()}`;
+                img.src = `/api/video_feed?camera_id=${encodeURIComponent(camId)}&quality=${currentStreamQuality}&t=${Date.now()}`;
               }
             }
             alert(`✓ MATRIX CCTV CAMERA ONLINE!\nSlot: ${camId}\nName: ${name || 'Matrix IP Cam'}\nRTSP: ${data.rtsp_url}\nStream: 25.0 FPS Native (Zero Buffer Lag)`);
@@ -3086,6 +3119,15 @@
           <h2 id="full-view-title" class="full-view-title">Camera Feed</h2>
         </div>
         <div class="full-view-actions">
+          <div style="display:flex; align-items:center; gap:6px; background:#0f172a; padding:4px 10px; border-radius:6px; border:1px solid #334155; font-size:11px;">
+            <span style="color:#94a3b8; font-weight:600;">Quality:</span>
+            <select id="modalStreamQuality" onchange="updateActiveStreamQuality(this.value)" style="background:#1e293b; color:#38bdf8; border:1px solid #475569; border-radius:4px; font-size:11px; padding:2px 6px; cursor:pointer;">
+              <option value="98">Ultra HD (98%)</option>
+              <option value="95" selected>Crisp HD (95%)</option>
+              <option value="85">Standard (85%)</option>
+            </select>
+          </div>
+          <span style="font-family:monospace; font-size:11px; color:#22c55e; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.25); padding:4px 8px; border-radius:4px; font-weight:700;">PURE CAMERA FEED</span>
           <button class="full-view-btn" onclick="toggleNativeFullscreen()">
             <svg style="width: 16px; height: 16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />

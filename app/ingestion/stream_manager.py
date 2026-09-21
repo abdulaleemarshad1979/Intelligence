@@ -408,16 +408,16 @@ class CameraStreamWorker:
         h, w = frame.shape[:2]
         cam_label = f"{self.camera_id} | {self.name.upper()}"
         if overlay_mode == "clean":
-            cv2.putText(frame, f"{cam_label} | LIVE", (16, 26),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.50, (0, 240, 255), 1)
+            # 100% pristine natural stream: zero drawn overlays, preserving native camera OSD timestamp
+            pass
         elif overlay_mode == "minimal":
-            cv2.putText(frame, f"{cam_label} | ACTIVE TRACKING", (16, 26),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.50, (0, 240, 255), 1)
+            cv2.putText(frame, f"{cam_label} | ACTIVE", (w - 240, 26),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 240, 255), 1)
         else:
-            cv2.putText(frame, f"{cam_label} | POLICE HQ FEED", (16, 26),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.50, (0, 255, 255), 1)
+            cv2.putText(frame, f"{cam_label} | POLICE HQ FEED", (w - 320, 26),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 255, 255), 1)
             cv2.putText(frame, f"FPS: {self.fps_measured} | AI: {self.ai_fps_measured} Hz | LATENCY: {self.latency_ms:.1f}ms",
-                        (16, 46), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0, 255, 0), 1)
+                        (w - 320, 46), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0, 255, 0), 1)
 
         # Render subtle AI bounding boxes ONLY if explicitly requested in debug/analytics mode
         # By default ("clean" or "minimal"), video feed remains 100% clean while AI runs in background
@@ -491,23 +491,17 @@ class CameraStreamManager:
             resolved_source = source
             if not resolved_source:
                 if camera_id == "CAM-001":
-                    clean_path = os.path.join(self.data_dir, "samples", "cctv_sample_clean.mp4")
+                    raw_path = os.path.join(self.data_dir, "samples", "cctv_sample_raw.mp4")
                     sample_path = os.path.join(self.data_dir, "samples", "cctv_sample.mp4")
                     fallback_path = "/home/abdul-aleem-arshad/Downloads/WhatsApp Video 2026-09-17 at 4.40.40 PM.mp4"
-                    if os.path.exists(clean_path):
-                        resolved_source = clean_path
+                    if os.path.exists(raw_path):
+                        resolved_source = raw_path
                     elif os.path.exists(sample_path):
                         resolved_source = sample_path
                     else:
                         resolved_source = fallback_path
                 else:
                     resolved_source = f"simulated://{camera_id}"
-            else:
-                # If explicit source points to raw cctv_sample.mp4, prefer clean version if available
-                if "cctv_sample.mp4" in str(resolved_source):
-                    clean_alt = str(resolved_source).replace("cctv_sample.mp4", "cctv_sample_clean.mp4")
-                    if os.path.exists(clean_alt):
-                        resolved_source = clean_alt
 
             worker = CameraStreamWorker(
                 camera_id=camera_id,
@@ -544,14 +538,14 @@ class CameraStreamManager:
         self,
         camera_id: str = "CAM-001",
         overlay_mode: str = "clean",
-        quality: int = 85
+        quality: int = 95
     ) -> Generator[bytes, None, None]:
         """Zero-copy, low-latency MJPEG frame generator for web browser streaming."""
         worker = self.get_or_create_worker(camera_id)
         worker.active_viewers += 1
 
         frame_interval = 1.0 / max(1, worker.target_fps)
-        jpeg_params = [int(cv2.IMWRITE_JPEG_QUALITY), max(40, min(100, quality))]
+        jpeg_params = [int(cv2.IMWRITE_JPEG_QUALITY), max(60, min(100, quality))]
         last_yielded_frame_id = -1
 
         try:

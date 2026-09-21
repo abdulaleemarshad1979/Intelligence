@@ -676,13 +676,13 @@ STREAM_OVERLAY_CONFIG = {
     "show_face_mesh": False
 }
 
-def generate_mjpeg_stream(camera_id: str = "CAM-001", quality: int = 85):
+def generate_mjpeg_stream(camera_id: str = "CAM-001", quality: int = 95):
     """Ultra-low latency MJPEG frame generator decoupled from heavy inference."""
     overlay_mode = STREAM_OVERLAY_CONFIG.get("mode", "clean")
     return stream_mgr.generate_mjpeg_stream(camera_id=camera_id, overlay_mode=overlay_mode, quality=quality)
 
 @app.get("/api/video_feed")
-async def video_feed(camera_id: str = "CAM-001", quality: int = 85):
+async def video_feed(camera_id: str = "CAM-001", quality: int = 95):
     """Real-time zero-latency MJPEG video stream (supports CAM-001 to CAM-016 and Matrix cams)."""
     return StreamingResponse(
         generate_mjpeg_stream(camera_id=camera_id, quality=quality),
@@ -690,7 +690,7 @@ async def video_feed(camera_id: str = "CAM-001", quality: int = 85):
     )
 
 @app.get("/api/video_feed/{camera_id}")
-async def video_feed_by_cam(camera_id: str, quality: int = 85):
+async def video_feed_by_cam(camera_id: str, quality: int = 95):
     """Camera-specific direct stream URL for grid tiles and inspector modals."""
     return StreamingResponse(
         generate_mjpeg_stream(camera_id=camera_id, quality=quality),
