@@ -174,3 +174,34 @@ def test_api_watchlist_endpoints():
     del_resp = client.delete("/api/watchlist/target-faces/TGT-API-01")
     assert del_resp.status_code == 200
     assert del_resp.json()["status"] == "SUCCESS"
+
+
+def test_api_enroll_video_endpoint(tmp_path):
+    client = TestClient(app)
+    video_path = str(tmp_path / "test_walk.mp4")
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(video_path, fourcc, 15.0, (320, 240))
+    for i in range(12):
+        frame = np.full((240, 320, 3), 50, dtype=np.uint8)
+        # Draw a synthetic moving human
+        cx = 100 + i * 5
+        cv2.circle(frame, (cx, 60), 15, (200, 200, 200), -1)  # head
+        cv2.line(frame, (cx, 75), (cx, 150), (200, 200, 200), 4)  # torso
+        cv2.line(frame, (cx, 150), (cx - 15, 210), (200, 200, 200), 4)  # leg 1
+        cv2.line(frame, (cx, 150), (cx + 15, 210), (200, 200, 200), 4)  # leg 2
+        out.write(frame)
+    out.release()
+
+    with open(video_path, "rb") as vf:
+        resp = client.post(
+            "/api/watchlist/enroll-video",
+            files={"video_file": ("test_walk.mp4", vf, "video/mp4")},
+            data={"name": "Video Target Test", "fir_no": "FIR-2026-TEST", "max_frames": 10, "stride": 1, "enhance_video": "false"}
+        )
+    assert resp.status_code == 200
+    res_data = resp.json()
+    assert res_data["status"] == "SUCCESS"
+    assert "exo_skeleton" in res_data["results"]
+    assert "gait_kinematics" in res_data["results"]
+    assert res_data["results"]["exo_skeleton"]["frames_extracted"] >= 0
+    assert "model_training_dataset" in res_data["results"]

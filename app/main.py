@@ -14,8 +14,8 @@ import cv2
 import time
 import json
 import yaml
-from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException, Request, Response
+from typing import Optional, List, Dict, Any, Union
+from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -1686,6 +1686,80 @@ async def enroll_target_face_api(payload: TargetFaceEnrollPayload):
             "status": "SUCCESS",
             "message": f"Target face '{payload.name}' enrolled into live feed surveillance.",
             "target": res
+        }
+    except Exception as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
+
+
+@app.post("/api/watchlist/enroll-video")
+async def enroll_target_video_api(
+    video_file: UploadFile = File(...),
+    name: str = Form(...),
+    fir_no: Optional[str] = Form(""),
+    notes: Optional[str] = Form(""),
+    max_frames: int = Form(150),
+    stride: int = Form(1),
+    enhance_video: bool = Form(True)
+):
+    """Enroll suspect directly from surveillance video: captures walking gait kinematics and 17 COCO exo-skeleton."""
+    from app.pipeline.video_target_processor import VideoTargetProcessor
+    from app.vision.face_watch import live_face_watcher
+
+    os.makedirs("data/samples", exist_ok=True)
+    clean_name = "".join(c for c in video_file.filename if c.isalnum() or c in "._-")
+    temp_filename = f"upload_{int(time.time())}_{clean_name}"
+    temp_filepath = os.path.join("data", "samples", temp_filename)
+
+    try:
+        content = await video_file.read()
+        with open(temp_filepath, "wb") as f:
+            f.write(content)
+
+        processor = VideoTargetProcessor()
+        target_id = f"POI-{int(time.time()) % 100000:05d}"
+
+        results = processor.process_video_target(
+            video_path=temp_filepath,
+            target_name=name,
+            target_id=target_id,
+            camera_id="INTAKE-UPLOAD-VIDEO",
+            max_frames=max_frames,
+            stride_step=stride,
+            enhance_video=enhance_video,
+            output_dir="data/captures"
+        )
+
+        # If best face was extracted, enroll into live watchlist
+        best_crop = results["target"].get("best_crop_path")
+        if best_crop and os.path.isfile(best_crop):
+            try:
+                gait_k = results.get("gait_kinematics", {})
+                live_face_watcher.enroll_target_face(
+                    image_input=best_crop,
+                    name=name,
+                    target_id=target_id,
+                    threshold=0.50,
+                    notes=f"Enrolled via video {video_file.filename}. Cadence: {gait_k.get('cadence_steps_per_sec', 0)}Hz, Stride: {gait_k.get('stride_length_cm', 0)}cm. {notes}"
+                )
+            except Exception:
+                pass
+
+        audit_logger.log_action(
+            action_type="TARGET_ENROLLED_FROM_VIDEO",
+            resource_id=target_id,
+            details={
+                "name": name,
+                "filename": video_file.filename,
+                "frames_analyzed": results["exo_skeleton"]["frames_extracted"],
+                "cadence_hz": results["gait_kinematics"].get("cadence_steps_per_sec"),
+                "stride_length_cm": results["gait_kinematics"].get("stride_length_cm")
+            }
+        )
+
+        return {
+            "status": "SUCCESS",
+            "message": f"Suspect '{name}' enrolled with full exo-skeleton walking gait & biometrics!",
+            "results": results
         }
     except Exception as ex:
         raise HTTPException(status_code=400, detail=str(ex))

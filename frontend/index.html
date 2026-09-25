@@ -1563,8 +1563,8 @@
         </button>
 
         <!-- Suspect Storage Intake Button -->
-        <button onclick="openSuspectIntakeModal()" class="csv-btn" style="background:#0284c7; color:#ffffff; border-color:#0284c7; cursor:pointer;" title="Upload Suspect Photo & Save to PostgreSQL">
-          <span>📸 Add Suspect Photo (PostgreSQL)</span>
+        <button onclick="openSuspectIntakeModal()" class="csv-btn" style="background:#0284c7; color:#ffffff; border-color:#0284c7; cursor:pointer;" title="Enroll Suspect Photo or Surveillance Video (17 COCO Exo-Skeleton & Walking Gait)">
+          <span>🎯 Enroll Suspect (Photo / Video Gait)</span>
         </button>
 
         <!-- Connect Matrix CCTV Camera Button -->
@@ -2773,6 +2773,8 @@
     // ==================== SUSPECT STORAGE & MULTI-MODAL LIVE SEARCH ====================
     let currentActiveAlert = null;
     let registeredSuspectId = null;
+    let currentIntakeMode = 'photo';
+    let selectedIntakeFileObj = null;
 
     window.openSuspectIntakeModal = function() {
       const m = document.getElementById("suspectIntakeModal");
@@ -2783,7 +2785,71 @@
     window.closeSuspectIntakeModal = function() {
       const m = document.getElementById("suspectIntakeModal");
       if (m) m.classList.add("hidden");
-      clearIntakeImage();
+      clearIntakeMedia();
+    };
+
+    window.switchIntakeTab = function(mode) {
+      currentIntakeMode = mode;
+      const tabPhoto = document.getElementById("tabIntakePhoto");
+      const tabVideo = document.getElementById("tabIntakeVideo");
+      const lblTitle = document.getElementById("lblDropZoneTitle");
+      const promptIcon = document.getElementById("intakePromptIcon");
+      const promptTitle = document.getElementById("intakePromptTitle");
+      const promptSub = document.getElementById("intakePromptSub");
+      const fileInput = document.getElementById("intakeMediaFile");
+      const videoConfig = document.getElementById("videoGaitConfigSection");
+      const btnSubmit = document.getElementById("btnSubmitIntake");
+      const btnText = document.getElementById("btnSubmitIntakeText");
+      const headerTitle = document.getElementById("intakeModalHeaderTitle");
+      const headerSub = document.getElementById("intakeModalHeaderSub");
+
+      if (mode === "video") {
+        if (tabPhoto) {
+          tabPhoto.style.background = "transparent";
+          tabPhoto.style.color = "#64748b";
+          tabPhoto.style.borderColor = "transparent";
+          tabPhoto.style.boxShadow = "none";
+        }
+        if (tabVideo) {
+          tabVideo.style.background = "#ffffff";
+          tabVideo.style.color = "#4f46e5";
+          tabVideo.style.borderColor = "#cbd5e1";
+          tabVideo.style.boxShadow = "0 -2px 5px rgba(0,0,0,0.03)";
+        }
+        if (lblTitle) lblTitle.textContent = "Surveillance Video (Exo-Skeleton & Walking Gait) *";
+        if (promptIcon) promptIcon.textContent = "🎥";
+        if (promptTitle) promptTitle.textContent = "Click to browse or drag & drop video clip here";
+        if (promptSub) promptSub.textContent = "Supports MP4, WEBM, AVI, MOV — Extracts 17 COCO Keypoints, Cadence & Kinematics";
+        if (fileInput) fileInput.accept = "video/*,video/mp4,video/webm,video/x-msvideo,video/quicktime,.mp4,.webm,.avi,.mov";
+        if (videoConfig) videoConfig.style.display = "flex";
+        if (btnText) btnText.textContent = "🦴 Extract Exo-Skeleton & Enroll Walking Gait";
+        if (btnSubmit) btnSubmit.style.background = "#4f46e5";
+        if (headerTitle) headerTitle.textContent = "Enroll Surveillance Video (Exo-Skeleton & Walking Gait)";
+        if (headerSub) headerSub.textContent = "Extracts 17 COCO Keypoints, Walking Cadence & Stride into PostgreSQL/SQLite for GNN Training";
+      } else {
+        if (tabPhoto) {
+          tabPhoto.style.background = "#ffffff";
+          tabPhoto.style.color = "#0284c7";
+          tabPhoto.style.borderColor = "#cbd5e1";
+          tabPhoto.style.boxShadow = "0 -2px 5px rgba(0,0,0,0.03)";
+        }
+        if (tabVideo) {
+          tabVideo.style.background = "transparent";
+          tabVideo.style.color = "#64748b";
+          tabVideo.style.borderColor = "transparent";
+          tabVideo.style.boxShadow = "none";
+        }
+        if (lblTitle) lblTitle.textContent = "Target Photo (Upload Image) *";
+        if (promptIcon) promptIcon.textContent = "📸";
+        if (promptTitle) promptTitle.textContent = "Click to browse or drag & drop photo here";
+        if (promptSub) promptSub.textContent = "Supports JPG, PNG, WEBP — Auto 5-Point Alignment & Quality Gated";
+        if (fileInput) fileInput.accept = "image/*";
+        if (videoConfig) videoConfig.style.display = "none";
+        if (btnText) btnText.textContent = "💾 Save to PostgreSQL & Start Watch";
+        if (btnSubmit) btnSubmit.style.background = "#0284c7";
+        if (headerTitle) headerTitle.textContent = "Add Suspect Target Photo";
+        if (headerSub) headerSub.textContent = "Stored directly in PostgreSQL with 512-d Biometric FRS Index";
+      }
     };
 
     function setupDropZone() {
@@ -2804,59 +2870,101 @@
         dz.addEventListener(evt, (e) => {
           e.preventDefault();
           e.stopPropagation();
-          dz.style.borderColor = "#0284c7";
-          dz.style.background = "#f0f9ff";
+          dz.style.borderColor = currentIntakeMode === "video" ? "#4f46e5" : "#0284c7";
+          dz.style.background = currentIntakeMode === "video" ? "#eef2ff" : "#f0f9ff";
         });
       });
 
       dz.addEventListener("drop", (e) => {
         if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-          loadIntakeImageFile(e.dataTransfer.files[0]);
+          loadIntakeMediaFile(e.dataTransfer.files[0]);
         }
       });
     }
 
     window.handleIntakeFileSelected = function(e) {
       if (e.target.files && e.target.files.length > 0) {
-        loadIntakeImageFile(e.target.files[0]);
+        loadIntakeMediaFile(e.target.files[0]);
       }
     };
 
-    function loadIntakeImageFile(file) {
-      if (!file || !file.type.startsWith("image/")) {
-        alert("Please select a valid image file (.jpg, .png, .webp).");
+    function loadIntakeMediaFile(file) {
+      if (!file) return;
+      selectedIntakeFileObj = file;
+      const isVideo = file.type.startsWith("video/") || /\.(mp4|webm|avi|mov|mkv)$/i.test(file.name);
+      const isImage = file.type.startsWith("image/");
+
+      if (!isVideo && !isImage) {
+        alert("Please select a supported image (.jpg, .png) or video (.mp4, .webm, .avi, .mov) file.");
         return;
       }
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        const b64 = evt.target.result;
-        const hiddenInput = document.getElementById("intakePhotoBase64");
-        const previewImg = document.getElementById("intakePreviewImg");
-        const promptDiv = document.getElementById("dropZonePrompt");
-        const previewDiv = document.getElementById("dropZonePreview");
-        const metaSpan = document.getElementById("intakeImageMeta");
 
-        if (hiddenInput) hiddenInput.value = b64;
-        if (previewImg) previewImg.src = b64;
-        if (promptDiv) promptDiv.style.display = "none";
-        if (previewDiv) previewDiv.style.display = "flex";
-        if (metaSpan) metaSpan.textContent = `✓ ${file.name} (${Math.round(file.size / 1024)} KB)`;
-      };
-      reader.readAsDataURL(file);
-    }
-
-    window.clearIntakeImage = function() {
-      const fileInput = document.getElementById("intakePhotoFile");
-      const hiddenInput = document.getElementById("intakePhotoBase64");
-      const previewImg = document.getElementById("intakePreviewImg");
       const promptDiv = document.getElementById("dropZonePrompt");
       const previewDiv = document.getElementById("dropZonePreview");
+      const previewImg = document.getElementById("intakePreviewImg");
+      const previewVideo = document.getElementById("intakePreviewVideo");
+      const metaSpan = document.getElementById("intakeImageMeta");
+      const hiddenInput = document.getElementById("intakePhotoBase64");
+
+      if (isVideo) {
+        switchIntakeTab("video");
+        const videoUrl = URL.createObjectURL(file);
+        if (previewVideo) {
+          previewVideo.src = videoUrl;
+          previewVideo.style.display = "block";
+        }
+        if (previewImg) previewImg.style.display = "none";
+        if (promptDiv) promptDiv.style.display = "none";
+        if (previewDiv) previewDiv.style.display = "flex";
+        if (metaSpan) metaSpan.textContent = `✓ ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB) • Exo-Skeleton Ready`;
+      } else {
+        switchIntakeTab("photo");
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          const b64 = evt.target.result;
+          if (hiddenInput) hiddenInput.value = b64;
+          if (previewImg) {
+            previewImg.src = b64;
+            previewImg.style.display = "block";
+          }
+          if (previewVideo) {
+            previewVideo.pause();
+            previewVideo.style.display = "none";
+          }
+          if (promptDiv) promptDiv.style.display = "none";
+          if (previewDiv) previewDiv.style.display = "flex";
+          if (metaSpan) metaSpan.textContent = `✓ ${file.name} (${Math.round(file.size / 1024)} KB)`;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    window.clearIntakeMedia = function() {
+      selectedIntakeFileObj = null;
+      const fileInput = document.getElementById("intakeMediaFile");
+      const hiddenInput = document.getElementById("intakePhotoBase64");
+      const previewImg = document.getElementById("intakePreviewImg");
+      const previewVideo = document.getElementById("intakePreviewVideo");
+      const promptDiv = document.getElementById("dropZonePrompt");
+      const previewDiv = document.getElementById("dropZonePreview");
+      const progressBox = document.getElementById("intakeProgressBox");
+      const resultBox = document.getElementById("intakeResultBox");
 
       if (fileInput) fileInput.value = "";
       if (hiddenInput) hiddenInput.value = "";
-      if (previewImg) previewImg.src = "";
+      if (previewImg) {
+        previewImg.src = "";
+        previewImg.style.display = "none";
+      }
+      if (previewVideo) {
+        previewVideo.pause();
+        previewVideo.src = "";
+        previewVideo.style.display = "none";
+      }
       if (promptDiv) promptDiv.style.display = "flex";
       if (previewDiv) previewDiv.style.display = "none";
+      if (progressBox) progressBox.style.display = "none";
+      if (resultBox) resultBox.style.display = "none";
     };
 
     window.handleSuspectIntakeSubmit = async function(e) {
@@ -2866,9 +2974,10 @@
       const b64Input = document.getElementById("intakePhotoBase64");
       const firInput = document.getElementById("intakeFir");
       const notesInput = document.getElementById("intakeFacts");
+      const progressBox = document.getElementById("intakeProgressBox");
+      const resultBox = document.getElementById("intakeResultBox");
 
       const name = nameInput ? nameInput.value.trim() : "";
-      const photoB64 = b64Input ? b64Input.value : "";
       const fir = firInput ? firInput.value.trim() : "";
       const notes = notesInput ? notesInput.value.trim() : "";
 
@@ -2876,51 +2985,131 @@
         alert("Please enter the suspect's name.");
         return;
       }
-      if (!photoB64) {
-        alert("Please select or drop a target photo to enroll.");
-        return;
-      }
 
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = "<span>⏳ Saving to PostgreSQL & Extracting 512-d FRS...</span>";
-      }
+      const isVideo = currentIntakeMode === "video" || (selectedIntakeFileObj && (selectedIntakeFileObj.type.startsWith("video/") || /\.(mp4|webm|avi|mov|mkv)$/i.test(selectedIntakeFileObj.name)));
 
-      try {
-        const payload = {
-          name: name,
-          image_base64: photoB64,
-          threshold: 0.50,
-          notes: notes || (fir ? `FIR: ${fir}` : "")
-        };
-
-        const res = await fetch("/api/watchlist/target-face", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-
-        if (res.ok && data.status === "SUCCESS") {
-          registeredSuspectId = data.target.target_id;
-          const qScore = data.target.quality ? Math.round((data.target.quality.quality_score || 0.85) * 100) : 85;
-          alert(`✓ SUSPECT SAVED TO POSTGRESQL!\n\nTarget: ${name} (${data.target.target_id})\nBiometrics: 512-d ArcFace / SFace vector indexed\nQuality Score: ${qScore}%\nActive Monitoring: Live across all 16 CCTV camera feeds.`);
-          closeSuspectIntakeModal();
-          if (nameInput) nameInput.value = "";
-          if (firInput) firInput.value = "";
-          if (notesInput) notesInput.value = "";
-          clearIntakeImage();
-          pollNotifications();
-        } else {
-          alert("Error enrolling suspect: " + (data.detail || data.message || "Failed to process photo."));
+      if (isVideo) {
+        if (!selectedIntakeFileObj) {
+          alert("Please select or drop a surveillance video file (.mp4, .webm, .avi, .mov).");
+          return;
         }
-      } catch (err) {
-        console.error("Intake error:", err);
-        alert("Network error connecting to PostgreSQL surveillance server.");
-      } finally {
+
         if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = "<span>💾 Save to PostgreSQL & Start Watch</span>";
+          btn.disabled = true;
+          btn.innerHTML = "<span>⏳ Extracting 17-Point Exo-Skeleton & Gait Dynamics...</span>";
+        }
+        if (progressBox) progressBox.style.display = "block";
+        if (resultBox) resultBox.style.display = "none";
+
+        try {
+          const maxFrames = document.getElementById("intakeMaxFrames") ? document.getElementById("intakeMaxFrames").value : "150";
+          const enhanceVideo = document.getElementById("intakeEnhanceVideo") ? document.getElementById("intakeEnhanceVideo").checked : true;
+
+          const formData = new FormData();
+          formData.append("video_file", selectedIntakeFileObj);
+          formData.append("name", name);
+          formData.append("fir_no", fir);
+          formData.append("notes", notes);
+          formData.append("max_frames", maxFrames);
+          formData.append("stride", "1");
+          formData.append("enhance_video", enhanceVideo ? "true" : "false");
+
+          const res = await fetch("/api/watchlist/enroll-video", {
+            method: "POST",
+            body: formData
+          });
+          const data = await res.json();
+
+          if (res.ok && data.status === "SUCCESS") {
+            const results = data.results || {};
+            const target = results.target || {};
+            const exo = results.exo_skeleton || {};
+            const gait = results.gait_kinematics || {};
+            const training = results.model_training_dataset || {};
+
+            registeredSuspectId = target.target_id;
+
+            if (progressBox) progressBox.style.display = "none";
+            if (resultBox) {
+              resultBox.style.display = "flex";
+              const targetBadge = document.getElementById("resTargetIdBadge");
+              const skelCount = document.getElementById("resSkeletonCount");
+              const cadenceVal = document.getElementById("resCadenceVal");
+              const strideVal = document.getElementById("resStrideVal");
+              const trainingText = document.getElementById("resTrainingExportText");
+
+              if (targetBadge) targetBadge.textContent = target.target_id || "POI-ENROLLED";
+              if (skelCount) skelCount.textContent = `${exo.frames_extracted || 0} Frames (17 Keypoints)`;
+              if (cadenceVal) cadenceVal.textContent = `${(gait.cadence_steps_per_sec || 0).toFixed(2)} steps/s`;
+              if (strideVal) strideVal.textContent = `${(gait.stride_length_cm || 0).toFixed(1)} cm`;
+              if (trainingText) trainingText.textContent = `🧬 GNN Dataset Export: ${training.npy_path ? training.npy_path.split('/').pop() : 'Exported'} | Shape: ${JSON.stringify(training.tensor_shape || [])}`;
+            }
+
+            pollNotifications();
+          } else {
+            if (progressBox) progressBox.style.display = "none";
+            alert("Error processing video: " + (data.detail || data.message || "Failed to process video."));
+          }
+        } catch (err) {
+          if (progressBox) progressBox.style.display = "none";
+          console.error("Video intake error:", err);
+          alert("Network or processing error connecting to surveillance video pipeline.");
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = "<span id='btnSubmitIntakeText'>🦴 Extract Exo-Skeleton & Enroll Walking Gait</span>";
+          }
+        }
+
+      } else {
+        // Photo Mode
+        const photoB64 = b64Input ? b64Input.value : "";
+        if (!photoB64) {
+          alert("Please select or drop a target photo to enroll.");
+          return;
+        }
+
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = "<span>⏳ Saving to PostgreSQL & Extracting 512-d FRS...</span>";
+        }
+
+        try {
+          const payload = {
+            name: name,
+            image_base64: photoB64,
+            threshold: 0.50,
+            notes: notes || (fir ? `FIR: ${fir}` : "")
+          };
+
+          const res = await fetch("/api/watchlist/target-face", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+
+          if (res.ok && data.status === "SUCCESS") {
+            registeredSuspectId = data.target.target_id;
+            const qScore = data.target.quality ? Math.round((data.target.quality.quality_score || 0.85) * 100) : 85;
+            alert(`✓ SUSPECT SAVED TO POSTGRESQL!\n\nTarget: ${name} (${data.target.target_id})\nBiometrics: 512-d ArcFace / SFace vector indexed\nQuality Score: ${qScore}%\nActive Monitoring: Live across all 16 CCTV camera feeds.`);
+            closeSuspectIntakeModal();
+            if (nameInput) nameInput.value = "";
+            if (firInput) firInput.value = "";
+            if (notesInput) notesInput.value = "";
+            clearIntakeMedia();
+            pollNotifications();
+          } else {
+            alert("Error enrolling suspect: " + (data.detail || data.message || "Failed to process photo."));
+          }
+        } catch (err) {
+          console.error("Intake error:", err);
+          alert("Network error connecting to PostgreSQL surveillance server.");
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = "<span id='btnSubmitIntakeText'>💾 Save to PostgreSQL & Start Watch</span>";
+          }
         }
       }
     };
@@ -3239,18 +3428,30 @@
       <div id="full-view-body" class="full-view-body"></div>
     </div>
   </div>
-  <!-- ==================== SUSPECT STORAGE & INTAKE MODAL (POSTGRESQL IMAGE-CENTRIC) ==================== -->
+  <!-- ==================== SUSPECT STORAGE & INTAKE MODAL (PHOTO & VIDEO EXO-SKELETON) ==================== -->
   <div id="suspectIntakeModal" class="police-modal-overlay hidden">
-    <div class="police-modal-card" style="max-width: 580px; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4); overflow: hidden;">
+    <div class="police-modal-card" style="max-width: 660px; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4); overflow: hidden;">
       <div class="police-modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 16px 20px; border-bottom: 2px solid #0284c7;">
         <div class="police-modal-title" style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 20px;">🎯</span>
+          <span style="font-size: 22px;">🎯</span>
           <div>
-            <div style="font-size: 15px; font-weight: 800; color: #f8fafc; letter-spacing: -0.01em;">Add Suspect Target Photo</div>
-            <div style="font-size: 11px; color: #94a3b8; font-weight: 500;">Stored directly in PostgreSQL with 512-d Biometric FRS Index</div>
+            <div id="intakeModalHeaderTitle" style="font-size: 15px; font-weight: 800; color: #f8fafc; letter-spacing: -0.01em;">Suspect Biometric Enrollment</div>
+            <div id="intakeModalHeaderSub" style="font-size: 11px; color: #94a3b8; font-weight: 500;">PostgreSQL & SQLite Biometric Store • 17-Point COCO Exo-Skeleton, Walking Gait & 512-D FRS</div>
           </div>
         </div>
         <button onclick="closeSuspectIntakeModal()" class="full-view-close-btn" style="width: 30px; height: 30px; font-size: 15px; background: rgba(255,255,255,0.1); border-radius: 50%; color: #fff;">✕</button>
+      </div>
+
+      <!-- Segmented Intake Mode Tabs -->
+      <div style="background: #f1f5f9; padding: 10px 20px 0 20px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 10px;">
+        <button type="button" id="tabIntakePhoto" onclick="switchIntakeTab('photo')" 
+                style="flex: 1; padding: 9px 12px; border-radius: 8px 8px 0 0; font-size: 12.5px; font-weight: 700; cursor: pointer; border: 1px solid #cbd5e1; border-bottom: none; background: #ffffff; color: #0284c7; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 -2px 5px rgba(0,0,0,0.03);">
+          <span>📸 Target Photo (512-D Face)</span>
+        </button>
+        <button type="button" id="tabIntakeVideo" onclick="switchIntakeTab('video')" 
+                style="flex: 1; padding: 9px 12px; border-radius: 8px 8px 0 0; font-size: 12.5px; font-weight: 700; cursor: pointer; border: 1px solid transparent; border-bottom: none; background: transparent; color: #64748b; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          <span>🎥 Surveillance Video (Exo-Skeleton & Gait)</span>
+        </button>
       </div>
 
       <form id="formSuspectIntake" onsubmit="handleSuspectIntakeSubmit(event)" class="police-modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
@@ -3264,35 +3465,72 @@
           <input type="text" id="intakeName" class="form-input" required placeholder="e.g. John Doe / Raju alias 'Phantom'" style="font-size: 14px; padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 8px;">
         </div>
 
-        <!-- Modern Drag & Drop Image Upload Zone with Live Preview -->
+        <!-- Universal Drag & Drop Media Upload Zone (Images & Videos) -->
         <div class="form-group">
-          <label class="form-label" style="font-weight: 700; color: #1e293b; font-size: 12.5px;">
+          <label class="form-label" id="lblDropZoneTitle" style="font-weight: 700; color: #1e293b; font-size: 12.5px;">
             Target Photo (Upload Image) *
           </label>
           
-          <div id="dropZoneIntake" onclick="document.getElementById('intakePhotoFile').click()" 
-               style="border: 2px dashed #0284c7; border-radius: 12px; padding: 24px; text-align: center; background: #f0f9ff; cursor: pointer; transition: all 0.2s ease; position: relative;">
+          <div id="dropZoneIntake" onclick="document.getElementById('intakeMediaFile').click()" 
+               style="border: 2px dashed #0284c7; border-radius: 12px; padding: 22px; text-align: center; background: #f0f9ff; cursor: pointer; transition: all 0.2s ease; position: relative;">
             
-            <input type="file" id="intakePhotoFile" accept="image/*" style="display: none;" onchange="handleIntakeFileSelected(event)">
+            <input type="file" id="intakeMediaFile" accept="image/*,video/*,.mp4,.webm,.avi,.mov" style="display: none;" onchange="handleIntakeFileSelected(event)">
             
             <!-- Default Placeholder View -->
             <div id="dropZonePrompt" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-              <div style="width: 50px; height: 50px; border-radius: 50%; background: #e0f2fe; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #0284c7;">
+              <div id="intakePromptIcon" style="width: 50px; height: 50px; border-radius: 50%; background: #e0f2fe; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #0284c7;">
                 📸
               </div>
-              <div style="font-size: 13.5px; font-weight: 700; color: #0369a1;">Click to browse or drag & drop photo here</div>
-              <div style="font-size: 11.5px; color: #64748b;">Supports JPG, PNG, WEBP — Auto 5-Point Alignment & Quality Gated</div>
+              <div id="intakePromptTitle" style="font-size: 13.5px; font-weight: 700; color: #0369a1;">Click to browse or drag & drop photo here</div>
+              <div id="intakePromptSub" style="font-size: 11.5px; color: #64748b;">Supports JPG, PNG, WEBP — Auto 5-Point Alignment & Quality Gated</div>
             </div>
 
-            <!-- Live Image Preview Thumbnail (shown after selection) -->
-            <div id="dropZonePreview" style="display: none; flex-direction: column; align-items: center; gap: 8px;">
-              <img id="intakePreviewImg" src="" alt="Target Preview" style="max-height: 160px; max-width: 220px; object-fit: contain; border-radius: 8px; border: 2px solid #0284c7; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <span id="intakeImageMeta" style="font-size: 11px; font-weight: 700; color: #047857; background: #d1fae5; padding: 3px 8px; border-radius: 9999px;">✓ Photo Ready</span>
-                <button type="button" onclick="event.stopPropagation(); clearIntakeImage();" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">Change Photo</button>
+            <!-- Media Preview (Image or Video) -->
+            <div id="dropZonePreview" style="display: none; flex-direction: column; align-items: center; gap: 10px;">
+              <img id="intakePreviewImg" src="" alt="Target Photo Preview" style="display: none; max-height: 160px; max-width: 220px; object-fit: contain; border-radius: 8px; border: 2px solid #0284c7; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+              
+              <video id="intakePreviewVideo" controls autoplay muted loop style="display: none; max-height: 180px; width: 100%; border-radius: 8px; border: 2px solid #6366f1; background: #0f172a; object-fit: contain; box-shadow: 0 4px 12px rgba(0,0,0,0.25);"></video>
+              
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center;">
+                <span id="intakeImageMeta" style="font-size: 11px; font-weight: 700; color: #047857; background: #d1fae5; padding: 4px 10px; border-radius: 9999px;">✓ Ready</span>
+                <button type="button" onclick="event.stopPropagation(); clearIntakeMedia();" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">Change File</button>
               </div>
             </div>
 
+          </div>
+        </div>
+
+        <!-- Video Exo-Skeleton & Gait Options Section (Only visible in Video mode) -->
+        <div id="videoGaitConfigSection" style="display: none; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 700; font-size: 12px; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+              <span>🦴 17 COCO Exo-Skeleton & Walking Kinematics Config</span>
+            </span>
+            <span style="font-size: 10.5px; background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 9999px; font-weight: 700;">RTMPose Body-7 Engine</span>
+          </div>
+
+          <div class="form-grid-2" style="font-size: 11.5px;">
+            <div class="form-group">
+              <label class="form-label" style="font-size: 11px; color: #475569; font-weight: 600;">Max Video Analysis Window</label>
+              <select id="intakeMaxFrames" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; font-size: 11.5px; color: #1e293b;">
+                <option value="60">60 frames (~2s walking cycle)</option>
+                <option value="150" selected>150 frames (~5s walking cycle - Recommended)</option>
+                <option value="300">300 frames (~10s long walk track)</option>
+              </select>
+            </div>
+            <div class="form-group" style="justify-content: center; gap: 6px;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11.5px; color: #334155; font-weight: 600;">
+                <input type="checkbox" id="intakeEnhanceVideo" checked style="accent-color: #0284c7;">
+                <span>✨ Tier-1 CLAHE & Bilateral Enhancer</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11.5px; color: #334155; font-weight: 600;">
+                <input type="checkbox" id="intakeSaveTrainingGnn" checked style="accent-color: #6366f1;">
+                <span>💾 Export GNN Dataset (.npy [T,17,3])</span>
+              </label>
+            </div>
+          </div>
+          <div style="font-size: 10.5px; color: #64748b; line-height: 1.4; background: #ffffff; padding: 8px 10px; border-radius: 6px; border: 1px dashed #cbd5e1;">
+            💡 <strong>Exo-Skeleton Extractor</strong> captures 17 COCO coordinates (head, spine, arms, legs, ankles) per frame with &ge;0.30 confidence gating, computes cadence frequency (steps/s), stride length (cm), and exports ready-to-train tensors for GaitGraph2 / GPGait / ST-GCN.
           </div>
         </div>
 
@@ -3303,17 +3541,64 @@
             <input type="text" id="intakeFir" class="form-input" placeholder="e.g. FIR-2026-AP-0194" style="font-size: 12px; padding: 8px 12px;">
           </div>
           <div class="form-group">
-            <label class="form-label" style="font-size: 11.5px; color: #475569;">Notes / Tags (Optional)</label>
-            <input type="text" id="intakeFacts" class="form-input" placeholder="e.g. High priority person of interest" style="font-size: 12px; padding: 8px 12px;">
+            <label class="form-label" style="font-size: 11.5px; color: #475569;">Notes / Physical Traits (Optional)</label>
+            <input type="text" id="intakeFacts" class="form-input" placeholder="e.g. Limping gait, dark jacket, 175cm" style="font-size: 12px; padding: 8px 12px;">
           </div>
         </div>
 
         <input type="hidden" id="intakePhotoBase64" value="">
 
+        <!-- Processing Progress Status Box (shown while video is uploading/processing) -->
+        <div id="intakeProgressBox" style="display: none; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px; text-align: center;">
+          <div style="font-size: 13px; font-weight: 700; color: #1e40af; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <span class="animate-spin" style="display:inline-block;">⚙️</span>
+            <span id="intakeProgressMsg">Extracting 17 COCO Exo-Skeleton Keypoints & Walking Dynamics...</span>
+          </div>
+          <div style="font-size: 11px; color: #60a5fa; margin-top: 4px;">Running CLAHE enhancer, RTMPose Body-7, and saving biometric index to PostgreSQL/SQLite</div>
+        </div>
+
+        <!-- Enrollment Success Summary Box (shown after video or photo enrollment completes) -->
+        <div id="intakeResultBox" style="display: none; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 14px; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 13px; font-weight: 800; color: #166534; display: flex; align-items: center; gap: 6px;">
+              <span>✓ SUSPECT BIOMETRICS & EXO-SKELETON ENROLLED!</span>
+            </div>
+            <span id="resTargetIdBadge" style="font-size: 11px; font-weight: 700; background: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 9999px;">POI-00000</span>
+          </div>
+
+          <div id="resGaitDetailsGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #ffffff; padding: 10px; border-radius: 8px; border: 1px solid #bbf7d0; font-size: 11.5px;">
+            <div>
+              <div style="color: #64748b; font-size: 10px;">EXO-SKELETON</div>
+              <strong id="resSkeletonCount" style="color: #0f172a;">84 Frames</strong>
+            </div>
+            <div>
+              <div style="color: #64748b; font-size: 10px;">WALKING CADENCE</div>
+              <strong id="resCadenceVal" style="color: #0284c7;">1.82 steps/s</strong>
+            </div>
+            <div>
+              <div style="color: #64748b; font-size: 10px;">STRIDE LENGTH</div>
+              <strong id="resStrideVal" style="color: #16a34a;">68.4 cm</strong>
+            </div>
+          </div>
+
+          <div id="resTrainingExportText" style="font-size: 10.5px; color: #374151; background: #f8fafc; padding: 6px 10px; border-radius: 6px; font-family: monospace;">
+            Training Dataset: skeletons_export.npy (COCO 17 Keypoints ready for GaitGraph2 / ST-GCN)
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+            <button type="button" onclick="triggerLiveCrossCameraSearch()" class="btn btn--primary" style="padding: 6px 12px; font-size: 11.5px; background: #16a34a; border-color: #16a34a;">
+              <span>🔍 Scan 16 Live Cameras for Suspect</span>
+            </button>
+            <button type="button" onclick="closeSuspectIntakeModal()" class="btn btn--sample" style="padding: 6px 12px; font-size: 11.5px;">
+              <span>Close Window</span>
+            </button>
+          </div>
+        </div>
+
         <div class="police-modal-footer" style="padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; margin-top: 0;">
           <button type="button" onclick="closeSuspectIntakeModal()" class="btn btn--sample" style="padding: 9px 18px; border-radius: 8px;">Cancel</button>
           <button type="submit" class="btn btn--primary" id="btnSubmitIntake" style="padding: 9px 20px; border-radius: 8px; font-weight: 700; background: #0284c7; display: flex; align-items: center; gap: 6px;">
-            <span>💾 Save to PostgreSQL & Start Watch</span>
+            <span id="btnSubmitIntakeText">💾 Save to PostgreSQL & Start Watch</span>
           </button>
         </div>
 
