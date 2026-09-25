@@ -264,6 +264,67 @@ def init_db(db_path: Optional[str] = None):
     )
     """)
 
+    # 13. Deep Biomechanics: Fine-Grained Exo-Skeleton Keypoint Frames
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS person_skeletons (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        track_id TEXT NOT NULL,
+        person_id TEXT,
+        frame_idx INTEGER NOT NULL,
+        timestamp REAL NOT NULL,
+        bbox_json TEXT NOT NULL,
+        keypoints_coco_json TEXT NOT NULL,
+        keypoints_crop_json TEXT NOT NULL,
+        keypoints_global_json TEXT NOT NULL,
+        confidences_json TEXT NOT NULL,
+        visible_joints_count INTEGER DEFAULT 0,
+        inter_ankle_dist REAL DEFAULT 0.0,
+        spine_tilt_deg REAL DEFAULT 0.0,
+        neck_point_json TEXT DEFAULT '[]',
+        is_confident INTEGER DEFAULT 1,
+        source TEXT DEFAULT 'RTMPOSE_ONNX',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # 14. Gait Dynamics & Kinematics Waveforms
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS gait_dynamics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        track_id TEXT UNIQUE NOT NULL,
+        person_id TEXT,
+        sequence_length INTEGER NOT NULL,
+        stride_length_px REAL DEFAULT 0.0,
+        stride_length_cm REAL DEFAULT 0.0,
+        cadence_hz REAL DEFAULT 0.0,
+        spine_tilt_deg REAL DEFAULT 0.0,
+        posture_score REAL DEFAULT 0.0,
+        joint_velocities_json TEXT DEFAULT '[]',
+        fft_harmonics_json TEXT DEFAULT '[]',
+        gait_wave_json TEXT DEFAULT '[]',
+        gait_embedding_json TEXT DEFAULT '[]',
+        is_valid_gait INTEGER DEFAULT 1,
+        gait_usable INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # 15. Forensic Video Enhancement & Cryptographic Chain of Custody
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS enhanced_video_artifacts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source_video_path TEXT NOT NULL,
+        enhanced_video_path TEXT NOT NULL,
+        track_id TEXT,
+        person_id TEXT,
+        frame_count INTEGER DEFAULT 0,
+        enhancement_profile TEXT DEFAULT 'TIER_1_CLAHE_BILATERAL',
+        raw_sha256 TEXT DEFAULT '',
+        enhanced_sha256 TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
     # Add optional migration columns to tracks if not present
     cursor.execute("PRAGMA table_info(tracks)")
     columns = [col[1] for col in cursor.fetchall()]
@@ -278,3 +339,4 @@ def init_db(db_path: Optional[str] = None):
 
     conn.commit()
     conn.close()
+

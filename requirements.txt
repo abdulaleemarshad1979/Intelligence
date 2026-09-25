@@ -12,3 +12,6 @@ networkx>=3.0
 torch>=2.0.0
 torchvision>=0.15.0
 psycopg2-binary>=2.9.9
+onnxruntime>=1.17.0
+rtmlib>=0.0.16
+tqdm>=4.66.0

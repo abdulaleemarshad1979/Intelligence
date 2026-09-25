@@ -632,3 +632,275 @@ class Repository:
             ]
         finally:
             conn.close()
+
+    # ==================== SKELETON, GAIT DYNAMICS & MODEL TRAINING REPOSITORY ====================
+
+    def save_person_skeleton(
+        self,
+        track_id: str,
+        frame_idx: int,
+        timestamp: float,
+        bbox: List[int],
+        keypoints_coco_17: List[Dict[str, Any]],
+        keypoints_crop: Dict[str, Any],
+        keypoints_global: Dict[str, Any],
+        confidences: Dict[str, float],
+        visible_joints_count: int,
+        inter_ankle_dist: float,
+        spine_tilt_deg: float,
+        neck_point: List[float],
+        is_confident: bool = True,
+        source: str = "RTMPOSE_ONNX",
+        person_id: Optional[str] = None
+    ) -> bool:
+        """Store fine-grained exo-skeleton keypoints for a single video frame."""
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+            INSERT INTO person_skeletons (
+                track_id, person_id, frame_idx, timestamp, bbox_json,
+                keypoints_coco_json, keypoints_crop_json, keypoints_global_json,
+                confidences_json, visible_joints_count, inter_ankle_dist,
+                spine_tilt_deg, neck_point_json, is_confident, source
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                track_id, person_id or track_id, frame_idx, timestamp,
+                json.dumps(bbox), json.dumps(keypoints_coco_17),
+                json.dumps(keypoints_crop), json.dumps(keypoints_global),
+                json.dumps(confidences), visible_joints_count, inter_ankle_dist,
+                spine_tilt_deg, json.dumps(neck_point), 1 if is_confident else 0, source
+            ))
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+    def save_person_skeletons_batch(self, skeletons: List[Dict[str, Any]]) -> int:
+        """Batch insert frame-by-frame exo-skeletons."""
+        if not skeletons:
+            return 0
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            rows = [
+                (
+                    s["track_id"], s.get("person_id") or s["track_id"],
+                    s["frame_idx"], s["timestamp"], json.dumps(s.get("bbox", [])),
+                    json.dumps(s.get("keypoints_coco_17", [])),
+                    json.dumps(s.get("keypoints_crop", {})),
+                    json.dumps(s.get("keypoints_global", {})),
+                    json.dumps(s.get("confidences", {})),
+                    s.get("visible_joints_count", 0),
+                    s.get("inter_ankle_dist", 0.0),
+                    s.get("spine_tilt_deg", 0.0),
+                    json.dumps(s.get("neck_point", [])),
+                    1 if s.get("is_confident", True) else 0,
+                    s.get("source", "RTMPOSE_ONNX")
+                )
+                for s in skeletons
+            ]
+            cursor.executemany("""
+            INSERT INTO person_skeletons (
+                track_id, person_id, frame_idx, timestamp, bbox_json,
+                keypoints_coco_json, keypoints_crop_json, keypoints_global_json,
+                confidences_json, visible_joints_count, inter_ankle_dist,
+                spine_tilt_deg, neck_point_json, is_confident, source
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, rows)
+            conn.commit()
+            return len(rows)
+        finally:
+            conn.close()
+
+    def get_skeletons_for_track(self, track_id: str) -> List[Dict[str, Any]]:
+        """Retrieve temporal sequence of exo-skeleton frames for a person track."""
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+            SELECT * FROM person_skeletons WHERE track_id = ? ORDER BY frame_idx ASC
+            """, (track_id,))
+            rows = cursor.fetchall()
+            results = []
+            for r in rows:
+                results.append({
+                    "id": r["id"],
+                    "track_id": r["track_id"],
+                    "person_id": r["person_id"],
+                    "frame_idx": r["frame_idx"],
+                    "timestamp": r["timestamp"],
+                    "bbox": json.loads(r["bbox_json"]) if r["bbox_json"] else [],
+                    "keypoints_coco_17": json.loads(r["keypoints_coco_json"]) if r["keypoints_coco_json"] else [],
+                    "keypoints_crop": json.loads(r["keypoints_crop_json"]) if r["keypoints_crop_json"] else {},
+                    "keypoints_global": json.loads(r["keypoints_global_json"]) if r["keypoints_global_json"] else {},
+                    "confidences": json.loads(r["confidences_json"]) if r["confidences_json"] else {},
+                    "visible_joints_count": r["visible_joints_count"],
+                    "inter_ankle_dist": r["inter_ankle_dist"],
+                    "spine_tilt_deg": r["spine_tilt_deg"],
+                    "neck_point": json.loads(r["neck_point_json"]) if r["neck_point_json"] else [],
+                    "is_confident": bool(r["is_confident"]),
+                    "source": r["source"]
+                })
+            return results
+        finally:
+            conn.close()
+
+    def save_gait_dynamics(self, data: Dict[str, Any]) -> bool:
+        """Store verified gait dynamics and kinematic waveforms for a track."""
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+            INSERT OR REPLACE INTO gait_dynamics (
+                track_id, person_id, sequence_length, stride_length_px,
+                stride_length_cm, cadence_hz, spine_tilt_deg, posture_score,
+                joint_velocities_json, fft_harmonics_json, gait_wave_json,
+                gait_embedding_json, is_valid_gait, gait_usable
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                data["track_id"],
+                data.get("person_id") or data["track_id"],
+                data.get("sequence_length", 0),
+                data.get("stride_length_px", 0.0),
+                data.get("stride_length_cm", 0.0),
+                data.get("cadence_hz", 0.0),
+                data.get("spine_tilt_deg", 0.0),
+                data.get("posture_score", 0.0),
+                json.dumps(data.get("joint_velocities", [])),
+                json.dumps(data.get("fft_harmonics", [])),
+                json.dumps(data.get("gait_wave", [])),
+                json.dumps(data.get("gait_embedding", [])),
+                1 if data.get("is_valid_gait", True) else 0,
+                1 if data.get("gait_usable", True) else 0
+            ))
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+    def get_gait_dynamics(self, track_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve gait dynamics record for a track."""
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT * FROM gait_dynamics WHERE track_id = ?", (track_id,))
+            r = cursor.fetchone()
+            if not r:
+                return None
+            return {
+                "track_id": r["track_id"],
+                "person_id": r["person_id"],
+                "sequence_length": r["sequence_length"],
+                "stride_length_px": r["stride_length_px"],
+                "stride_length_cm": r["stride_length_cm"],
+                "cadence_hz": r["cadence_hz"],
+                "spine_tilt_deg": r["spine_tilt_deg"],
+                "posture_score": r["posture_score"],
+                "joint_velocities": json.loads(r["joint_velocities_json"]) if r["joint_velocities_json"] else [],
+                "fft_harmonics": json.loads(r["fft_harmonics_json"]) if r["fft_harmonics_json"] else [],
+                "gait_wave": json.loads(r["gait_wave_json"]) if r["gait_wave_json"] else [],
+                "gait_embedding": json.loads(r["gait_embedding_json"]) if r["gait_embedding_json"] else [],
+                "is_valid_gait": bool(r["is_valid_gait"]),
+                "gait_usable": bool(r["gait_usable"])
+            }
+        finally:
+            conn.close()
+
+    def save_enhanced_video_artifact(
+        self,
+        source_video_path: str,
+        enhanced_video_path: str,
+        track_id: Optional[str] = None,
+        person_id: Optional[str] = None,
+        frame_count: int = 0,
+        enhancement_profile: str = "TIER_1_CLAHE_BILATERAL",
+        raw_sha256: str = "",
+        enhanced_sha256: str = ""
+    ) -> bool:
+        """Record forensic video enhancement artifact with SHA-256 integrity hash."""
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+            INSERT INTO enhanced_video_artifacts (
+                source_video_path, enhanced_video_path, track_id, person_id,
+                frame_count, enhancement_profile, raw_sha256, enhanced_sha256
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                source_video_path, enhanced_video_path, track_id, person_id,
+                frame_count, enhancement_profile, raw_sha256, enhanced_sha256
+            ))
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+    def export_training_dataset(self, target_id: Optional[str] = None, track_id: Optional[str] = None) -> Dict[str, Any]:
+        """Export SQL-persisted exo-skeleton sequences and gait labels formatted for neural model training.
+
+        Format:
+        - keypoint_sequences: [T, 17, 3] (x, y, confidence)
+        - labels: identity target, cadence, stride, height, postures
+        """
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            if track_id:
+                cursor.execute("SELECT * FROM person_skeletons WHERE track_id = ? ORDER BY frame_idx ASC", (track_id,))
+            elif target_id:
+                cursor.execute("SELECT * FROM person_skeletons WHERE person_id = ? ORDER BY frame_idx ASC", (target_id,))
+            else:
+                cursor.execute("SELECT * FROM person_skeletons ORDER BY track_id, frame_idx ASC")
+
+            rows = cursor.fetchall()
+
+            # Group by track_id
+            sequences: Dict[str, List[Dict[str, Any]]] = {}
+            for r in rows:
+                tid = r["track_id"]
+                if tid not in sequences:
+                    sequences[tid] = []
+
+                kpts_17 = json.loads(r["keypoints_coco_json"]) if r["keypoints_coco_json"] else []
+                # Form [17, 3] array: x, y, conf
+                frame_matrix = []
+                for j in kpts_17:
+                    frame_matrix.append([
+                        j.get("crop_x", 0.0),
+                        j.get("crop_y", 0.0),
+                        j.get("confidence", 0.0)
+                    ])
+
+                sequences[tid].append({
+                    "frame_idx": r["frame_idx"],
+                    "timestamp": r["timestamp"],
+                    "inter_ankle_dist": r["inter_ankle_dist"],
+                    "spine_tilt_deg": r["spine_tilt_deg"],
+                    "is_confident": bool(r["is_confident"]),
+                    "keypoint_matrix": frame_matrix
+                })
+
+            # Fetch corresponding gait dynamics for each track
+            dataset = []
+            for tid, frames in sequences.items():
+                gait = self.get_gait_dynamics(tid)
+                dataset.append({
+                    "track_id": tid,
+                    "target_id": target_id or tid,
+                    "frame_count": len(frames),
+                    "temporal_keypoints_shape": [len(frames), 17, 3],
+                    "frames": frames,
+                    "gait_dynamics": gait
+                })
+
+            return {
+                "sample_count": len(dataset),
+                "total_frames": sum(d["frame_count"] for d in dataset),
+                "schema": "COCO_17_KEYPOINTS_TEMPORAL [T, V=17, C=3]",
+                "compatible_models": ["GaitGraph2", "GPGait", "ST-GCN", "SkeletonGait++"],
+                "samples": dataset
+            }
+        finally:
+            conn.close()
+

@@ -121,9 +121,23 @@ class GaitAnalyzer:
         zero_crossings = np.where(np.diff(np.signbit(diffs)))[0]
         step_count = len(zero_crossings)
         duration_sec = len(stride_arr) / self.fps
-        cadence_hz = round(step_count / max(0.5, duration_sec), 2)
-        if cadence_hz < 0.5 or cadence_hz > 4.0:
-            cadence_hz = 1.85  # Normal human cadence ~ 1.8-2.0 steps/sec
+        raw_cadence = round(step_count / max(0.5, duration_sec), 2)
+
+        # Estimate dominant cadence from zero crossings or FFT spectral peak (zero fabricated 1.85Hz)
+        if 0.5 <= raw_cadence <= 4.0:
+            cadence_hz = raw_cadence
+        elif len(stride_arr) >= 8:
+            # Frequency domain peak in human gait band (0.5 to 3.5 Hz)
+            fft_mag = np.abs(np.fft.rfft(stride_arr - np.mean(stride_arr)))
+            freqs = np.fft.rfftfreq(len(stride_arr), d=self.dt)
+            walking_band = (freqs >= 0.5) & (freqs <= 3.5)
+            if np.any(walking_band) and np.max(fft_mag[walking_band]) > 1e-2:
+                peak_idx = np.argmax(fft_mag[walking_band])
+                cadence_hz = round(float(freqs[walking_band][peak_idx]), 2)
+            else:
+                cadence_hz = 0.0
+        else:
+            cadence_hz = 0.0
 
         # 2. Joint Angle Velocities (d(theta)/dt in deg/sec)
         knee_vel_l = np.abs(np.diff(left_knee_angles)) / self.dt if len(left_knee_angles) > 1 else np.array([0.0])
@@ -134,8 +148,8 @@ class GaitAnalyzer:
         combined_knee_vel = (knee_vel_l + knee_vel_r) / 2.0
         combined_hip_vel = (hip_vel_l + hip_vel_r) / 2.0
 
-        mean_knee_angular_vel = float(np.mean(combined_knee_vel)) if len(combined_knee_vel) > 0 else 45.0
-        mean_hip_angular_vel = float(np.mean(combined_hip_vel)) if len(combined_hip_vel) > 0 else 30.0
+        mean_knee_angular_vel = float(np.mean(combined_knee_vel)) if len(combined_knee_vel) > 0 else 0.0
+        mean_hip_angular_vel = float(np.mean(combined_hip_vel)) if len(combined_hip_vel) > 0 else 0.0
 
         joint_angle_velocities = [round(float(v), 2) for v in combined_knee_vel]
 
@@ -148,18 +162,20 @@ class GaitAnalyzer:
             for idx in sorted_indices[1:5]:
                 if idx < len(fft_vals):
                     ratio = float(fft_vals[idx] / max(1e-4, fundamental_power))
-                    fft_harmonic_ratios.append(round(ratio, 3))
-        if not fft_harmonic_ratios:
-            fft_harmonic_ratios = [0.45, 0.22, 0.12]
+                    if ratio > 0.01:
+                        fft_harmonic_ratios.append(round(ratio, 3))
 
         # Posture lean and correctness
-        mean_tilt = float(np.mean(np.abs(spine_tilts))) if spine_tilts else 3.5
-        tilt_std = float(np.std(spine_tilts)) if len(spine_tilts) > 2 else 1.0
+        mean_tilt = float(np.mean(np.abs(spine_tilts))) if spine_tilts else 0.0
+        tilt_std = float(np.std(spine_tilts)) if len(spine_tilts) > 2 else 0.0
         posture_penalty = min(0.6, (mean_tilt / 15.0) * 0.4 + (tilt_std / 10.0) * 0.2)
         posture_correctness = round(max(0.40, min(0.98, 0.95 - posture_penalty)), 2)
 
         hip_arr = np.array(hip_heights, dtype=float)
-        hip_bounce_px = round(float(np.std(hip_arr)), 2) if len(hip_arr) > 2 else 2.5
+        hip_bounce_px = round(float(np.std(hip_arr)), 2) if len(hip_arr) > 2 else 0.0
+
+        # Gait validity check: ensure genuine motion exists
+        is_valid_gait = bool(len(stride_arr) >= 6 and mean_stride_px > 3.0 and cadence_hz > 0.0)
 
         # 64-dimensional Handcrafted Kinematics Embedding
         gait_embedding = self._compute_gait_embedding(
@@ -170,14 +186,14 @@ class GaitAnalyzer:
             mean_knee_angular_vel,
             mean_hip_angular_vel,
             fft_harmonic_ratios
-        )
+        ) if is_valid_gait else [0.0] * 64
 
         display_wave = [round(float(x), 1) for x in stride_arr[-30:]]
 
         return {
             "stride_length_px": round(mean_stride_px, 1),
             "max_stride_px": round(max_stride_px, 1),
-            "stride_length_cm": calibrated_stride_cm,
+            "stride_length_cm": calibrated_stride_cm if is_valid_gait else 0.0,
             "cadence_steps_per_sec": cadence_hz,
             "stride_frequency_hz": cadence_hz,
             "spine_tilt_deg": round(mean_tilt, 1),
@@ -187,12 +203,14 @@ class GaitAnalyzer:
             "mean_knee_angular_velocity_deg_s": round(mean_knee_angular_vel, 2),
             "mean_hip_angular_velocity_deg_s": round(mean_hip_angular_vel, 2),
             "fft_harmonic_ratios": fft_harmonic_ratios,
-            "handcrafted_kinematics_verified": True,
+            "handcrafted_kinematics_verified": is_valid_gait,
             "framework": "Handcrafted Kinematics",
-            "production_status": "Approved",
+            "production_status": "Approved" if is_valid_gait else "NO_GAIT_SIGNAL",
             "licensing": "Proprietary IP - Zero 3rd-party licensing risk",
             "gait_wave": display_wave,
-            "gait_embedding": gait_embedding
+            "gait_embedding": gait_embedding,
+            "valid_gait": is_valid_gait,
+            "gait_usable": is_valid_gait
         }
 
     def _compute_gait_embedding(
@@ -249,20 +267,23 @@ class GaitAnalyzer:
         return {
             "stride_length_px": 0.0,
             "max_stride_px": 0.0,
-            "stride_length_cm": 60.0,
-            "cadence_steps_per_sec": 1.8,
-            "stride_frequency_hz": 1.8,
-            "spine_tilt_deg": 3.0,
-            "hip_bounce_px": 2.0,
-            "posture_correctness": 0.85,
-            "joint_angle_velocities": [45.0, 42.0, 48.0],
-            "mean_knee_angular_velocity_deg_s": 45.0,
-            "mean_hip_angular_velocity_deg_s": 30.0,
-            "fft_harmonic_ratios": [0.45, 0.22, 0.12],
-            "handcrafted_kinematics_verified": True,
+            "stride_length_cm": 0.0,
+            "cadence_steps_per_sec": 0.0,
+            "stride_frequency_hz": 0.0,
+            "spine_tilt_deg": 0.0,
+            "hip_bounce_px": 0.0,
+            "posture_correctness": 0.0,
+            "joint_angle_velocities": [],
+            "mean_knee_angular_velocity_deg_s": 0.0,
+            "mean_hip_angular_velocity_deg_s": 0.0,
+            "fft_harmonic_ratios": [],
+            "handcrafted_kinematics_verified": False,
             "framework": "Handcrafted Kinematics",
-            "production_status": "Approved",
+            "production_status": "NO_GAIT_SIGNAL",
             "licensing": "Proprietary IP - Zero 3rd-party licensing risk",
-            "gait_wave": [15.0, 18.0, 24.0, 31.0, 26.0, 19.0, 16.0, 22.0, 29.0, 25.0],
-            "gait_embedding": [0.0] * 64
+            "gait_wave": [],
+            "gait_embedding": [0.0] * 64,
+            "valid_gait": False,
+            "gait_usable": False
         }
+

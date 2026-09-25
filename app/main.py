@@ -107,6 +107,19 @@ class ScanNetworkPayload(BaseModel):
     timeout_seconds: Optional[float] = 1.5
     include_simulated_if_empty: Optional[bool] = True
 
+class ProcessVideoTargetPayload(BaseModel):
+    video_path: Optional[str] = "data/samples/cctv_sample_clean.mp4"
+    target_name: Optional[str] = "Subject of Interest"
+    target_id: Optional[str] = None
+    initial_box: Optional[List[int]] = None
+    initial_frame: Optional[int] = 0
+    target_track_id: Optional[str] = None
+    camera_id: Optional[str] = "CAM-001"
+    max_frames: Optional[int] = 150
+    stride: Optional[int] = 1
+    enhance_video: Optional[bool] = True
+    output_dir: Optional[str] = "data/captures"
+
 app = FastAPI(
     title="City-Wide Intelligent CCTV Intelligence Platform",
     description="Multi-modal CCTV person re-identification, 3-tier face division, gait dynamics, evidence fusion, and police compliance",
@@ -835,6 +848,50 @@ async def update_stream_enhancement(payload: StreamEnhancementPayload):
         "status": "SUCCESS",
         "message": "Stream enhancement configuration updated",
         "enhancement": stream_enhancer.get_status()
+    }
+
+# ==================== VIDEO TARGET PROCESSING & MODEL TRAINING ROUTES ====================
+
+@app.post("/api/video/process-target")
+async def process_video_target_endpoint(payload: ProcessVideoTargetPayload):
+    """Extract exo-skeleton keypoints, gait kinematics, enhance video, and save to SQL."""
+    from app.pipeline.video_target_processor import VideoTargetProcessor
+    processor = VideoTargetProcessor()
+    try:
+        results = processor.process_video_target(
+            video_path=payload.video_path or "data/samples/cctv_sample_clean.mp4",
+            target_name=payload.target_name or "Subject of Interest",
+            target_id=payload.target_id,
+            initial_box=payload.initial_box,
+            initial_frame=payload.initial_frame or 0,
+            target_track_id=payload.target_track_id,
+            camera_id=payload.camera_id or "CAM-001",
+            max_frames=payload.max_frames,
+            stride_step=payload.stride or 1,
+            enhance_video=payload.enhance_video if payload.enhance_video is not None else True,
+            output_dir=payload.output_dir or "data/captures"
+        )
+        return results
+    except Exception as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
+
+@app.get("/api/training/export")
+async def export_training_dataset_endpoint(target_id: Optional[str] = None, track_id: Optional[str] = None):
+    """Export SQL-persisted exo-skeleton sequences and gait labels formatted for neural model training."""
+    dataset = repo.export_training_dataset(target_id=target_id, track_id=track_id)
+    return {"status": "SUCCESS", "dataset": dataset}
+
+@app.get("/api/training/skeletons/{track_id}")
+async def get_track_skeletons_endpoint(track_id: str):
+    """Retrieve fine-grained frame-by-frame exo-skeletons from SQL."""
+    skeletons = repo.get_skeletons_for_track(track_id)
+    gait = repo.get_gait_dynamics(track_id)
+    return {
+        "status": "SUCCESS",
+        "track_id": track_id,
+        "count": len(skeletons),
+        "skeletons": skeletons,
+        "gait_dynamics": gait
     }
 
 # ==================== GOTHAM INVESTIGATION API ROUTES ====================
