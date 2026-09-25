@@ -53,6 +53,33 @@ A city-wide, CCTV-dedicated surveillance intelligence platform designed for poli
 
 ---
 
+## Production Framework Governance & Model Recommendations
+
+| Component | Recommended Framework | License | Production Status & Rationale |
+| :--- | :--- | :--- | :--- |
+| **Object Detection** | RT-DETR | Apache 2.0 | **Approved.** Avoids AGPL-3.0 copyleft exposure associated with YOLOv8. Native ONNX/TensorRT support. |
+| **Pose Estimation** | RTMPose (MMPose) | Apache 2.0 | **Approved.** Sub-millisecond latency on edge nodes, robust occluded keypoint recovery, license-clean. |
+| **Gait Signature** | Handcrafted Kinematics | Proprietary IP | **Approved.** Derived from joint angle velocities, stride frequency, and FFT harmonic ratios. Zero 3rd-party licensing risk. |
+| **Deep Gait Models** | OpenGait (GaitSet / DeepGait) | Research / Proprietary | **Quarantine.** Avoid bundling into production builds due to commercial license restrictions and ties to proprietary overseas vendor codebases. |
+
+---
+
+## 3. Signal Fusion Architecture & Disparity Veto
+
+At 1:N scale across an entire city or district gallery, soft biometrics alone yield unacceptably high false-match rates. Soft signals must act as conditional confirmations or hard geometric pruning gates rather than independent identity verifiers.
+
+### Architectural Rules:
+1. **Hard Geometric Pruning Gates**:
+   - **Height Disparity Veto**: Any candidate with stature disparity $> 12$ cm is immediately pruned before gallery ranking ($H_{delta} > 12.0\text{ cm}$).
+   - **Proportion Disparity Veto**: Torso-to-leg ratio disparity $> 0.30$ triggers an automatic geometric veto.
+   - **Kinematic Stride Veto**: Incompatible stride length delta $> 25$ cm prunes candidate from matches.
+
+2. **Conditional Confirmation Constraint**:
+   - Soft biometrics (gait waveforms, calibrated stature, clothing signatures, body proportions) act as **conditional confirmations** when a primary hard biometric (frontal/partial face) is confirmed.
+   - When primary facial biometrics are occluded, masked, or rear-facing, soft biometrics can **never** independently verify identity or trigger automatic high-confidence alerts ($C_{soft\_only} \le 0.45$). They route exclusively to the **Officer Review Gate** for mandatory human inspection.
+
+---
+
 ## Directory Structure
 
 ```
@@ -136,3 +163,29 @@ python scripts/run_pipeline.py --video data/samples/cctv_sample.mp4 --max-frames
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 Open your browser at `http://localhost:8000` to access the live dashboard.
+
+---
+
+## 🐳 Docker Deployment (One-Command)
+
+Run the entire surveillance platform and PostgreSQL 16 database with Docker Compose:
+
+```bash
+# Build and launch all services (PostgreSQL 16 + CCTV Intelligence Core)
+docker compose up -d --build
+
+# View real-time logs
+docker compose logs -f
+
+# Check health status
+docker compose ps
+
+# Stop services
+docker compose down
+```
+
+The system will be immediately accessible at:
+- **Web Command Center & Live CCTV Feeds:** `http://localhost:8000`
+- **PostgreSQL 16 Biometric Database:** `localhost:5432` (`cctv_intelligence`)
+- **Watchlist Pipeline Status Endpoint:** `http://localhost:8000/api/watchlist/status`
+

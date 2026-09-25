@@ -19,7 +19,8 @@ def temp_watcher(tmp_path):
     watcher = LiveFaceWatcher(
         storage_dir=storage_dir,
         cooldown_sec=1.0,
-        default_threshold=0.50
+        default_threshold=0.50,
+        sync_db=False
     )
     watcher.targets_dir = str(tmp_path / "targets")
     os.makedirs(watcher.targets_dir, exist_ok=True)

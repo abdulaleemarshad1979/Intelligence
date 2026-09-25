@@ -26,6 +26,7 @@ from app.adapters.reid import BasePersonReIDModel, OSNetReIDAdapter, FastReIDAda
 from app.adapters.face import BaseCCTVFaceAnalyzer, InsightFaceArcFaceAdapter
 from app.adapters.pose import BaseSkeletalPoseEstimator, RTMPoseAdapter, MMPoseAdapter
 from app.adapters.gait import GaitAdapter, OpenGaitAdapter, GaitSetAdapter
+from app.adapters.gait.handcrafted_kinematics import HandcraftedKinematicsAdapter
 from app.adapters.license_audit import LicenseAuditor, MODEL_LICENSE_CATALOG
 
 
@@ -64,9 +65,11 @@ class ModelRegistry:
             "mmpose": MMPoseAdapter(model_name="human")
         }
         self.gait_models: Dict[str, GaitAdapter] = {
+            "handcrafted_kinematics": HandcraftedKinematicsAdapter(),
             "opengait": OpenGaitAdapter(model_name="GaitBase"),
             "gaitset": GaitSetAdapter(model_name="gaitset_cctv_v1")
         }
+
 
         # Active selections (default optimal configuration)
         self.active_keys = {

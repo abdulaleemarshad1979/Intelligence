@@ -7,6 +7,7 @@ from typing import Dict, Any, Tuple, List
 from app.database.models import CriminalRecord, TrackObservation
 from app.reid.embedding import cosine_similarity
 from app.features.partial_face import compute_partial_face_similarity
+from app.fusion.disparity_veto import DisparityVetoGate
 
 
 def hex_to_rgb(hex_str: str) -> Tuple[int, int, int]:
@@ -27,14 +28,18 @@ def compute_color_similarity(c1_hex: str, c2_hex: str) -> float:
 class EvidenceFusionEngine:
     """Combines facial, body Re-ID, skeletal posture, gait bonus, and calibrated stature.
 
-    Integrates 'Humility Vetoes':
-    A system that says 'I don't know' is essential for law enforcement credibility.
-    If physical attributes contradict (e.g. height difference > 12cm), false matches are
-    actively suppressed and flagged for human investigator review.
+    Section 3: Signal Fusion Architecture & Disparity Veto:
+    "At 1:N scale across an entire city or district gallery, soft biometrics alone yield
+    unacceptably high false-match rates. Soft signals must act as conditional confirmations
+    or hard geometric pruning gates rather than independent identity verifiers."
     """
 
-    def __init__(self, height_veto_threshold_cm: float = 12.0):
+    def __init__(self, height_veto_threshold_cm: float = 12.0, enforce_1_to_n_soft_cap: bool = False):
         self.height_veto_threshold_cm = height_veto_threshold_cm
+        self.enforce_1_to_n_soft_cap = enforce_1_to_n_soft_cap
+        self.disparity_gate = DisparityVetoGate(max_height_disparity_cm=height_veto_threshold_cm)
+
+
 
     def evaluate_candidate(self, track: Any, suspect: CriminalRecord) -> Dict[str, Any]:
         """Perform multi-criteria evidence fusion between a live CCTV track and a known record."""
@@ -151,8 +156,23 @@ class EvidenceFusionEngine:
         veto_reasons: List[str] = []
         is_vetoed = False
 
-        # Height contradiction: cannot grow or shrink by >12cm
-        if h_diff > self.height_veto_threshold_cm:
+        # Hard Geometric Pruning Gate (Section 3: Disparity Veto)
+        track_stride = getattr(track, "stride_length_cm", 65.0) or 65.0
+        suspect_stride = getattr(suspect, "stride_length_cm", 65.0) or 65.0
+        is_pruned, pruning_reasons = self.disparity_gate.evaluate_geometric_pruning(
+            track_height_cm=track.estimated_height_cm,
+            suspect_height_cm=suspect.known_height_cm,
+            track_ratio=track_ratio,
+            suspect_ratio=suspect.torso_leg_ratio,
+            track_stride_cm=track_stride,
+            suspect_stride_cm=suspect_stride
+        )
+        if is_pruned:
+            is_vetoed = True
+            veto_reasons.extend(pruning_reasons)
+
+        # Height contradiction: cannot grow or shrink by >12cm (Humility Veto)
+        if h_diff > self.height_veto_threshold_cm and not any("Height disparity" in r for r in veto_reasons):
             is_vetoed = True
             veto_reasons.append(
                 f"HUMILITY_VETO: Height disparity ({h_diff:.1f}cm > {self.height_veto_threshold_cm:.1f}cm) "
@@ -180,15 +200,41 @@ class EvidenceFusionEngine:
             recommendation = f"Humility Veto: Potential False Positive Suppressed ({'; '.join(veto_reasons)})"
         else:
             total_confidence = raw_confidence
-            if total_confidence >= 0.78:
-                status = "HIGH_CONFIDENCE"
-                recommendation = "Immediate Authorized Intercept & Verification"
-            elif total_confidence >= 0.52:
-                status = "REVIEW_REQUIRED"
-                recommendation = "Multi-Criteria Candidate Match: Human Investigator Review Required"
+            if face_available:
+                if total_confidence >= 0.78:
+                    status = "HIGH_CONFIDENCE"
+                    recommendation = "Immediate Authorized Intercept & Verification"
+                elif total_confidence >= 0.52:
+                    status = "REVIEW_REQUIRED"
+                    recommendation = "Multi-Criteria Candidate Match: Human Investigator Review Required"
+                else:
+                    status = "UNKNOWN_PERSON"
+                    recommendation = "Non-Matching Track / Incident Logging Only"
             else:
-                status = "UNKNOWN_PERSON"
-                recommendation = "Non-Matching Track / Incident Logging Only"
+                if self.enforce_1_to_n_soft_cap:
+                    # SECTION 3 RULE:
+                    # "At 1:N scale across an entire city or district gallery, soft biometrics alone yield
+                    # unacceptably high false-match rates. Soft signals must act as conditional confirmations
+                    # or hard geometric pruning gates rather than independent identity verifiers."
+                    total_confidence = min(raw_confidence, 0.45)
+                    if total_confidence >= 0.45:
+                        status = "REVIEW_REQUIRED"
+                        recommendation = "Conditional Confirmation Only: Mandatory Human Review (Soft biometrics cannot verify identity at 1:N scale)"
+                    else:
+                        status = "UNKNOWN_PERSON"
+                        recommendation = "Non-Matching Track / Incident Logging Only"
+                else:
+                    total_confidence = raw_confidence
+                    if total_confidence >= 0.78:
+                        status = "HIGH_CONFIDENCE"
+                        recommendation = "Immediate Authorized Intercept & Verification"
+                    elif total_confidence >= 0.52:
+                        status = "REVIEW_REQUIRED"
+                        recommendation = "Multi-Criteria Candidate Match: Human Investigator Review Required"
+                    else:
+                        status = "UNKNOWN_PERSON"
+                        recommendation = "Non-Matching Track / Incident Logging Only"
+
 
         return {
             "suspect_id": suspect.id,
@@ -203,6 +249,9 @@ class EvidenceFusionEngine:
             "is_face_available": face_available,
             "face_evidence_status": face_evidence_status,
             "is_vetoed": is_vetoed,
+            "is_pruned": is_pruned,
+            "disparity_veto_triggered": is_vetoed,
+            "signal_fusion_rule": "At 1:N scale across city gallery, soft biometrics act as conditional confirmations or hard geometric pruning gates rather than independent identity verifiers.",
             "veto_reasons": veto_reasons,
             "humility_status": "VETO_TRIGGERED" if is_vetoed else "PASSED",
             "scores": {

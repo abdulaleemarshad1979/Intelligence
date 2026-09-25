@@ -17,6 +17,7 @@ from typing import Dict, Any, Tuple, Optional, List
 from app.adapters.base import FaceAnalysisResult
 from app.adapters.face.base import BaseCCTVFaceAnalyzer
 from app.features.face import FaceAnalyzer
+from app.vision.face_engine import FaceBiometricEngine
 
 
 class InsightFaceArcFaceAdapter(BaseCCTVFaceAnalyzer):
@@ -125,6 +126,11 @@ class InsightFaceArcFaceAdapter(BaseCCTVFaceAnalyzer):
                     fh = max(1, min(fh, ph - fy))
                     score = float(best[-1])
 
+                    # Optical quality gating (Laplacian variance & resolution)
+                    crop_face = person_crop[fy:fy + fh, fx:fx + fw]
+                    q_data = FaceBiometricEngine.assess_face_quality(crop_face)
+                    quality = round(float(0.5 * score + 0.5 * q_data["quality_score"]), 3)
+
                     emb_sface = []
                     if self.sface_model is not None:
                         try:
@@ -139,8 +145,8 @@ class InsightFaceArcFaceAdapter(BaseCCTVFaceAnalyzer):
 
                     return FaceAnalysisResult(
                         bbox=(fx, fy, fw, fh),
-                        quality_score=round(score, 3),
-                        is_available=True,
+                        quality_score=quality,
+                        is_available=q_data["is_viable"],
                         status="FULL_FACE" if score >= 0.60 else "PARTIAL_UPPER",
                         tier_embeddings=face_dict.get("tiers", {}),
                         full_embedding=emb_sface if emb_sface else face_dict.get("face_embedding", [])

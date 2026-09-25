@@ -9,9 +9,47 @@ from pydantic import BaseModel, Field
 from app.integrations.cctns_client import cctns_client
 from app.integrations.bsa_evidence import bsa_ledger
 
+import asyncio
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/alerts", tags=["Alerts & Dual-Operator Verification"])
+
+class AlertConnectionManager:
+    """Manages active WebSocket connections for real-time surveillance alert streaming."""
+
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: Dict[str, Any]):
+        for connection in list(self.active_connections):
+            try:
+                await connection.send_json(message)
+            except Exception:
+                self.disconnect(connection)
+
+    def broadcast_sync(self, message: Dict[str, Any]):
+        """Thread-safe synchronous broadcast callable from worker threads."""
+        if not self.active_connections:
+            return
+        if self._loop and self._loop.is_running():
+            asyncio.run_coroutine_threadsafe(self.broadcast(message), self._loop)
+
+
+alert_connection_manager = AlertConnectionManager()
 
 # In-memory active alert store
 ACTIVE_ALERTS: List[Dict[str, Any]] = [
@@ -127,7 +165,7 @@ def get_bsa_certificate(incident_id: str):
 @router.websocket("/ws")
 async def websocket_alerts_endpoint(websocket: WebSocket):
     """WebSocket stream dispatching Tier 1 & Tier 2 alerts to command center consoles in real time."""
-    await websocket.accept()
+    await alert_connection_manager.connect(websocket)
     try:
         # Send initial alert packet
         await websocket.send_json({
@@ -141,6 +179,8 @@ async def websocket_alerts_endpoint(websocket: WebSocket):
             if data == "ping":
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
+        alert_connection_manager.disconnect(websocket)
         logger.info("Alerts WebSocket client disconnected.")
     except Exception as ex:
+        alert_connection_manager.disconnect(websocket)
         logger.debug(f"Alerts WebSocket exception: {ex}")

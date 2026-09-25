@@ -77,3 +77,24 @@ class CandidateMatcher:
             self.repo.save_match_event(event)
 
         return top_candidates
+
+    def match_track_1_to_n(
+        self,
+        track: TrackObservation,
+        top_k: int = 5,
+        person_crop: Optional[np.ndarray] = None,
+        face_crop: Optional[np.ndarray] = None
+    ) -> Dict[str, Any]:
+        """Perform 1:N municipal gallery search enforcing Section 3 Disparity Veto & Pruning Gate."""
+        top_candidates = self.match_track(track, top_k=top_k, person_crop=person_crop, face_crop=face_crop)
+        suspects = self.gallery.get_all()
+        pruned_count = sum(1 for c in top_candidates if c.get("is_vetoed") or c.get("is_pruned"))
+
+        return {
+            "top_candidates": top_candidates,
+            "total_gallery_count": len(suspects),
+            "disparity_pruned_count": pruned_count,
+            "signal_fusion_rule": "At 1:N scale across city gallery, soft biometrics act as conditional confirmations or hard geometric pruning gates rather than independent identity verifiers.",
+            "policy_active": True
+        }
+

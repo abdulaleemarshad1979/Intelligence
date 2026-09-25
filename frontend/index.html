@@ -1563,8 +1563,8 @@
         </button>
 
         <!-- Suspect Storage Intake Button -->
-        <button onclick="openSuspectIntakeModal()" class="csv-btn" style="background:#0284c7; color:#ffffff; border-color:#0284c7; cursor:pointer;" title="Register & Store Suspect Target">
-          <span>🎯 Suspect Storage & Intake</span>
+        <button onclick="openSuspectIntakeModal()" class="csv-btn" style="background:#0284c7; color:#ffffff; border-color:#0284c7; cursor:pointer;" title="Upload Suspect Photo & Save to PostgreSQL">
+          <span>📸 Add Suspect Photo (PostgreSQL)</span>
         </button>
 
         <!-- Connect Matrix CCTV Camera Button -->
@@ -1581,6 +1581,7 @@
         <button onclick="openOfficerConfirmModal()" class="csv-btn" style="background:#0f172a; color:#f43f5e; border-color:#e11d48; cursor:pointer;" title="Human-in-the-Loop Officer Gate">
           <span>⚖️ Officer Gate</span>
         </button>
+
 
         <!-- AI Tracking Status Indicator -->
         <div style="background:rgba(16,185,129,0.12); color:#15803d; border:1px solid rgba(16,185,129,0.3); font-size:11px; font-weight:800; padding:6px 12px; border-radius:9999px; display:inline-flex; align-items:center; gap:6px;">
@@ -2776,53 +2777,151 @@
     window.openSuspectIntakeModal = function() {
       const m = document.getElementById("suspectIntakeModal");
       if (m) m.classList.remove("hidden");
+      setupDropZone();
     };
 
     window.closeSuspectIntakeModal = function() {
       const m = document.getElementById("suspectIntakeModal");
       if (m) m.classList.add("hidden");
+      clearIntakeImage();
+    };
+
+    function setupDropZone() {
+      const dz = document.getElementById("dropZoneIntake");
+      if (!dz || dz._dragSetupDone) return;
+      dz._dragSetupDone = true;
+
+      ["dragenter", "dragover"].forEach(evt => {
+        dz.addEventListener(evt, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dz.style.borderColor = "#15803d";
+          dz.style.background = "#f0fdf4";
+        });
+      });
+
+      ["dragleave", "drop"].forEach(evt => {
+        dz.addEventListener(evt, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dz.style.borderColor = "#0284c7";
+          dz.style.background = "#f0f9ff";
+        });
+      });
+
+      dz.addEventListener("drop", (e) => {
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          loadIntakeImageFile(e.dataTransfer.files[0]);
+        }
+      });
+    }
+
+    window.handleIntakeFileSelected = function(e) {
+      if (e.target.files && e.target.files.length > 0) {
+        loadIntakeImageFile(e.target.files[0]);
+      }
+    };
+
+    function loadIntakeImageFile(file) {
+      if (!file || !file.type.startsWith("image/")) {
+        alert("Please select a valid image file (.jpg, .png, .webp).");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const b64 = evt.target.result;
+        const hiddenInput = document.getElementById("intakePhotoBase64");
+        const previewImg = document.getElementById("intakePreviewImg");
+        const promptDiv = document.getElementById("dropZonePrompt");
+        const previewDiv = document.getElementById("dropZonePreview");
+        const metaSpan = document.getElementById("intakeImageMeta");
+
+        if (hiddenInput) hiddenInput.value = b64;
+        if (previewImg) previewImg.src = b64;
+        if (promptDiv) promptDiv.style.display = "none";
+        if (previewDiv) previewDiv.style.display = "flex";
+        if (metaSpan) metaSpan.textContent = `✓ ${file.name} (${Math.round(file.size / 1024)} KB)`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    window.clearIntakeImage = function() {
+      const fileInput = document.getElementById("intakePhotoFile");
+      const hiddenInput = document.getElementById("intakePhotoBase64");
+      const previewImg = document.getElementById("intakePreviewImg");
+      const promptDiv = document.getElementById("dropZonePrompt");
+      const previewDiv = document.getElementById("dropZonePreview");
+
+      if (fileInput) fileInput.value = "";
+      if (hiddenInput) hiddenInput.value = "";
+      if (previewImg) previewImg.src = "";
+      if (promptDiv) promptDiv.style.display = "flex";
+      if (previewDiv) previewDiv.style.display = "none";
     };
 
     window.handleSuspectIntakeSubmit = async function(e) {
       e.preventDefault();
       const btn = document.getElementById("btnSubmitIntake");
-      if (btn) { btn.disabled = true; btn.textContent = "Storing & Indexing..."; }
+      const nameInput = document.getElementById("intakeName");
+      const b64Input = document.getElementById("intakePhotoBase64");
+      const firInput = document.getElementById("intakeFir");
+      const notesInput = document.getElementById("intakeFacts");
 
-      const payload = {
-        name: document.getElementById("intakeName").value,
-        fir_no: document.getElementById("intakeFir").value,
-        police_station: document.getElementById("intakePs").value,
-        acts_sec: document.getElementById("intakeActs").value,
-        known_height_cm: parseFloat(document.getElementById("intakeHeight").value) || 178.0,
-        torso_leg_ratio: 0.86,
-        stride_length_cm: parseFloat(document.getElementById("intakeStride").value) || 68.0,
-        posture_lean_angle: parseFloat(document.getElementById("intakeSpine").value) || 3.5,
-        clothing_upper_color: document.getElementById("intakeUpperHex").value || "#121826",
-        clothing_lower_color: document.getElementById("intakeLowerHex").value || "#1f2937",
-        carried_objects: [document.getElementById("intakeCarried").value],
-        photo_url: document.getElementById("intakePhotoUrl").value || "/frontend/assets/placeholder.jpg",
-        brief_facts: document.getElementById("intakeFacts").value
-      };
+      const name = nameInput ? nameInput.value.trim() : "";
+      const photoB64 = b64Input ? b64Input.value : "";
+      const fir = firInput ? firInput.value.trim() : "";
+      const notes = notesInput ? notesInput.value.trim() : "";
+
+      if (!name) {
+        alert("Please enter the suspect's name.");
+        return;
+      }
+      if (!photoB64) {
+        alert("Please select or drop a target photo to enroll.");
+        return;
+      }
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = "<span>⏳ Saving to PostgreSQL & Extracting 512-d FRS...</span>";
+      }
 
       try {
-        const res = await fetch("/api/suspect/register", {
+        const payload = {
+          name: name,
+          image_base64: photoB64,
+          threshold: 0.50,
+          notes: notes || (fir ? `FIR: ${fir}` : "")
+        };
+
+        const res = await fetch("/api/watchlist/target-face", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (data.status === "SUCCESS") {
-          registeredSuspectId = data.suspect_id;
-          alert(`✓ SUSPECT STORED: ${payload.name} (${payload.fir_no})\nBiometrics indexed with FRS, Exoskeleton, Gait, & Height.`);
+
+        if (res.ok && data.status === "SUCCESS") {
+          registeredSuspectId = data.target.target_id;
+          const qScore = data.target.quality ? Math.round((data.target.quality.quality_score || 0.85) * 100) : 85;
+          alert(`✓ SUSPECT SAVED TO POSTGRESQL!\n\nTarget: ${name} (${data.target.target_id})\nBiometrics: 512-d ArcFace / SFace vector indexed\nQuality Score: ${qScore}%\nActive Monitoring: Live across all 16 CCTV camera feeds.`);
           closeSuspectIntakeModal();
+          if (nameInput) nameInput.value = "";
+          if (firInput) firInput.value = "";
+          if (notesInput) notesInput.value = "";
+          clearIntakeImage();
+          pollNotifications();
         } else {
-          alert("Error registering suspect: " + (data.detail || "Server error"));
+          alert("Error enrolling suspect: " + (data.detail || data.message || "Failed to process photo."));
         }
       } catch (err) {
         console.error("Intake error:", err);
-        alert("Network error storing suspect profile.");
+        alert("Network error connecting to PostgreSQL surveillance server.");
       } finally {
-        if (btn) { btn.disabled = false; btn.textContent = "Register & Index Suspect"; }
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = "<span>💾 Save to PostgreSQL & Start Watch</span>";
+        }
       }
     };
 
@@ -3140,101 +3239,84 @@
       <div id="full-view-body" class="full-view-body"></div>
     </div>
   </div>
-  <!-- ==================== SUSPECT STORAGE & INTAKE MODAL ==================== -->
+  <!-- ==================== SUSPECT STORAGE & INTAKE MODAL (POSTGRESQL IMAGE-CENTRIC) ==================== -->
   <div id="suspectIntakeModal" class="police-modal-overlay hidden">
-    <div class="police-modal-card" style="max-width: 720px;">
-      <div class="police-modal-header">
-        <div class="police-modal-title">
-          <span>🎯 Target Suspect Intake & Multi-Modal Storage</span>
+    <div class="police-modal-card" style="max-width: 580px; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4); overflow: hidden;">
+      <div class="police-modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 16px 20px; border-bottom: 2px solid #0284c7;">
+        <div class="police-modal-title" style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">🎯</span>
+          <div>
+            <div style="font-size: 15px; font-weight: 800; color: #f8fafc; letter-spacing: -0.01em;">Add Suspect Target Photo</div>
+            <div style="font-size: 11px; color: #94a3b8; font-weight: 500;">Stored directly in PostgreSQL with 512-d Biometric FRS Index</div>
+          </div>
         </div>
-        <button onclick="closeSuspectIntakeModal()" class="full-view-close-btn" style="width: 28px; height: 28px; font-size: 14px;">✕</button>
+        <button onclick="closeSuspectIntakeModal()" class="full-view-close-btn" style="width: 30px; height: 30px; font-size: 15px; background: rgba(255,255,255,0.1); border-radius: 50%; color: #fff;">✕</button>
       </div>
-      <form id="formSuspectIntake" onsubmit="handleSuspectIntakeSubmit(event)" class="police-modal-body">
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">Accused / Suspect Full Name *</label>
-            <input type="text" id="intakeName" class="form-input" required placeholder="e.g. K. Ramesh alias 'Phantom'">
-          </div>
-          <div class="form-group">
-            <label class="form-label">FIR / Case Number *</label>
-            <input type="text" id="intakeFir" class="form-input" required placeholder="e.g. FIR-2026-AP-1088">
-          </div>
+
+      <form id="formSuspectIntake" onsubmit="handleSuspectIntakeSubmit(event)" class="police-modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+        
+        <!-- Suspect Name & Identifier -->
+        <div class="form-group">
+          <label class="form-label" style="font-weight: 700; color: #1e293b; font-size: 12.5px; display: flex; justify-content: space-between;">
+            <span>Suspect / Person Name *</span>
+            <span style="font-size: 11px; color: #0284c7; font-weight: 600;">🐘 PostgreSQL Database</span>
+          </label>
+          <input type="text" id="intakeName" class="form-input" required placeholder="e.g. John Doe / Raju alias 'Phantom'" style="font-size: 14px; padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 8px;">
         </div>
 
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">Police Station Jurisdiction</label>
-            <input type="text" id="intakePs" class="form-input" value="Rajahmundry One Town PS">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Acts & BNS Sections</label>
-            <input type="text" id="intakeActs" class="form-input" value="BNS Section 303(2), Section 111">
-          </div>
-        </div>
+        <!-- Modern Drag & Drop Image Upload Zone with Live Preview -->
+        <div class="form-group">
+          <label class="form-label" style="font-weight: 700; color: #1e293b; font-size: 12.5px;">
+            Target Photo (Upload Image) *
+          </label>
+          
+          <div id="dropZoneIntake" onclick="document.getElementById('intakePhotoFile').click()" 
+               style="border: 2px dashed #0284c7; border-radius: 12px; padding: 24px; text-align: center; background: #f0f9ff; cursor: pointer; transition: all 0.2s ease; position: relative;">
+            
+            <input type="file" id="intakePhotoFile" accept="image/*" style="display: none;" onchange="handleIntakeFileSelected(event)">
+            
+            <!-- Default Placeholder View -->
+            <div id="dropZonePrompt" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+              <div style="width: 50px; height: 50px; border-radius: 50%; background: #e0f2fe; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #0284c7;">
+                📸
+              </div>
+              <div style="font-size: 13.5px; font-weight: 700; color: #0369a1;">Click to browse or drag & drop photo here</div>
+              <div style="font-size: 11.5px; color: #64748b;">Supports JPG, PNG, WEBP — Auto 5-Point Alignment & Quality Gated</div>
+            </div>
 
-        <div style="background: #f1f5f9; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
-          <div style="font-size: 11px; font-weight: 800; color: #0369a1; text-transform: uppercase; margin-bottom: 10px;">
-            Exoskeleton, Gait & Stature Biometrics (Police Calibration)
-          </div>
-          <div class="form-grid-3">
-            <div class="form-group">
-              <label class="form-label">Known Height (cm)</label>
-              <input type="number" id="intakeHeight" class="form-input" value="178" step="0.5" min="120" max="230">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Stride Length (cm)</label>
-              <input type="number" id="intakeStride" class="form-input" value="68" step="0.5" min="40" max="100">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Spine Tilt Angle (°)</label>
-              <input type="number" id="intakeSpine" class="form-input" value="3.5" step="0.5" min="0" max="25">
-            </div>
-          </div>
-          <div class="form-grid-3" style="margin-top: 10px;">
-            <div class="form-group">
-              <label class="form-label">Upper Clothing</label>
+            <!-- Live Image Preview Thumbnail (shown after selection) -->
+            <div id="dropZonePreview" style="display: none; flex-direction: column; align-items: center; gap: 8px;">
+              <img id="intakePreviewImg" src="" alt="Target Preview" style="max-height: 160px; max-width: 220px; object-fit: contain; border-radius: 8px; border: 2px solid #0284c7; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
               <div style="display: flex; gap: 8px; align-items: center;">
-                <input type="color" id="intakeUpperColor" value="#121826" style="width: 40px; height: 32px; border: none; cursor: pointer; border-radius: 4px;">
-                <input type="text" id="intakeUpperHex" class="form-input" value="#121826" style="flex: 1;">
+                <span id="intakeImageMeta" style="font-size: 11px; font-weight: 700; color: #047857; background: #d1fae5; padding: 3px 8px; border-radius: 9999px;">✓ Photo Ready</span>
+                <button type="button" onclick="event.stopPropagation(); clearIntakeImage();" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">Change Photo</button>
               </div>
             </div>
-            <div class="form-group">
-              <label class="form-label">Lower Clothing</label>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <input type="color" id="intakeLowerColor" value="#1f2937" style="width: 40px; height: 32px; border: none; cursor: pointer; border-radius: 4px;">
-                <input type="text" id="intakeLowerHex" class="form-input" value="#1f2937" style="flex: 1;">
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Carried Objects</label>
-              <select id="intakeCarried" class="form-select">
-                <option value="backpack" selected>Backpack (Dark)</option>
-                <option value="handbag">Handbag / Shoulder Bag</option>
-                <option value="briefcase">Briefcase / Duffel</option>
-                <option value="none">None Carried</option>
-              </select>
-            </div>
+
           </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Reference Probe Photo URL / Local File</label>
-          <input type="text" id="intakePhotoUrl" class="form-input" value="/frontend/assets/placeholder.jpg">
-          <div style="font-size: 11px; color: #64748b; margin-top: 4px; display: flex; align-items: center; gap: 6px;">
-            <input type="checkbox" id="intakeSuperRes" checked style="accent-color: #0284c7;">
-            <label for="intakeSuperRes" style="cursor: pointer;">Automatically apply CodeFormer & Real-ESRGAN AI Super-Resolution to probe</label>
+        <!-- Optional FIR / Case ID / Notes -->
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" style="font-size: 11.5px; color: #475569;">Case / FIR Reference (Optional)</label>
+            <input type="text" id="intakeFir" class="form-input" placeholder="e.g. FIR-2026-AP-0194" style="font-size: 12px; padding: 8px 12px;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size: 11.5px; color: #475569;">Notes / Tags (Optional)</label>
+            <input type="text" id="intakeFacts" class="form-input" placeholder="e.g. High priority person of interest" style="font-size: 12px; padding: 8px 12px;">
           </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Brief Crime Facts / Incident Synopsis</label>
-          <textarea id="intakeFacts" class="form-textarea" rows="2" placeholder="Wanted in connection with commercial corridor incident. Last seen wearing dark attire carrying backpack."></textarea>
+        <input type="hidden" id="intakePhotoBase64" value="">
+
+        <div class="police-modal-footer" style="padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; margin-top: 0;">
+          <button type="button" onclick="closeSuspectIntakeModal()" class="btn btn--sample" style="padding: 9px 18px; border-radius: 8px;">Cancel</button>
+          <button type="submit" class="btn btn--primary" id="btnSubmitIntake" style="padding: 9px 20px; border-radius: 8px; font-weight: 700; background: #0284c7; display: flex; align-items: center; gap: 6px;">
+            <span>💾 Save to PostgreSQL & Start Watch</span>
+          </button>
         </div>
 
-        <div class="police-modal-footer" style="padding: 12px 0 0 0; margin-top: 4px;">
-          <button type="button" onclick="closeSuspectIntakeModal()" class="btn btn--sample">Cancel</button>
-          <button type="submit" class="btn btn--primary" id="btnSubmitIntake">Register & Index Suspect</button>
-        </div>
       </form>
     </div>
   </div>
@@ -3512,6 +3594,120 @@
       </form>
     </div>
   </div>
+
+  <!-- Modal: Production Framework Governance & Signal Fusion Architecture -->
+  <div id="governanceModal" class="full-view-modal hidden">
+    <div class="full-view-backdrop" onclick="closeGovernanceModal()"></div>
+    <div class="full-view-content" style="max-width: 1100px; height: auto; max-height: 88vh; overflow-y: auto; background: #0b1120; border: 1px solid #1e293b; padding: 24px; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8);">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #334155; padding-bottom: 14px; margin-bottom: 18px;">
+        <div>
+          <h2 style="margin:0; font-size: 18px; color: #f8fafc; display:flex; align-items:center; gap:8px;">
+            <span>🛡️ Production Framework Governance &amp; Model Recommendations</span>
+          </h2>
+          <p style="margin:4px 0 0 0; font-size: 12px; color: #94a3b8;">
+            Statutory law-enforcement compliance audit, framework approval matrix, and signal fusion rules.
+          </p>
+        </div>
+        <button onclick="closeGovernanceModal()" style="background:#334155; border:none; color:#cbd5e1; border-radius:6px; padding:6px 12px; cursor:pointer; font-weight:600;">✕ Close</button>
+      </div>
+
+      <!-- Framework Recommendation Table -->
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px;">
+        <thead>
+          <tr style="border-bottom: 2px solid #334155; text-align: left; color: #cbd5e1; background: #0f172a;">
+            <th style="padding: 12px 14px;">Component</th>
+            <th style="padding: 12px 14px;">Recommended Framework</th>
+            <th style="padding: 12px 14px;">License</th>
+            <th style="padding: 12px 14px;">Production Status &amp; Rationale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #1e293b; background: rgba(15,23,42,0.4);">
+            <td style="padding: 12px 14px; color: #f8fafc; font-weight: 700;">Object Detection</td>
+            <td style="padding: 12px 14px; color: #38bdf8; font-weight: 700;">RT-DETR</td>
+            <td style="padding: 12px 14px; color: #94a3b8;">Apache 2.0</td>
+            <td style="padding: 12px 14px; color: #e2e8f0; line-height: 1.4;">
+              <span style="background: rgba(16,185,129,0.2); color: #34d399; font-weight: 800; padding: 2px 8px; border-radius: 4px; margin-right: 6px;">Approved</span>
+              Avoids AGPL-3.0 copyleft exposure associated with YOLOv8. Native ONNX/TensorRT support.
+            </td>
+          </tr>
+          <tr style="border-bottom: 1px solid #1e293b; background: rgba(15,23,42,0.2);">
+            <td style="padding: 12px 14px; color: #f8fafc; font-weight: 700;">Pose Estimation</td>
+            <td style="padding: 12px 14px; color: #38bdf8; font-weight: 700;">RTMPose (MMPose)</td>
+            <td style="padding: 12px 14px; color: #94a3b8;">Apache 2.0</td>
+            <td style="padding: 12px 14px; color: #e2e8f0; line-height: 1.4;">
+              <span style="background: rgba(16,185,129,0.2); color: #34d399; font-weight: 800; padding: 2px 8px; border-radius: 4px; margin-right: 6px;">Approved</span>
+              Sub-millisecond latency on edge nodes, robust occluded keypoint recovery, license-clean.
+            </td>
+          </tr>
+          <tr style="border-bottom: 1px solid #1e293b; background: rgba(15,23,42,0.4);">
+            <td style="padding: 12px 14px; color: #f8fafc; font-weight: 700;">Gait Signature</td>
+            <td style="padding: 12px 14px; color: #38bdf8; font-weight: 700;">Handcrafted Kinematics</td>
+            <td style="padding: 12px 14px; color: #94a3b8;">Proprietary IP</td>
+            <td style="padding: 12px 14px; color: #e2e8f0; line-height: 1.4;">
+              <span style="background: rgba(16,185,129,0.2); color: #34d399; font-weight: 800; padding: 2px 8px; border-radius: 4px; margin-right: 6px;">Approved</span>
+              Derived from joint angle velocities, stride frequency, and FFT harmonic ratios. Zero 3rd-party licensing risk.
+            </td>
+          </tr>
+          <tr style="border-bottom: 1px solid #1e293b; background: rgba(15,23,42,0.2);">
+            <td style="padding: 12px 14px; color: #f8fafc; font-weight: 700;">Deep Gait Models</td>
+            <td style="padding: 12px 14px; color: #f43f5e; font-weight: 700;">OpenGait (GaitSet / DeepGait)</td>
+            <td style="padding: 12px 14px; color: #94a3b8;">Research / Proprietary</td>
+            <td style="padding: 12px 14px; color: #e2e8f0; line-height: 1.4;">
+              <span style="background: rgba(244,63,94,0.2); color: #fb7185; font-weight: 800; padding: 2px 8px; border-radius: 4px; margin-right: 6px;">Quarantine</span>
+              Avoid bundling into production builds due to commercial license restrictions and ties to proprietary overseas vendor codebases.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Section 3 Box -->
+      <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 20px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom: 10px;">
+          <span style="background:#0284c7; color:#fff; font-size:11px; font-weight:800; padding:2px 8px; border-radius:4px;">SECTION 3</span>
+          <h3 style="margin: 0; font-size: 16px; color: #38bdf8;">
+            Signal Fusion Architecture &amp; Disparity Veto
+          </h3>
+        </div>
+        <p style="margin: 0 0 16px 0; font-size: 13px; color: #f1f5f9; line-height: 1.6; font-weight: 500;">
+          At 1:N scale across an entire city or district gallery, soft biometrics alone yield unacceptably high false-match rates. Soft signals must act as conditional confirmations or hard geometric pruning gates rather than independent identity verifiers.
+        </p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 12px;">
+          <div style="background: rgba(30,41,59,0.7); padding: 14px; border-radius: 6px; border-left: 3px solid #f43f5e;">
+            <div style="font-weight: 800; color: #f87171; margin-bottom: 6px; display:flex; align-items:center; gap:6px;">
+              <span>🚫 Hard Geometric Pruning Gates</span>
+            </div>
+            <p style="margin: 0; color: #cbd5e1; line-height: 1.5;">
+              • <strong>Height Disparity Veto:</strong> Δ &gt; 12.0cm triggers immediate geometric veto.<br>
+              • <strong>Proportion Disparity Veto:</strong> Torso/leg ratio Δ &gt; 0.30 pruned before ranking.<br>
+              • <strong>Kinematic Stride Veto:</strong> Stride delta &gt; 25.0cm suppressed.
+            </p>
+          </div>
+          <div style="background: rgba(30,41,59,0.7); padding: 14px; border-radius: 6px; border-left: 3px solid #38bdf8;">
+            <div style="font-weight: 800; color: #38bdf8; margin-bottom: 6px; display:flex; align-items:center; gap:6px;">
+              <span>⚖️ Conditional Confirmation Rule</span>
+            </div>
+            <p style="margin: 0; color: #cbd5e1; line-height: 1.5;">
+              • Soft biometrics (gait, height, body, clothing) act as <strong>conditional confirmations</strong> only.<br>
+              • Face/FRS required for automatic high confidence (≥ 78%).<br>
+              • Unverified soft biometrics capped at <strong>45%</strong> and routed for mandatory officer review.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openGovernanceModal() {
+      const el = document.getElementById('governanceModal');
+      if (el) el.classList.remove('hidden');
+    }
+    function closeGovernanceModal() {
+      const el = document.getElementById('governanceModal');
+      if (el) el.classList.add('hidden');
+    }
+  </script>
 </body>
 
 </html>

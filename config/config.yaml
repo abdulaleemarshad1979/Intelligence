@@ -61,7 +61,7 @@ thresholds:
 # Active Model Stack & Open-Source Ecosystem Adapters
 models:
   detection:
-    active: "rtdetr"            # Options: yolo, yolo11x, yolov8x, rtdetr, rtdetr_x, fullbody_pose, ensemble
+    active: "rtdetr"            # Options: rtdetr (Approved Apache-2.0), rtdetr_x, yolo11x, yolov8x, fullbody_pose, ensemble
     device: "cpu"               # Options: cpu, cuda, mps (auto-selects fastest hardware)
     conf_threshold: 0.35
   tracking:
@@ -74,9 +74,22 @@ models:
     embedding_dim: 512
     require_commercial_license: true
   pose:
-    active: "rtmpose"           # Options: rtmpose, mmpose
+    active: "rtmpose"           # Options: rtmpose (Approved Apache-2.0, sub-ms edge latency), mmpose
   gait:
-    active: "opengait"          # Options: opengait, gaitset
-    architecture: "GaitBase"    # Options: GaitBase, GaitGL, GaitSet
-    allow_academic_license: true
+    active: "handcrafted_kinematics" # Options: handcrafted_kinematics (Approved Proprietary IP), gaitset, opengait (Quarantine)
+    opengait_status: "quarantine"    # Avoid bundling in production due to overseas proprietary vendor restrictions
+    allow_academic_license: false
+
+# Section 3: Signal Fusion Architecture & Disparity Veto
+signal_fusion:
+  disparity_veto:
+    enabled: true
+    max_height_disparity_cm: 12.0
+    max_ratio_disparity: 0.30
+    max_stride_disparity_cm: 25.0
+    max_soft_only_confidence: 0.45
+    min_primary_face_threshold: 0.30
+    require_primary_for_high_conf: true
+    rule: "At 1:N scale across city gallery, soft biometrics act as conditional confirmations or hard geometric pruning gates rather than independent identity verifiers."
+
 

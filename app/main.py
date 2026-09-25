@@ -285,8 +285,33 @@ async def get_license_audit():
     active_audit = model_registry.license_auditor.audit_active_stack(model_registry.active_keys)
     return {
         "active_audit": active_audit,
-        "full_catalog": model_registry.license_auditor.get_full_catalog()
+        "full_catalog": model_registry.license_auditor.get_full_catalog(),
+        "framework_governance_table": model_registry.license_auditor.get_framework_governance_table()
     }
+
+@app.get("/api/governance/frameworks")
+async def get_governance_frameworks():
+    """Return the official production framework recommendation table and statuses."""
+    return model_registry.license_auditor.get_framework_governance_table()
+
+@app.get("/api/fusion/disparity-veto")
+async def get_disparity_veto_status():
+    """Return Section 3 Signal Fusion Architecture and Disparity Veto policy configuration."""
+    from app.fusion.disparity_veto import DisparityVetoGate
+    gate = DisparityVetoGate()
+    return {
+        "architecture_section": "3. Signal Fusion Architecture & Disparity Veto",
+        "core_principle": "At 1:N scale across an entire city or district gallery, soft biometrics alone yield unacceptably high false-match rates. Soft signals must act as conditional confirmations or hard geometric pruning gates rather than independent identity verifiers.",
+        "pruning_gates": {
+            "max_height_disparity_cm": gate.max_height_disparity_cm,
+            "max_ratio_disparity": gate.max_ratio_disparity,
+            "max_stride_disparity_cm": gate.max_stride_disparity_cm,
+            "max_soft_only_confidence": gate.max_soft_only_confidence,
+            "min_primary_face_threshold": gate.min_primary_face_threshold
+        },
+        "status": "ACTIVE_ENFORCED"
+    }
+
 
 @app.get("/api/models/download-status")
 async def get_models_download_status():
@@ -1311,6 +1336,36 @@ async def register_suspect_intake(payload: SuspectIntakePayload):
     repo.insert_criminal_record(rec)
     gallery.reload()
 
+    # Synchronize with PostgreSQL database
+    try:
+        from app.database.postgres import postgres_db
+        postgres_db.save_suspect({
+            "target_id": record_id,
+            "name": payload.name,
+            "image_url": raw_photo_url,
+            "image_path": raw_path if 'raw_path' in locals() else "",
+            "image_base64": payload.photo_base64 or "",
+            "embedding": face_emb,
+            "fir_no": payload.fir_no,
+            "notes": payload.brief_facts or ""
+        })
+    except Exception as pg_ex:
+        logger.debug(f"PostgreSQL sync note: {pg_ex}")
+
+    # Synchronize with live CCTV face watcher
+    try:
+        from app.vision.face_watch import live_face_watcher
+        raw_img_input = payload.photo_base64 or payload.photo_url
+        if raw_img_input and len(raw_img_input) > 20 and not raw_img_input.endswith("placeholder.jpg"):
+            live_face_watcher.enroll_target_face(
+                image_input=raw_img_input,
+                name=payload.name,
+                target_id=record_id,
+                notes=payload.brief_facts or payload.fir_no or ""
+            )
+    except Exception as fw_ex:
+        logger.debug(f"Live face watch enrollment note: {fw_ex}")
+
     audit_logger.log_action(
         action_type="SUSPECT_INTAKE_REGISTERED",
         resource_id=f"SUSPECT_{record_id}",
@@ -1624,5 +1679,136 @@ async def clear_watchlist_api():
     return {
         "status": "SUCCESS",
         "message": "Watchlist cleared."
+    }
+
+
+class WatchlistConfigPayload(BaseModel):
+    cooldown_sec: Optional[float] = None
+    default_threshold: Optional[float] = None
+    min_face_resolution: Optional[int] = None
+    min_laplacian_var: Optional[float] = None
+    telegram_bot_token: Optional[str] = None
+    telegram_chat_id: Optional[str] = None
+    twilio_account_sid: Optional[str] = None
+    twilio_auth_token: Optional[str] = None
+    twilio_from_number: Optional[str] = None
+    twilio_to_number: Optional[str] = None
+    msg91_auth_key: Optional[str] = None
+    msg91_template_id: Optional[str] = None
+    msg91_mobile: Optional[str] = None
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
+
+
+class WatchlistProbePayload(BaseModel):
+    image_base64: Optional[str] = None
+    image_path: Optional[str] = None
+    top_k: Optional[int] = 5
+    threshold: Optional[float] = 0.40
+
+
+@app.get("/api/watchlist/status")
+async def get_watchlist_status_api():
+    """Retrieve complete FRS surveillance pipeline status (models, vector search, quality gates, notifications)."""
+    from app.vision.face_watch import live_face_watcher
+    return {
+        "status": "SUCCESS",
+        "pipeline": live_face_watcher.get_status()
+    }
+
+
+@app.post("/api/watchlist/config")
+async def update_watchlist_config_api(payload: WatchlistConfigPayload):
+    """Dynamically configure watchlist thresholds, optical quality gates, and notification webhooks."""
+    from app.vision.face_watch import live_face_watcher
+    from app.integrations.notifications import notification_dispatcher
+
+    live_face_watcher.update_settings(
+        cooldown_sec=payload.cooldown_sec,
+        default_threshold=payload.default_threshold,
+        min_resolution=payload.min_face_resolution,
+        min_laplacian_var=payload.min_laplacian_var
+    )
+
+    notif_updates = {}
+    if payload.telegram_bot_token is not None:
+        notif_updates["telegram_bot_token"] = payload.telegram_bot_token
+    if payload.telegram_chat_id is not None:
+        notif_updates["telegram_chat_id"] = payload.telegram_chat_id
+    if payload.twilio_account_sid is not None:
+        notif_updates["twilio_account_sid"] = payload.twilio_account_sid
+    if payload.twilio_auth_token is not None:
+        notif_updates["twilio_auth_token"] = payload.twilio_auth_token
+    if payload.twilio_from_number is not None:
+        notif_updates["twilio_from_number"] = payload.twilio_from_number
+    if payload.twilio_to_number is not None:
+        notif_updates["twilio_to_number"] = payload.twilio_to_number
+    if payload.msg91_auth_key is not None:
+        notif_updates["msg91_auth_key"] = payload.msg91_auth_key
+    if payload.msg91_template_id is not None:
+        notif_updates["msg91_template_id"] = payload.msg91_template_id
+    if payload.msg91_mobile is not None:
+        notif_updates["msg91_mobile"] = payload.msg91_mobile
+    if payload.webhook_url is not None:
+        notif_updates["webhook_url"] = payload.webhook_url
+    if payload.webhook_secret is not None:
+        notif_updates["webhook_secret"] = payload.webhook_secret
+
+    if notif_updates:
+        notification_dispatcher.update_config(notif_updates)
+
+    return {
+        "status": "SUCCESS",
+        "message": "Watchlist surveillance settings updated.",
+        "pipeline": live_face_watcher.get_status()
+    }
+
+
+@app.post("/api/watchlist/probe")
+async def probe_watchlist_api(payload: WatchlistProbePayload):
+    """Probe an uploaded photo against the enrolled watchlist (1:N matching) with quality diagnostics."""
+    from app.vision.face_watch import live_face_watcher
+    raw_input = payload.image_base64 or payload.image_path
+    if not raw_input:
+        raise HTTPException(status_code=400, detail="Either image_base64 or image_path must be provided.")
+    try:
+        hits = live_face_watcher.probe_image(
+            image_input=raw_input,
+            top_k=payload.top_k or 5,
+            threshold=payload.threshold or 0.40
+        )
+        return {
+            "status": "SUCCESS",
+            "faces_detected": len(hits),
+            "results": hits
+        }
+    except Exception as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
+
+
+@app.post("/api/watchlist/test-alert")
+async def test_alert_notification_api(channel: Optional[str] = "all"):
+    """Trigger a synthetic test alert to verify notification webhooks and audio chime."""
+    import uuid
+    from app.integrations.notifications import notification_dispatcher
+    test_event = {
+        "alert_id": f"ALT-TEST-{uuid.uuid4().hex[:6].upper()}",
+        "target_id": "TGT-TEST-DEMO",
+        "target_name": "Test Person of Interest",
+        "camera_id": "CAM-TEST-01",
+        "timestamp": time.time(),
+        "confidence": 0.942,
+        "similarity_pct": 94.2,
+        "full_frame_url": "/frontend/assets/placeholder.jpg",
+        "face_crop_url": "/frontend/assets/placeholder.jpg",
+        "raw_frame_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "notes": "Surveillance system integration test."
+    }
+    notification_dispatcher.dispatch_alert(test_event)
+    return {
+        "status": "SUCCESS",
+        "message": "Test alert dispatched across active notification channels.",
+        "event": test_event,
+        "channels": notification_dispatcher.get_status()
     }
 

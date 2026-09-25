@@ -31,23 +31,27 @@ MODEL_LICENSE_CATALOG: Dict[str, ModelLicenseInfo] = {
     ),
     "rtdetr": ModelLicenseInfo(
         model_id="rtdetr",
-        component_name="RT-DETR (Real-Time DEtection TRansformer)",
-        capability="Person Detection",
-        code_license="Apache-2.0",
-        weights_license="Apache-2.0",
+        component_name="RT-DETR",
+        capability="Object Detection",
+        code_license="Apache 2.0",
+        weights_license="Apache 2.0",
         is_commercial_ready=True,
         restriction_notice="Permissive Apache-2.0 license. Fully cleared for commercial enterprise and public law-enforcement deployment without copyleft constraints.",
-        official_repo="https://github.com/lyuwenyu/RT-DETR"
+        official_repo="https://github.com/lyuwenyu/RT-DETR",
+        production_status="Approved",
+        production_rationale="Approved. Avoids AGPL-3.0 copyleft exposure associated with YOLOv8. Native ONNX/TensorRT support."
     ),
     "rtdetr_x": ModelLicenseInfo(
         model_id="rtdetr_x",
         component_name="RT-DETR-X (X-Large Real-Time DEtection TRansformer)",
         capability="Dense Pedestrian Detection",
-        code_license="Apache-2.0",
-        weights_license="Apache-2.0",
+        code_license="Apache 2.0",
+        weights_license="Apache 2.0",
         is_commercial_ready=True,
         restriction_notice="Permissive Apache-2.0 license. Superior NMS-free crowd recall. Fully commercial ready.",
-        official_repo="https://github.com/lyuwenyu/RT-DETR"
+        official_repo="https://github.com/lyuwenyu/RT-DETR",
+        production_status="Approved",
+        production_rationale="Approved. Avoids AGPL-3.0 copyleft exposure associated with YOLOv8. Native ONNX/TensorRT support."
     ),
     "yolo11x": ModelLicenseInfo(
         model_id="yolo11x",
@@ -175,34 +179,52 @@ MODEL_LICENSE_CATALOG: Dict[str, ModelLicenseInfo] = {
     # Pose
     "rtmpose": ModelLicenseInfo(
         model_id="rtmpose",
-        component_name="OpenMMLab RTMPose",
-        capability="Real-Time 17-Keypoint Pose Estimation",
-        code_license="Apache-2.0",
-        weights_license="Apache-2.0",
+        component_name="RTMPose (MMPose)",
+        capability="Pose Estimation",
+        code_license="Apache 2.0",
+        weights_license="Apache 2.0",
         is_commercial_ready=True,
         restriction_notice="Permissive Apache-2.0 license. Optimized for high-FPS edge & server inference.",
-        official_repo="https://github.com/open-mmlab/mmpose"
+        official_repo="https://github.com/open-mmlab/mmpose",
+        production_status="Approved",
+        production_rationale="Approved. Sub-millisecond latency on edge nodes, robust occluded keypoint recovery, license-clean."
     ),
     "mmpose": ModelLicenseInfo(
         model_id="mmpose",
         component_name="OpenMMLab MMPose",
         capability="Human Keypoint Estimation",
-        code_license="Apache-2.0",
-        weights_license="Apache-2.0",
+        code_license="Apache 2.0",
+        weights_license="Apache 2.0",
         is_commercial_ready=True,
         restriction_notice="Permissive Apache-2.0 license. Rich multi-model pose estimation library.",
-        official_repo="https://github.com/open-mmlab/mmpose"
+        official_repo="https://github.com/open-mmlab/mmpose",
+        production_status="Approved",
+        production_rationale="Approved. Sub-millisecond latency on edge nodes, robust occluded keypoint recovery, license-clean."
     ),
     # Gait
+    "handcrafted_kinematics": ModelLicenseInfo(
+        model_id="handcrafted_kinematics",
+        component_name="Handcrafted Kinematics",
+        capability="Gait Signature",
+        code_license="Proprietary IP",
+        weights_license="Proprietary IP",
+        is_commercial_ready=True,
+        restriction_notice="Proprietary IP. Derived from joint angle velocities, stride frequency, and FFT harmonic ratios. Zero 3rd-party licensing risk.",
+        official_repo="in-house",
+        production_status="Approved",
+        production_rationale="Approved. Derived from joint angle velocities, stride frequency, and FFT harmonic ratios. Zero 3rd-party licensing risk."
+    ),
     "opengait": ModelLicenseInfo(
         model_id="opengait",
-        component_name="OpenGait Research Framework (GaitBase / GaitGL)",
-        capability="Cross-View Gait Sequence Recognition",
-        code_license="Academic Non-Commercial Only",
-        weights_license="Academic Non-Commercial Only",
+        component_name="OpenGait (GaitSet / DeepGait)",
+        capability="Deep Gait Models",
+        code_license="Academic Non-Commercial / Research / Proprietary",
+        weights_license="Academic Non-Commercial / Research / Proprietary",
         is_commercial_ready=False,
-        restriction_notice="CRITICAL: OpenGait code and models are strictly restricted to academic research purposes. Production law-enforcement deployment requires permission or using our native GaitSet kinematics pipeline.",
-        official_repo="https://github.com/ShiqiYu/OpenGait"
+        restriction_notice="Quarantine. Avoid bundling into production builds due to commercial license restrictions and ties to proprietary overseas vendor codebases.",
+        official_repo="https://github.com/ShiqiYu/OpenGait",
+        production_status="Quarantine",
+        production_rationale="Quarantine. Avoid bundling into production builds due to commercial license restrictions and ties to proprietary overseas vendor codebases."
     ),
     "gaitset": ModelLicenseInfo(
         model_id="gaitset",
@@ -212,9 +234,12 @@ MODEL_LICENSE_CATALOG: Dict[str, ModelLicenseInfo] = {
         weights_license="MIT / Clean In-House",
         is_commercial_ready=True,
         restriction_notice="Permissive MIT implementation with in-house kinematic stride/cadence math. Fully cleared for commercial operations.",
-        official_repo="https://github.com/AbnerHqC/GaitSet"
+        official_repo="https://github.com/AbnerHqC/GaitSet",
+        production_status="Approved",
+        production_rationale="Approved. In-house kinematic stride/cadence math with clean license."
     )
 }
+
 
 
 class LicenseAuditor:
@@ -287,8 +312,52 @@ class LicenseAuditor:
                 "code_license": m.code_license,
                 "weights_license": m.weights_license,
                 "is_commercial_ready": m.is_commercial_ready,
+                "production_status": getattr(m, "production_status", "Approved"),
+                "production_rationale": getattr(m, "production_rationale", ""),
                 "restriction_notice": m.restriction_notice,
                 "repo": m.official_repo
             }
             for m in self.catalog.values()
         ]
+
+    def get_framework_governance_table(self) -> List[Dict[str, str]]:
+        """Return the official 4-row Component Recommendation & Governance Table.
+
+        Matches exact architecture standards:
+        - Object Detection: RT-DETR (Apache 2.0) [Approved]
+        - Pose Estimation: RTMPose (MMPose) (Apache 2.0) [Approved]
+        - Gait Signature: Handcrafted Kinematics (Proprietary IP) [Approved]
+        - Deep Gait Models: OpenGait (GaitSet / DeepGait) (Research / Proprietary) [Quarantine]
+        """
+        governance_rows = [
+            {
+                "component": "Object Detection",
+                "recommended_framework": "RT-DETR",
+                "license": "Apache 2.0",
+                "production_status": "Approved",
+                "rationale": "Approved. Avoids AGPL-3.0 copyleft exposure associated with YOLOv8. Native ONNX/TensorRT support."
+            },
+            {
+                "component": "Pose Estimation",
+                "recommended_framework": "RTMPose (MMPose)",
+                "license": "Apache 2.0",
+                "production_status": "Approved",
+                "rationale": "Approved. Sub-millisecond latency on edge nodes, robust occluded keypoint recovery, license-clean."
+            },
+            {
+                "component": "Gait Signature",
+                "recommended_framework": "Handcrafted Kinematics",
+                "license": "Proprietary IP",
+                "production_status": "Approved",
+                "rationale": "Approved. Derived from joint angle velocities, stride frequency, and FFT harmonic ratios. Zero 3rd-party licensing risk."
+            },
+            {
+                "component": "Deep Gait Models",
+                "recommended_framework": "OpenGait (GaitSet / DeepGait)",
+                "license": "Research / Proprietary",
+                "production_status": "Quarantine",
+                "rationale": "Quarantine. Avoid bundling into production builds due to commercial license restrictions and ties to proprietary overseas vendor codebases."
+            }
+        ]
+        return governance_rows
+

@@ -21,11 +21,14 @@ class ModelLicenseInfo:
     model_id: str
     component_name: str
     capability: str
-    code_license: str  # e.g., "MIT", "Apache-2.0", "AGPL-3.0", "Academic Non-Commercial"
-    weights_license: str  # e.g., "MIT", "Apache-2.0", "Non-Commercial Research Only"
+    code_license: str  # e.g., "MIT", "Apache-2.0", "AGPL-3.0", "Academic Non-Commercial", "Proprietary IP"
+    weights_license: str  # e.g., "MIT", "Apache-2.0", "Non-Commercial Research Only", "Proprietary IP"
     is_commercial_ready: bool
     restriction_notice: str
     official_repo: str
+    production_status: str = "Approved"  # "Approved" or "Quarantine"
+    production_rationale: str = ""
+
 
 
 @dataclass

@@ -1,0 +1,57 @@
+services:
+  # ============================================================================
+  # PostgreSQL 16 Surveillance Database (Suspects, Biometric Vectors, Match Captures)
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: cctv-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cctv_intelligence
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cctv_intelligence"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # CCTV Intelligence & Multi-Modal Video Structuring Web Application
+  # ============================================================================
+  cctv-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cctv-intelligence-app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cctv_intelligence
+      - POSTGRES_URL=postgresql://postgres:postgres@postgres:5432/cctv_intelligence
+      - PYTHONUNBUFFERED=1
+      - PORT=8000
+      - HOST=0.0.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - cctv_data:/workspace/data
+      - ./config:/workspace/config:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/watchlist/status || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  pgdata:
+    driver: local
+  cctv_data:
+    driver: local
