@@ -20,6 +20,9 @@ data/captures/*
 data/targets/*
 !data/targets/.gitkeep
 data/samples/*.mp4
+/*.mp4
+data/extracted_test_faces/
+data/search_results/
 data/police_records.db
 *.db
 

@@ -1665,12 +1665,14 @@ class TargetFaceEnrollPayload(BaseModel):
 @app.post("/api/watchlist/target-face")
 async def enroll_target_face_api(payload: TargetFaceEnrollPayload):
     """Enroll a target face into live CCTV surveillance with auto-capture."""
+    import asyncio
     from app.vision.face_watch import live_face_watcher
     raw_input = payload.image_base64 or payload.image_path
     if not raw_input:
         raise HTTPException(status_code=400, detail="Either image_base64 or image_path must be provided.")
     try:
-        res = live_face_watcher.enroll_target_face(
+        res = await asyncio.to_thread(
+            live_face_watcher.enroll_target_face,
             image_input=raw_input,
             name=payload.name,
             target_id=payload.target_id,

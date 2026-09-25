@@ -3092,19 +3092,55 @@
           if (res.ok && data.status === "SUCCESS") {
             registeredSuspectId = data.target.target_id;
             const qScore = data.target.quality ? Math.round((data.target.quality.quality_score || 0.85) * 100) : 85;
-            alert(`✓ SUSPECT SAVED TO POSTGRESQL!\n\nTarget: ${name} (${data.target.target_id})\nBiometrics: 512-d ArcFace / SFace vector indexed\nQuality Score: ${qScore}%\nActive Monitoring: Live across all 16 CCTV camera feeds.`);
+            
+            // Close modal smoothly
             closeSuspectIntakeModal();
             if (nameInput) nameInput.value = "";
             if (firInput) firInput.value = "";
             if (notesInput) notesInput.value = "";
             clearIntakeMedia();
+
+            // Display non-blocking success toast
+            const container = document.getElementById("notif-toast-container");
+            if (container) {
+              const toast = document.createElement("div");
+              toast.style.cssText = `
+                background: #064e3b;
+                border-left: 5px solid #10b981;
+                color: #ffffff;
+                border-radius: 8px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+                padding: 14px 18px;
+                pointer-events: auto;
+                animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                margin-bottom: 10px;
+              `;
+              toast.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <strong style="font-size: 13px; color: #34d399; text-transform: uppercase;">✓ SUSPECT ENROLLED TO WATCHLIST</strong>
+                  <span style="font-size: 11px; opacity: 0.8;">${new Date().toLocaleTimeString()}</span>
+                </div>
+                <div style="font-size: 13px; font-weight: 700;">${name} (${data.target.target_id})</div>
+                <div style="font-size: 11.5px; opacity: 0.9;">512-d FRS Vector Indexed • Quality: ${qScore}%</div>
+                <div style="font-size: 11px; color: #6ee7b7; font-weight: 600;">Active Monitoring: Live across all CCTV feeds</div>
+              `;
+              container.appendChild(toast);
+              setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.4s ease';
+                setTimeout(() => toast.remove(), 400);
+              }, 6000);
+            }
             pollNotifications();
           } else {
             alert("Error enrolling suspect: " + (data.detail || data.message || "Failed to process photo."));
           }
         } catch (err) {
           console.error("Intake error:", err);
-          alert("Network error connecting to PostgreSQL surveillance server.");
+          alert("Network error connecting to surveillance server.");
         } finally {
           if (btn) {
             btn.disabled = false;

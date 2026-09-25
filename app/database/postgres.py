@@ -61,7 +61,7 @@ class PostgresWatchlistDB:
         try:
             conn = self.psycopg2.connect(
                 self.connection_url,
-                connect_timeout=3
+                connect_timeout=1
             )
             return conn
         except Exception as ex:
