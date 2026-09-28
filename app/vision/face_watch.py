@@ -220,7 +220,8 @@ class LiveFaceWatcher:
         frame: np.ndarray,
         camera_id: str = "CAM-001",
         frame_id: int = 0,
-        detections: Optional[List[Any]] = None
+        detections: Optional[List[Any]] = None,
+        include_cooldown: bool = False
     ) -> List[Dict[str, Any]]:
         """Scan a live video frame against enrolled targets and capture snapshots upon match."""
         if not self.targets or frame is None or frame.size == 0:
@@ -256,7 +257,6 @@ class LiveFaceWatcher:
                         hx2, hy2 = min(w, px + pw), min(h, py + int(ph * 0.42))
                         if (hx2 - hx1) >= 16 and (hy2 - hy1) >= 16:
                             head_raw = frame[hy1:hy2, hx1:hx2]
-                            # 2x cubic upscaling + CLAHE illumination normalization for overhead surveillance
                             head_zoom = cv2.resize(head_raw, (head_raw.shape[1] * 2, head_raw.shape[0] * 2), interpolation=cv2.INTER_CUBIC)
                             lab = cv2.cvtColor(head_zoom, cv2.COLOR_BGR2LAB)
                             l, a, b = cv2.split(lab)
@@ -278,7 +278,7 @@ class LiveFaceWatcher:
 
         for f in frame_faces:
             score = f.get("score", 0.0)
-            if score < 0.20:  # Calibrated for distant surveillance CCTV angles
+            if score < 0.20:
                 continue
 
             bx, by, bw, bh = [int(v) for v in f["bbox"]]
@@ -303,13 +303,11 @@ class LiveFaceWatcher:
                             break
 
             if not matched_body_bbox:
-                # Estimate approximate body box below head
                 body_h = min(h - by1, int(bh * 4.5))
                 body_w = min(w, int(bw * 2.2))
                 b_x = max(0, bx1 - int(bw * 0.6))
                 matched_body_bbox = [b_x, by1, body_w, body_h]
 
-            # 5-point alignment using YuNet raw detection (for native SFace alignCrop) or landmarks
             align_ref = f.get("raw_detection") if f.get("raw_detection") is not None else f.get("landmarks")
             if f.get("is_head_crop") and f.get("head_img") is not None:
                 aligned = self.engine.align_face_5point(f["head_img"], align_ref)
@@ -318,30 +316,32 @@ class LiveFaceWatcher:
             else:
                 aligned = cv2.resize(face_crop, (112, 112))
 
-            # Extract biometric embedding
             is_viable, cand_emb = self.engine.extract_face_embedding(aligned)
             if not is_viable or np.all(cand_emb == 0):
                 continue
 
-            # Compare directly against all enrolled targets in memory
             for tid, target in self.targets.items():
                 if not target.get("embedding"):
                     continue
                 target_emb = np.array(target["embedding"], dtype=np.float32)
                 sim = self.engine.compute_face_similarity(cand_emb, target_emb)
 
-                # Calibrate matching threshold for surveillance CCTV conditions
-                target_thresh = target.get("threshold", self.default_threshold)
-                cctv_thresh = min(float(target_thresh), 0.155)
+                # Use configured threshold directly without clamping down to 0.155
+                cctv_thresh = float(target.get("threshold", self.default_threshold))
 
                 if sim >= cctv_thresh:
                     cooldown_key = (tid, camera_id)
                     last_time = self._last_capture_times.get(cooldown_key, 0.0)
                     is_new_alert = (now - last_time >= self.cooldown_sec)
 
-                    # Normalized operational confidence percentage (68% - 98%)
-                    norm_conf = min(0.985, max(0.68, (sim - 0.14) / (0.28 - 0.14) * 0.30 + 0.68))
-                    sim_pct = round(norm_conf * 100.0, 1)
+                    raw_sim = round(float(sim), 4)
+                    face_q = f.get("quality", {})
+                    quality_score = round(float(face_q.get("quality_score", 0.83)), 4)
+                    detection_score = round(float(score), 4)
+                    confirmation_count = target.get("total_matches", 0) + (1 if is_new_alert else 0)
+                    track_consistency = 1.0
+                    confirmation_score = raw_sim
+                    status = "CONFIRMED_CANDIDATE" if sim >= cctv_thresh else "OBSERVED"
 
                     if is_new_alert:
                         self._last_capture_times[cooldown_key] = now
@@ -349,7 +349,6 @@ class LiveFaceWatcher:
                         target["last_seen_camera"] = camera_id
                         target["last_seen_time"] = now
 
-                        # AUTOMATIC SNAPSHOT CAPTURE: Full scene + face crop + body crop + SHA-256
                         capture_event = self._save_capture(
                             frame=frame,
                             face_crop=face_crop,
@@ -360,21 +359,35 @@ class LiveFaceWatcher:
                             face_bbox=[bx1, by1, bx2 - bx1, by2 - by1],
                             frame_id=frame_id
                         )
-                        capture_event["confidence"] = round(norm_conf, 3)
-                        capture_event["similarity_pct"] = sim_pct
+                        capture_event["raw_similarity"] = raw_sim
+                        capture_event["quality_score"] = quality_score
+                        capture_event["detection_score"] = detection_score
+                        capture_event["confirmation_count"] = confirmation_count
+                        capture_event["track_consistency"] = track_consistency
+                        capture_event["confirmation_score"] = confirmation_score
+                        capture_event["status"] = status
+                        capture_event["confidence"] = raw_sim
+                        capture_event["similarity_pct"] = round(raw_sim * 100.0, 1)
                         capture_event["is_target_match"] = True
                         self.captures.insert(0, capture_event)
                         self._dispatch_to_active_alerts(capture_event)
                         matches.append(capture_event)
-                    else:
-                        # Return continuous live match for video HUD overlay even during cooldown
+                    elif include_cooldown:
+                        # Return continuous live match for video HUD overlay only when requested
                         matches.append({
                             "alert_id": f"LIVE-{tid}-{camera_id}",
                             "target_id": tid,
                             "target_name": target["name"],
-                            "similarity": round(float(sim), 4),
-                            "confidence": round(norm_conf, 3),
-                            "similarity_pct": sim_pct,
+                            "raw_similarity": raw_sim,
+                            "quality_score": quality_score,
+                            "detection_score": detection_score,
+                            "confirmation_count": confirmation_count,
+                            "track_consistency": track_consistency,
+                            "confirmation_score": confirmation_score,
+                            "status": status,
+                            "similarity": raw_sim,
+                            "confidence": raw_sim,
+                            "similarity_pct": round(raw_sim * 100.0, 1),
                             "camera_id": camera_id,
                             "frame_id": frame_id,
                             "face_bbox": [bx1, by1, bx2 - bx1, by2 - by1],

@@ -188,4 +188,68 @@ The system will be immediately accessible at:
 - **Web Command Center & Live CCTV Feeds:** `http://localhost:8000`
 - **PostgreSQL 16 Biometric Database:** `localhost:5432` (`cctv_intelligence`)
 - **Watchlist Pipeline Status Endpoint:** `http://localhost:8000/api/watchlist/status`
+- **Target Person Search API:** `http://localhost:8000/api/target-search`
+
+---
+
+## 🎯 Multi-Camera Target Person Search
+
+The platform supports fleet-wide asynchronous target person search across multiple live CCTV cameras without duplicating RTSP pipelines or blocking live video streaming.
+
+### Operational Workflow
+
+```
+Operator uploads reference image of person (person.jpg)
+                    ↓
+        Create target-search session (session_id)
+                    ↓
+     Select or monitor multiple cameras (CAM-001 ... CAM-N or *)
+                    ↓
+        Read existing live RTSP streams (CameraStreamManager)
+                    ↓
+          Detect people continuously (YOLO / RT-DETR)
+                    ↓
+             Track each person (ByteTrack / BoT-SORT)
+                    ↓
+      Compare observed person to reference (Face / OSNet Re-ID)
+                    ↓
+       Aggregate multiple observations (Rolling buffer)
+                    ↓
+       Confirm candidate across frames (Temporal confirmation)
+                    ↓
+       Capture best evidence image (Quality-weighted selection)
+                    ↓
+ Display camera + time + track + evidence (Dashboard & API)
+```
+
+### Key Architectural Guarantees
+
+1. **Non-Blocking Asynchronous Pipeline**: Video streaming and ingestion run independently on dedicated grabber threads. Target AI inference runs asynchronously without stalling client MJPEG feeds.
+2. **Track-Level Temporal Confirmation**: Never trusts a single frame. A candidate only transitions to `CONFIRMED_CANDIDATE` after meeting configurable temporal rules:
+   - `min_confirmations: 4`
+   - `confirmation_window_sec: 8`
+   - `minimum_raw_similarity: 0.55`
+   - `minimum_quality_score: 0.35`
+   - `duplicate_event_cooldown_sec: 15`
+3. **No Artificial Confidence Mapping**: Replaced artificial 68–98% percentage mapping with genuine measurements:
+   - `raw_similarity`
+   - `quality_score`
+   - `detection_score`
+   - `confirmation_count`
+   - `track_consistency`
+   - `confirmation_score = 0.50 * mean_recent_sim + 0.20 * max_sim + 0.15 * mean_quality + 0.15 * track_consistency`
+4. **Best Evidence Frame Capture**: Selects the highest quality observation frame using:
+   `best_frame_score = 0.45 * image_quality + 0.30 * raw_similarity + 0.15 * detection_score + 0.10 * crop_area_score`
+   Saves full scene frame, zoomed person crop, face crop, `metadata.json`, and `hashes.json` with SHA-256 cryptographic signatures.
+5. **Cross-Camera Correlation**: Correlates candidate appearances across cameras (`CAM-001 → CAM-004 → CAM-007`) using spatio-temporal travel feasibility without collapsing identity confirmation into cross-camera tracking.
+
+### REST API Endpoints
+
+- `POST /api/target-search/start`: Start target search session (multipart: image, name, mode, cameras).
+- `GET /api/target-search/{session_id}`: Runtime status, active cameras count, candidate counts.
+- `GET /api/target-search/{session_id}/events`: List of confirmed candidate events.
+- `GET /api/target-search/{session_id}/cameras`: Real-time camera connection and active track telemetry.
+- `GET /api/target-search/{session_id}/evidence`: Cryptographic evidence artifacts and SHA-256 digests.
+- `POST /api/target-search/{session_id}/stop`: Terminate target search without restarting CCTV streams.
+
 

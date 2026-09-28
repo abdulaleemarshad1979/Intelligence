@@ -904,3 +904,155 @@ class Repository:
         finally:
             conn.close()
 
+    # ==================== TARGET PERSON SEARCH OPERATIONS ====================
+
+    def insert_target_search_session(self, session: Any) -> bool:
+        """Insert or replace a TargetSearchSession record."""
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+            INSERT OR REPLACE INTO target_search_sessions (
+                session_id, target_id, name, mode, active_mode,
+                cameras_json, reference_image_path, status,
+                metadata_json, created_at, stopped_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                session.session_id,
+                session.target_id,
+                session.name,
+                session.requested_mode,
+                session.active_mode,
+                json.dumps(session.selected_cameras),
+                session.reference_image_path,
+                session.status,
+                json.dumps(getattr(session, "reference_quality", {})),
+                session.created_at,
+                session.stopped_at
+            ))
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+    def update_target_search_session_status(self, session_id: str, status: str, stopped_at: Optional[float] = None) -> bool:
+        """Update status of a target search session."""
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            t_stop = stopped_at if stopped_at is not None else (time.time() if status == "Stopped" else None)
+            cursor.execute("""
+            UPDATE target_search_sessions
+            SET status = ?, stopped_at = ?
+            WHERE session_id = ?
+            """, (status, t_stop, session_id))
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+    def get_target_search_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Fetch target search session record."""
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT * FROM target_search_sessions WHERE session_id = ?", (session_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return {
+                "session_id": row["session_id"],
+                "target_id": row["target_id"],
+                "name": row["name"],
+                "mode": row["mode"],
+                "active_mode": row["active_mode"],
+                "cameras": json.loads(row["cameras_json"]) if row["cameras_json"] else [],
+                "reference_image_path": row["reference_image_path"],
+                "status": row["status"],
+                "metadata": json.loads(row["metadata_json"]) if row["metadata_json"] else {},
+                "created_at": row["created_at"],
+                "stopped_at": row["stopped_at"]
+            }
+        finally:
+            conn.close()
+
+    def insert_target_search_event(self, event: Any) -> bool:
+        """Insert a CandidateEvent record."""
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+            INSERT OR REPLACE INTO target_search_events (
+                event_id, session_id, camera_id, track_id, first_seen, last_seen,
+                confirmation_count, raw_similarity_max, raw_similarity_mean,
+                quality_mean, confirmation_score, status, review_required,
+                review_status, best_frame_path, person_crop_path, face_crop_path,
+                hashes_json, metadata_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                event.event_id,
+                event.session_id,
+                event.camera_id,
+                event.track_id,
+                event.first_seen,
+                event.last_seen,
+                event.confirmation_count,
+                float(event.raw_similarity_max),
+                float(event.raw_similarity_mean),
+                float(event.quality_mean),
+                float(event.confirmation_score),
+                event.status,
+                1 if event.review_required else 0,
+                "PENDING",
+                event.best_frame_path,
+                event.person_crop_path,
+                event.face_crop_path or "",
+                json.dumps(event.hashes),
+                json.dumps(event.metadata),
+                event.created_at
+            ))
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+    def get_target_search_events_for_session(self, session_id: str) -> List[Dict[str, Any]]:
+        """Fetch all confirmed candidate events for a search session."""
+        conn = get_db_connection(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+            SELECT * FROM target_search_events
+            WHERE session_id = ?
+            ORDER BY created_at DESC
+            """, (session_id,))
+            rows = cursor.fetchall()
+            events = []
+            for r in rows:
+                events.append({
+                    "event_id": r["event_id"],
+                    "session_id": r["session_id"],
+                    "camera_id": r["camera_id"],
+                    "track_id": r["track_id"],
+                    "first_seen": r["first_seen"],
+                    "last_seen": r["last_seen"],
+                    "confirmation_count": r["confirmation_count"],
+                    "raw_similarity_max": r["raw_similarity_max"],
+                    "raw_similarity_mean": r["raw_similarity_mean"],
+                    "quality_mean": r["quality_mean"],
+                    "confirmation_score": r["confirmation_score"],
+                    "status": r["status"],
+                    "review_required": bool(r["review_required"]),
+                    "review_status": r["review_status"],
+                    "best_frame_path": r["best_frame_path"],
+                    "person_crop_path": r["person_crop_path"],
+                    "face_crop_path": r["face_crop_path"],
+                    "hashes": json.loads(r["hashes_json"]) if r["hashes_json"] else {},
+                    "metadata": json.loads(r["metadata_json"]) if r["metadata_json"] else {},
+                    "created_at": r["created_at"]
+                })
+            return events
+        finally:
+            conn.close()
+
+

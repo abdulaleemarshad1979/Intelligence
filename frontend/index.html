@@ -1582,6 +1582,12 @@
           <span>🔍 Search Live Feeds</span>
         </button>
 
+        <!-- Multi-Camera Target Person Search Button -->
+        <button id="btn-target-search" onclick="openTargetSearchModal()" class="csv-btn" style="background: linear-gradient(135deg, #0284c7 0%, #4338ca 100%); color:#ffffff; border:1px solid #38bdf8; cursor:pointer; font-weight:800; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);" title="Multi-Camera Target Person Search across CCTV feeds">
+          <span>🎯 Target Search</span>
+          <span id="targetSearchActiveBadge" class="hidden" style="background:#ef4444; color:#fff; font-size:9px; padding:2px 6px; border-radius:9999px; margin-left:4px;">ACTIVE</span>
+        </button>
+
         <!-- Zoom Captures Evidence Button -->
         <button id="btn-captures-gallery" onclick="toggleCapturesGalleryModal()" class="csv-btn" style="background:#b91c1c; color:#ffffff; border-color:#dc2626; cursor:pointer;" title="View all automatic high-resolution camera zoom pictures taken of the suspect">
           <span>📸 Zoom Captures (<span id="autoCaptureCountBadge">0</span>)</span>
@@ -4741,6 +4747,154 @@
     </div>
   </div>
 
+  <!-- ==================== TARGET PERSON SEARCH MODAL ==================== -->
+  <div id="targetSearchModal" class="full-view-modal hidden">
+    <div class="full-view-backdrop" onclick="closeTargetSearchModal()"></div>
+    <div class="full-view-content" style="max-width: 1280px; height: 92vh; background: #080d1a; border: 1.5px solid #0284c7; box-shadow: 0 25px 60px -10px rgba(2, 132, 199, 0.35);">
+      <div class="full-view-header" style="background: linear-gradient(90deg, #0f172a 0%, #1e1b4b 100%); border-bottom: 2px solid #0284c7; padding: 14px 24px;">
+        <div class="full-view-title-group" style="gap: 14px;">
+          <span style="font-size: 22px;">🎯</span>
+          <div>
+            <h2 class="full-view-title" style="font-size: 17px; font-weight: 800; color: #f8fafc; letter-spacing: 0.5px;">TARGET PERSON SEARCH</h2>
+            <div style="font-size: 11px; color: #94a3b8; font-weight: 600;">Autonomous Multi-Camera Detection, Continuous Re-ID, &amp; Rolling Temporal Confirmation</div>
+          </div>
+        </div>
+        <div class="full-view-actions">
+          <span id="tsHeaderStatusBadge" class="hidden" style="background:#15803d; color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:9999px;">SEARCH ACTIVE</span>
+          <button onclick="closeTargetSearchModal()" class="full-view-close-btn" title="Close Modal">✕</button>
+        </div>
+      </div>
+
+      <div class="full-view-body" style="padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: #080d1a;">
+        <!-- Top Row: Intake Form & Search Status -->
+        <div style="display: grid; grid-template-columns: 360px 1fr; gap: 20px;">
+          <!-- Left Column: Reference Image & Configuration -->
+          <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="font-weight: 800; font-size: 13px; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">Reference Target Profile</div>
+
+            <!-- Upload Area & Preview -->
+            <div style="display: flex; gap: 14px; align-items: flex-start;">
+              <div id="tsDropZone" style="width: 110px; height: 130px; border: 2px dashed #38bdf8; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; background: #0b1120; overflow: hidden; position: relative; flex-shrink: 0;" onclick="document.getElementById('tsFileInput').click()">
+                <img id="tsPreviewImg" class="hidden" style="width: 100%; height: 100%; object-fit: cover;" alt="Preview">
+                <div id="tsUploadPrompt" style="text-align: center; padding: 8px; color: #94a3b8;">
+                  <span style="font-size: 24px; display: block; margin-bottom: 4px;">📷</span>
+                  <span style="font-size: 10px; font-weight: 700; color: #38bdf8;">Upload Photo</span>
+                  <span style="font-size: 8px; color: #64748b; display: block;">JPG/PNG</span>
+                </div>
+                <input type="file" id="tsFileInput" accept="image/*" class="hidden" onchange="handleTargetSearchFileSelect(event)">
+              </div>
+
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+                <div>
+                  <label style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Target Name / POI</label>
+                  <input type="text" id="tsTargetName" value="Subject of Interest" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">
+                </div>
+                <div>
+                  <label style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Search Mode</label>
+                  <select id="tsModeSelect" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;">
+                    <option value="auto" selected>AUTO (Face or Re-ID Fallback)</option>
+                    <option value="face">FACE (Facial Landmarks)</option>
+                    <option value="reid">RE-ID (Whole-Body Appearance)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cameras Checklist Selection -->
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Monitored Cameras</label>
+                <label style="font-size: 10px; color: #38bdf8; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                  <input type="checkbox" id="tsSelectAllCams" checked onchange="toggleSelectAllCameras(this)">
+                  <span>Select All (*)</span>
+                </label>
+              </div>
+              <div id="tsCamerasChecklist" style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 120px; overflow-y: auto; background: #0b1120; border: 1px solid #1e293b; border-radius: 6px; padding: 8px;">
+                <label style="font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px;"><input type="checkbox" class="ts-cam-cb" value="CAM-001" checked> CAM-001</label>
+                <label style="font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px;"><input type="checkbox" class="ts-cam-cb" value="CAM-002" checked> CAM-002</label>
+                <label style="font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px;"><input type="checkbox" class="ts-cam-cb" value="CAM-003" checked> CAM-003</label>
+                <label style="font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px;"><input type="checkbox" class="ts-cam-cb" value="CAM-004" checked> CAM-004</label>
+                <label style="font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px;"><input type="checkbox" class="ts-cam-cb" value="CAM-005" checked> CAM-005</label>
+                <label style="font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px;"><input type="checkbox" class="ts-cam-cb" value="CAM-006" checked> CAM-006</label>
+                <label style="font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px;"><input type="checkbox" class="ts-cam-cb" value="CAM-007" checked> CAM-007</label>
+                <label style="font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px;"><input type="checkbox" class="ts-cam-cb" value="CAM-008" checked> CAM-008</label>
+              </div>
+            </div>
+
+            <!-- Start / Stop Action Buttons -->
+            <div style="display: flex; gap: 10px; margin-top: 4px;">
+              <button id="tsBtnStart" onclick="startTargetPersonSearch()" style="flex: 1; background: #0284c7; color: #fff; border: none; padding: 10px; border-radius: 6px; font-size: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);">
+                <span>▶ START SEARCH</span>
+              </button>
+              <button id="tsBtnStop" onclick="stopTargetPersonSearch()" class="hidden" style="flex: 1; background: #dc2626; color: #fff; border: none; padding: 10px; border-radius: 6px; font-size: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <span>⏹ STOP SEARCH</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Right Column: SEARCH STATUS Summary -->
+          <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="font-weight: 800; font-size: 13px; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">Search Status</div>
+              <div id="tsStatusPill" style="background: #334155; color: #cbd5e1; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 9999px;">IDLE</div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+              <div style="background: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Active Session</div>
+                <div id="tsStatSessionId" style="font-size: 14px; font-weight: 800; color: #f8fafc; margin-top: 4px; font-family: monospace;">--</div>
+              </div>
+              <div style="background: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Active Cameras</div>
+                <div id="tsStatActiveCameras" style="font-size: 18px; font-weight: 800; color: #38bdf8; margin-top: 2px;">0</div>
+              </div>
+              <div style="background: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Candidates</div>
+                <div id="tsStatCandidates" style="font-size: 18px; font-weight: 800; color: #fbbf24; margin-top: 2px;">0</div>
+              </div>
+              <div style="background: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Confirmed</div>
+                <div id="tsStatConfirmed" style="font-size: 18px; font-weight: 800; color: #4ade80; margin-top: 2px;">0</div>
+              </div>
+            </div>
+
+            <!-- Operational Rules Info -->
+            <div style="background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.25); border-radius: 6px; padding: 10px 14px; font-size: 11px; color: #bae6fd; line-height: 1.5;">
+              <strong>Temporal Confirmation Rule:</strong> A track becomes <code style="background:rgba(0,0,0,0.4); padding:1px 4px; border-radius:3px; color:#4ade80;">CONFIRMED CANDIDATE</code> only after <strong>4 valid observations</strong> inside an <strong>8-second rolling window</strong> (similarity &ge; 0.55, quality &ge; 0.35). Best evidence frames are cryptographically signed with SHA-256 digests.
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Real-time Camera Monitoring Cards -->
+        <div>
+          <div style="font-weight: 800; font-size: 13px; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Live Multi-Camera Monitor</div>
+          <div id="tsCameraGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px;">
+            <!-- Populated dynamically -->
+            <div style="background: #0f172a; border: 1px dashed #334155; border-radius: 8px; padding: 24px; text-align: center; color: #64748b; font-size: 12px;">
+              Select cameras and click <strong>START SEARCH</strong> to begin fleet monitoring.
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Captured Evidence Cards -->
+        <div id="tsEvidenceSection" style="margin-top: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="font-weight: 800; font-size: 13px; color: #f87171; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px;">
+              <span>📸 Confirmed Candidate Evidence Packages (SHA-256 Signed)</span>
+            </div>
+            <div id="tsEvidenceCount" style="font-size: 11px; font-weight: 700; color: #94a3b8;">0 Artifacts</div>
+          </div>
+          <div id="tsEvidenceGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px;">
+            <!-- Injected dynamically upon confirmed candidate events -->
+            <div style="grid-column: 1/-1; background: #0f172a; border: 1px dashed #334155; border-radius: 8px; padding: 32px; text-align: center; color: #64748b; font-size: 12px;">
+              No confirmed candidate events emitted yet. Evidence packages will automatically appear here when rolling-window confirmation rules are met.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Production Framework Governance & Signal Fusion Architecture -->
   <div id="governanceModal" class="full-view-modal hidden">
     <div class="full-view-backdrop" onclick="closeGovernanceModal()"></div>
@@ -4981,6 +5135,375 @@
           </div>
         </div>
       `).join('');
+    };
+
+    // ==================== TARGET PERSON SEARCH CLIENT LOGIC ====================
+    window._activeTargetSearchSessionId = null;
+    window._targetSearchPollInterval = null;
+    window._targetSearchReferenceFile = null;
+
+    window.openTargetSearchModal = function() {
+      const modal = document.getElementById('targetSearchModal');
+      if (modal) modal.classList.remove('hidden');
+      if (window._activeTargetSearchSessionId) {
+        window.pollTargetSearchTelemetry();
+      }
+    };
+
+    window.closeTargetSearchModal = function() {
+      const modal = document.getElementById('targetSearchModal');
+      if (modal) modal.classList.add('hidden');
+    };
+
+    window.handleTargetSearchFileSelect = function(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      window._targetSearchReferenceFile = file;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const preview = document.getElementById('tsPreviewImg');
+        const prompt = document.getElementById('tsUploadPrompt');
+        if (preview && prompt) {
+          preview.src = e.target.result;
+          preview.classList.remove('hidden');
+          prompt.classList.add('hidden');
+        }
+      };
+      reader.readAsDataURL(file);
+    };
+
+    window.toggleSelectAllCameras = function(masterCb) {
+      const cbs = document.querySelectorAll('.ts-cam-cb');
+      cbs.forEach(cb => { cb.checked = masterCb.checked; });
+    };
+
+    window.startTargetPersonSearch = async function() {
+      if (!window._targetSearchReferenceFile) {
+        alert('Please upload a reference photo of the target person first.');
+        return;
+      }
+
+      const name = document.getElementById('tsTargetName').value.trim() || 'Subject of Interest';
+      const mode = document.getElementById('tsModeSelect').value;
+      const selectedCams = [];
+      document.querySelectorAll('.ts-cam-cb:checked').forEach(cb => {
+        selectedCams.push(cb.value);
+      });
+
+      if (selectedCams.length === 0) {
+        alert('Please select at least one camera for target search.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('image', window._targetSearchReferenceFile);
+      formData.append('name', name);
+      formData.append('mode', mode);
+      formData.append('cameras', selectedCams.join(','));
+
+      const btnStart = document.getElementById('tsBtnStart');
+      const btnStop = document.getElementById('tsBtnStop');
+      if (btnStart) btnStart.disabled = true;
+
+      try {
+        const resp = await fetch('/api/target-search/start', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ detail: 'Failed to start search' }));
+          alert(`Error starting search: ${err.detail || 'Unknown error'}`);
+          if (btnStart) btnStart.disabled = false;
+          return;
+        }
+
+        const data = await resp.json();
+        window._activeTargetSearchSessionId = data.session_id;
+
+        // Update UI state
+        if (btnStart) {
+          btnStart.classList.add('hidden');
+          btnStart.disabled = false;
+        }
+        if (btnStop) btnStop.classList.remove('hidden');
+
+        const activeBadge = document.getElementById('targetSearchActiveBadge');
+        if (activeBadge) activeBadge.classList.remove('hidden');
+        const headerBadge = document.getElementById('tsHeaderStatusBadge');
+        if (headerBadge) headerBadge.classList.remove('hidden');
+
+        const statusPill = document.getElementById('tsStatusPill');
+        if (statusPill) {
+          statusPill.textContent = 'RUNNING';
+          statusPill.style.background = '#15803d';
+          statusPill.style.color = '#fff';
+        }
+
+        document.getElementById('tsStatSessionId').textContent = data.session_id;
+
+        // Start real-time polling
+        if (window._targetSearchPollInterval) clearInterval(window._targetSearchPollInterval);
+        window._targetSearchPollInterval = setInterval(window.pollTargetSearchTelemetry, 1600);
+        window.pollTargetSearchTelemetry();
+
+      } catch (ex) {
+        console.error('Target search start error:', ex);
+        alert(`Network error starting target search: ${ex.message}`);
+        if (btnStart) btnStart.disabled = false;
+      }
+    };
+
+    window.stopTargetPersonSearch = async function() {
+      if (!window._activeTargetSearchSessionId) return;
+
+      const sid = window._activeTargetSearchSessionId;
+      try {
+        const resp = await fetch(`/api/target-search/${sid}/stop`, { method: 'POST' });
+        if (resp.ok) {
+          if (window._targetSearchPollInterval) {
+            clearInterval(window._targetSearchPollInterval);
+            window._targetSearchPollInterval = null;
+          }
+
+          const btnStart = document.getElementById('tsBtnStart');
+          const btnStop = document.getElementById('tsBtnStop');
+          if (btnStart) btnStart.classList.remove('hidden');
+          if (btnStop) btnStop.classList.add('hidden');
+
+          const activeBadge = document.getElementById('targetSearchActiveBadge');
+          if (activeBadge) activeBadge.classList.add('hidden');
+          const headerBadge = document.getElementById('tsHeaderStatusBadge');
+          if (headerBadge) headerBadge.classList.add('hidden');
+
+          const statusPill = document.getElementById('tsStatusPill');
+          if (statusPill) {
+            statusPill.textContent = 'STOPPED';
+            statusPill.style.background = '#dc2626';
+            statusPill.style.color = '#fff';
+          }
+          window.pollTargetSearchTelemetry();
+        }
+      } catch (ex) {
+        console.error('Target search stop error:', ex);
+      }
+    };
+
+    window.pollTargetSearchTelemetry = async function() {
+      if (!window._activeTargetSearchSessionId) return;
+      const sid = window._activeTargetSearchSessionId;
+
+      try {
+        // 1. Fetch Session Status
+        const statusResp = await fetch(`/api/target-search/${sid}`);
+        if (statusResp.ok) {
+          const s = await statusResp.json();
+          document.getElementById('tsStatActiveCameras').textContent = s.active_cameras_count || 0;
+          document.getElementById('tsStatCandidates').textContent = s.candidates_count || 0;
+          document.getElementById('tsStatConfirmed').textContent = s.confirmed_candidates_count || 0;
+          const statusPill = document.getElementById('tsStatusPill');
+          if (statusPill && s.status) {
+            statusPill.textContent = s.status.toUpperCase();
+            if (s.status.toLowerCase() === 'running') {
+              statusPill.style.background = '#15803d';
+              statusPill.style.color = '#fff';
+            } else {
+              statusPill.style.background = '#334155';
+              statusPill.style.color = '#cbd5e1';
+            }
+          }
+        }
+
+        // 2. Fetch Multi-Camera Real-time Status
+        const camResp = await fetch(`/api/target-search/${sid}/cameras`);
+        if (camResp.ok) {
+          const cams = await camResp.json();
+          window.renderTargetSearchCameras(cams);
+        }
+
+        // 3. Fetch Confirmed Candidate Events
+        const evtResp = await fetch(`/api/target-search/${sid}/events`);
+        if (evtResp.ok) {
+          const evts = await evtResp.json();
+          window.renderTargetSearchEvidence(evts);
+        }
+
+      } catch (ex) {
+        console.debug('Target search poll note:', ex);
+      }
+    };
+
+    window.renderTargetSearchCameras = function(cams) {
+      const grid = document.getElementById('tsCameraGrid');
+      if (!grid) return;
+      if (!cams || cams.length === 0) {
+        grid.innerHTML = '<div style="color:#94a3b8; font-size:12px; padding:12px;">No cameras active.</div>';
+        return;
+      }
+
+      grid.innerHTML = cams.map(c => {
+        const isLive = c.is_live;
+        const cand = c.candidate;
+        const liveBadgeColor = isLive ? '#15803d' : '#64748b';
+        const liveText = isLive ? 'LIVE' : 'OFFLINE';
+
+        let candidateBlockHtml = '';
+        if (!cand) {
+          candidateBlockHtml = `
+            <div style="color: #64748b; font-size: 11px; font-style: italic; margin-top: 8px;">
+              No candidate detected
+            </div>
+          `;
+        } else {
+          let statusBadgeColor = '#38bdf8';
+          let statusBg = 'rgba(56, 189, 248, 0.12)';
+          if (cand.status === 'CONFIRMED_CANDIDATE') {
+            statusBadgeColor = '#4ade80';
+            statusBg = 'rgba(74, 222, 128, 0.16)';
+          } else if (cand.status === 'TRACKING') {
+            statusBadgeColor = '#fbbf24';
+            statusBg = 'rgba(251, 191, 36, 0.16)';
+          }
+
+          candidateBlockHtml = `
+            <div style="background: #0b1120; border-radius: 6px; padding: 10px; margin-top: 8px; border: 1px solid #1e293b;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-weight: 800; font-size: 12px; color: #f8fafc; font-family: monospace;">TRACK-${cand.track_id}</span>
+                <span style="background: ${statusBg}; color: ${statusBadgeColor}; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; border: 1px solid ${statusBadgeColor}44;">
+                  ${cand.status.replace('_', ' ')}
+                </span>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 10.5px; color: #cbd5e1;">
+                <div>Raw similarity: <strong style="color: #38bdf8;">${cand.raw_similarity}</strong></div>
+                <div>Quality: <strong style="color: #f1f5f9;">${cand.quality_score}</strong></div>
+                <div>Observations: <strong style="color: #fbbf24;">${cand.observations_count}</strong></div>
+                <div>Score: <strong style="color: #4ade80;">${cand.confirmation_score}</strong></div>
+              </div>
+              <div style="margin-top: 8px; text-align: right;">
+                <button onclick="scrollToEvidenceForCamera('${c.camera_id}')" style="background: #0284c7; color: #fff; border: none; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 4px; cursor: pointer;">
+                  [ VIEW EVIDENCE ]
+                </button>
+              </div>
+            </div>
+          `;
+        }
+
+        return `
+          <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 6px;">
+              <span style="font-weight: 800; font-size: 13px; color: #f8fafc; font-family: monospace;">${c.camera_id}</span>
+              <span style="background: ${liveBadgeColor}; color: #fff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 9999px;">
+                ${liveText}
+              </span>
+            </div>
+            ${candidateBlockHtml}
+          </div>
+        `;
+      }).join('');
+    };
+
+    window.renderTargetSearchEvidence = function(events) {
+      const grid = document.getElementById('tsEvidenceGrid');
+      const countLabel = document.getElementById('tsEvidenceCount');
+      if (!grid) return;
+
+      if (!events || events.length === 0) {
+        if (countLabel) countLabel.textContent = '0 Artifacts';
+        grid.innerHTML = `
+          <div style="grid-column: 1/-1; background: #0f172a; border: 1px dashed #334155; border-radius: 8px; padding: 32px; text-align: center; color: #64748b; font-size: 12px;">
+            No confirmed candidate events emitted yet. Evidence packages will automatically appear here when rolling-window confirmation rules are met.
+          </div>
+        `;
+        return;
+      }
+
+      if (countLabel) countLabel.textContent = `${events.length} Artifacts`;
+
+      grid.innerHTML = events.map(e => {
+        const timeStr = new Date(e.created_at * 1000).toLocaleTimeString();
+        const fullUrl = `/api/target-search/${e.session_id}/evidence/${e.event_id}/full.jpg`;
+        const personUrl = `/api/target-search/${e.session_id}/evidence/${e.event_id}/person.jpg`;
+        const faceUrl = `/api/target-search/${e.session_id}/evidence/${e.event_id}/face.jpg`;
+
+        return `
+          <div id="evid-${e.camera_id}" style="background: #0f172a; border: 1.5px solid #22c55e; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 14px rgba(0,0,0,0.5);">
+            <!-- Header -->
+            <div style="background: #14532d; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #16a34a;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-weight: 800; font-size: 12px; color: #fff;">${e.camera_id}</span>
+                <span style="font-size: 11px; color: #86efac; font-family: monospace;">TRACK-${e.track_id}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 10px; color: #cbd5e1;">${timeStr}</span>
+                <span style="background: #15803d; color: #fff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 3px;">CONFIRMED</span>
+              </div>
+            </div>
+
+            <!-- Evidence Images Row (Full frame, Person crop, Face crop) -->
+            <div style="display: grid; grid-template-columns: 1.4fr 1fr 0.8fr; gap: 4px; background: #000; height: 140px; padding: 4px;">
+              <div style="position: relative; height: 100%; overflow: hidden; border-radius: 4px;">
+                <img src="${fullUrl}" style="width: 100%; height: 100%; object-fit: cover;" alt="Full Frame" onerror="this.src='/api/camera/${e.camera_id}/jpeg'">
+                <span style="position: absolute; bottom: 2px; left: 2px; background: rgba(0,0,0,0.7); color: #fff; font-size: 8px; padding: 1px 4px; border-radius: 2px;">Scene</span>
+              </div>
+              <div style="position: relative; height: 100%; overflow: hidden; border-radius: 4px;">
+                <img src="${personUrl}" style="width: 100%; height: 100%; object-fit: cover;" alt="Person Crop">
+                <span style="position: absolute; bottom: 2px; left: 2px; background: rgba(0,0,0,0.7); color: #38bdf8; font-size: 8px; padding: 1px 4px; border-radius: 2px;">Person</span>
+              </div>
+              <div style="position: relative; height: 100%; overflow: hidden; border-radius: 4px; background: #111;">
+                <img src="${faceUrl}" style="width: 100%; height: 100%; object-fit: cover;" alt="Face Crop" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                <div style="display:none; width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 8px; color: #64748b; text-align: center; padding: 2px;">No Face</div>
+                <span style="position: absolute; bottom: 2px; left: 2px; background: rgba(0,0,0,0.7); color: #f87171; font-size: 8px; padding: 1px 4px; border-radius: 2px;">Face</span>
+              </div>
+            </div>
+
+            <!-- Metrics Measurements Panel -->
+            <div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; background: #0f172a;">
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; font-size: 10.5px; border-bottom: 1px solid #1e293b; padding-bottom: 6px;">
+                <div>
+                  <div style="font-size: 8.5px; color: #94a3b8; text-transform: uppercase;">Raw Sim</div>
+                  <strong style="color: #38bdf8;">${e.raw_similarity_max}</strong>
+                </div>
+                <div>
+                  <div style="font-size: 8.5px; color: #94a3b8; text-transform: uppercase;">Quality</div>
+                  <strong style="color: #f1f5f9;">${e.quality_mean}</strong>
+                </div>
+                <div>
+                  <div style="font-size: 8.5px; color: #94a3b8; text-transform: uppercase;">Observations</div>
+                  <strong style="color: #fbbf24;">${e.confirmation_count}</strong>
+                </div>
+                <div>
+                  <div style="font-size: 8.5px; color: #94a3b8; text-transform: uppercase;">Conf Score</div>
+                  <strong style="color: #4ade80;">${e.confirmation_score}</strong>
+                </div>
+              </div>
+
+              <!-- Cryptographic Hash & Review Verification -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
+                <span style="font-family: monospace; font-size: 9px; color: #64748b; display: flex; align-items: center; gap: 4px;">
+                  🔒 SHA-256: ${e.hashes && e.hashes['person.jpg'] ? e.hashes['person.jpg'].substring(0, 14) + '...' : 'Signed'}
+                </span>
+                <button onclick="openOfficerConfirmModal()" style="background: rgba(244, 63, 94, 0.15); color: #f43f5e; border: 1px solid #f43f5e; font-size: 9.5px; font-weight: 700; padding: 3px 8px; border-radius: 4px; cursor: pointer;">
+                  ⚖️ Human Review
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    };
+
+    window.scrollToEvidenceForCamera = function(camId) {
+      const target = document.getElementById(`evid-${camId}`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.style.transition = 'box-shadow 0.3s ease';
+        target.style.boxShadow = '0 0 20px #38bdf8';
+        setTimeout(() => { target.style.boxShadow = '0 4px 14px rgba(0,0,0,0.5)'; }, 2000);
+      } else {
+        const evidSection = document.getElementById('tsEvidenceSection');
+        if (evidSection) evidSection.scrollIntoView({ behavior: 'smooth' });
+      }
     };
   </script>
 </body>

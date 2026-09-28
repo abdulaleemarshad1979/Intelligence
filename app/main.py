@@ -137,9 +137,11 @@ app.add_middleware(
 # Mount modular production API routers
 from app.api.routes_tracking import router as tracking_router
 from app.api.routes_alerts import router as alerts_router
+from app.api.routes_target_search import router as target_search_router
 
 app.include_router(tracking_router)
 app.include_router(alerts_router)
+app.include_router(target_search_router)
 
 # Initialize database and core repositories
 init_db()
@@ -165,6 +167,8 @@ os.makedirs(os.path.join(DATA_DIR, "captures"), exist_ok=True)
 app.mount("/data/captures", StaticFiles(directory=os.path.join(DATA_DIR, "captures")), name="captures")
 os.makedirs(os.path.join(DATA_DIR, "targets"), exist_ok=True)
 app.mount("/data/targets", StaticFiles(directory=os.path.join(DATA_DIR, "targets")), name="targets")
+os.makedirs(os.path.join(DATA_DIR, "target_search"), exist_ok=True)
+app.mount("/data/target_search", StaticFiles(directory=os.path.join(DATA_DIR, "target_search")), name="target_search")
 
 # Load camera configs & initialize Cross-Camera Tracker
 def load_camera_config() -> Dict[str, Any]:

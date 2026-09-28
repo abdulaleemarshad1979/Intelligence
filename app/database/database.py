@@ -325,17 +325,48 @@ def init_db(db_path: Optional[str] = None):
     )
     """)
 
-    # Add optional migration columns to tracks if not present
-    cursor.execute("PRAGMA table_info(tracks)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if "start_time" not in columns:
-        cursor.execute("ALTER TABLE tracks ADD COLUMN start_time REAL DEFAULT 0.0")
-    if "end_time" not in columns:
-        cursor.execute("ALTER TABLE tracks ADD COLUMN end_time REAL DEFAULT 0.0")
-    if "direction" not in columns:
-        cursor.execute("ALTER TABLE tracks ADD COLUMN direction TEXT DEFAULT 'UNKNOWN'")
-    if "status" not in columns:
-        cursor.execute("ALTER TABLE tracks ADD COLUMN status TEXT DEFAULT 'ACTIVE'")
+    # 16. Target Search Sessions
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS target_search_sessions (
+        session_id TEXT PRIMARY KEY,
+        target_id TEXT NOT NULL,
+        name TEXT,
+        mode TEXT DEFAULT 'auto',
+        active_mode TEXT DEFAULT 'auto',
+        cameras_json TEXT DEFAULT '[]',
+        reference_image_path TEXT,
+        status TEXT DEFAULT 'Running',
+        metadata_json TEXT DEFAULT '{}',
+        created_at REAL,
+        stopped_at REAL
+    )
+    """)
+
+    # 17. Target Search Candidate Events & Evidence Metadata
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS target_search_events (
+        event_id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        camera_id TEXT NOT NULL,
+        track_id TEXT NOT NULL,
+        first_seen REAL,
+        last_seen REAL,
+        confirmation_count INTEGER,
+        raw_similarity_max REAL,
+        raw_similarity_mean REAL,
+        quality_mean REAL,
+        confirmation_score REAL,
+        status TEXT DEFAULT 'CONFIRMED_CANDIDATE',
+        review_required INTEGER DEFAULT 1,
+        review_status TEXT DEFAULT 'PENDING',
+        best_frame_path TEXT,
+        person_crop_path TEXT,
+        face_crop_path TEXT,
+        hashes_json TEXT DEFAULT '{}',
+        metadata_json TEXT DEFAULT '{}',
+        created_at REAL
+    )
+    """)
 
     conn.commit()
     conn.close()

@@ -363,7 +363,8 @@ class CameraStreamWorker:
                             frame=frame_copy,
                             camera_id=self.camera_id,
                             frame_id=f_id,
-                            detections=detections
+                            detections=detections,
+                            include_cooldown=True
                         )
                         if face_matches:
                             self.latest_target_match = face_matches[0]
@@ -402,6 +403,16 @@ class CameraStreamWorker:
             self.ai_fps_measured = round(1.0 / max(0.001, elapsed), 1)
             sleep_time = max(0.01, ai_interval - elapsed)
             time.sleep(sleep_time)
+
+    def get_latest_frame(self) -> Tuple[Optional[np.ndarray], int, float]:
+        """Return snapshot of latest raw frame, frame_id, and timestamp for decoupled AI pipelines."""
+        with self._lock:
+            if self._latest_frame is None:
+                if getattr(self, "is_simulated", False):
+                    sim = self._generate_simulated_frame()
+                    return sim, self._frame_id, time.time()
+                return None, 0, 0.0
+            return self._latest_frame.copy(), self._frame_id, self._latest_frame_time
 
     def get_latest_rendered_frame(
         self,

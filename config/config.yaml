@@ -92,4 +92,13 @@ signal_fusion:
     require_primary_for_high_conf: true
     rule: "At 1:N scale across city gallery, soft biometrics act as conditional confirmations or hard geometric pruning gates rather than independent identity verifiers."
 
+# Section 4: Multi-Camera Target Person Search
+target_search:
+  min_confirmations: 4
+  confirmation_window_sec: 8.0
+  minimum_raw_similarity: 0.55
+  minimum_quality_score: 0.35
+  duplicate_event_cooldown_sec: 15.0
+
+
 
