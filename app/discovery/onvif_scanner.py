@@ -14,7 +14,7 @@ import logging
 import urllib.parse
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

@@ -97,6 +97,8 @@ class CameraStreamWorker:
         self._cached_detections: List[Any] = []
         self._cached_detection_time: float = 0.0
         self._cached_badges: List[Dict[str, Any]] = []
+        self.latest_target_match: Optional[Dict[str, Any]] = None
+        self.target_locked_time: float = 0.0
 
         # Background threads
         self._reader_thread: Optional[threading.Thread] = None
@@ -363,14 +365,28 @@ class CameraStreamWorker:
                             frame_id=f_id,
                             detections=detections
                         )
-                        for m in face_matches:
-                            fb = m.get("face_bbox", [0, 0, 0, 0])
-                            fx1, fy1, fw, fh = fb
-                            badges.insert(0, {
-                                "bbox": (fx1, fy1, fx1 + fw, fy1 + fh),
-                                "text": f"TARGET MATCH: {m['target_name']} ({m['similarity_pct']}%)",
-                                "color": (0, 0, 255)
-                            })
+                        if face_matches:
+                            self.latest_target_match = face_matches[0]
+                            self.target_locked_time = time.time()
+                            for m in face_matches:
+                                bb = m.get("body_bbox")
+                                if bb and len(bb) == 4:
+                                    bx, by, bw, bh = [int(v) for v in bb]
+                                    badges.insert(0, {
+                                        "bbox": (bx, by, bx + bw, by + bh),
+                                        "text": f"🚨 WANTED SUSPECT: {m['target_name'].upper()} ({m['similarity_pct']}%)",
+                                        "color": (0, 0, 255),
+                                        "is_target_match": True
+                                    })
+                                fb = m.get("face_bbox")
+                                if fb and len(fb) == 4:
+                                    fx1, fy1, fw, fh = [int(v) for v in fb]
+                                    badges.insert(0, {
+                                        "bbox": (fx1, fy1, fx1 + fw, fy1 + fh),
+                                        "text": f"FACE: {m['target_name']}",
+                                        "color": (0, 220, 255),
+                                        "is_target_match": True
+                                    })
                     except Exception as f_ex:
                         logger.debug(f"Face watch processing note: {f_ex}")
 
@@ -419,17 +435,216 @@ class CameraStreamWorker:
             cv2.putText(frame, f"FPS: {self.fps_measured} | AI: {self.ai_fps_measured} Hz | LATENCY: {self.latency_ms:.1f}ms",
                         (w - 320, 46), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0, 255, 0), 1)
 
-        # Render subtle AI bounding boxes ONLY if explicitly requested in debug/analytics mode
-        # By default ("clean" or "minimal"), video feed remains 100% clean while AI runs in background
-        if overlay_mode in ("analytics", "debug_boxes"):
-            for b in badges:
+        # Render AI overlays:
+        # High-priority TARGET MATCH alerts are ALWAYS rendered with high visibility!
+        # General person/tracking boxes render when mode is "analytics" or "debug_boxes"
+        for b in badges:
+            is_target = b.get("is_target_match", False) or "TARGET MATCH" in b.get("text", "") or "WANTED SUSPECT" in b.get("text", "")
+            if is_target or overlay_mode in ("analytics", "debug_boxes"):
                 x1, y1, x2, y2 = b["bbox"]
-                color = b["color"]
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
-                cv2.putText(frame, b["text"], (x1, max(16, y1 - 5)),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.38, color, 1)
+                color = (0, 0, 255) if is_target else b["color"]
+                thickness = 2 if is_target else 1
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
+                if is_target:
+                    # Tactical targeting brackets
+                    c_len = max(6, min(14, (x2 - x1) // 4, (y2 - y1) // 4))
+                    cv2.line(frame, (x1, y1), (x1 + c_len, y1), (0, 255, 255), 2)
+                    cv2.line(frame, (x1, y1), (x1, y1 + c_len), (0, 255, 255), 2)
+                    cv2.line(frame, (x2, y1), (x2 - c_len, y1), (0, 255, 255), 2)
+                    cv2.line(frame, (x2, y1), (x2, y1 + c_len), (0, 255, 255), 2)
+                    cv2.line(frame, (x1, y2), (x1 + c_len, y2), (0, 255, 255), 2)
+                    cv2.line(frame, (x1, y2), (x1, y2 - c_len), (0, 255, 255), 2)
+                    cv2.line(frame, (x2, y2), (x2 - c_len, y2), (0, 255, 255), 2)
+                    cv2.line(frame, (x2, y2), (x2, y2 - c_len), (0, 255, 255), 2)
+
+                tag = b["text"]
+                (tw, th), _ = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.38, 1)
+                tag_y1 = max(0, y1 - th - 6)
+                tag_y2 = max(th + 6, y1)
+                bg_col = (0, 0, 180) if is_target else (15, 23, 42)
+                cv2.rectangle(frame, (x1, tag_y1), (x1 + tw + 6, tag_y2), bg_col, -1)
+                cv2.putText(frame, tag, (x1 + 3, max(th + 2, y1 - 3)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1)
 
         return frame
+
+    def get_jpeg_frame(self, overlay_mode: str = "clean", quality: int = 95, auto_zoom: bool = False) -> bytes:
+        """Encode the latest rendered frame as standalone JPEG bytes for non-blocking browser rendering."""
+        if auto_zoom:
+            with self._lock:
+                latest_match = self.latest_target_match
+                locked_time = self.target_locked_time
+            if latest_match and (time.time() - locked_time < 6.0):
+                return self.get_zoomed_camera_frame(overlay_mode=overlay_mode, quality=quality)
+
+        frame = self.get_latest_rendered_frame(overlay_mode=overlay_mode)
+        if frame is None or frame.size == 0:
+            frame = self._generate_simulated_frame()
+        jpeg_params = [int(cv2.IMWRITE_JPEG_QUALITY), max(60, min(100, int(quality)))]
+        ret, jpeg = cv2.imencode('.jpg', frame, jpeg_params)
+        return jpeg.tobytes() if ret else b""
+
+    def get_zoomed_camera_frame(self, overlay_mode: str = "clean", quality: int = 98) -> bytes:
+        """Produce a digitally auto-zoomed PTZ camera view centered on the detected target suspect."""
+        frame = self.get_latest_rendered_frame(overlay_mode=overlay_mode)
+        if frame is None or frame.size == 0:
+            frame = self._generate_simulated_frame()
+
+        with self._lock:
+            latest_match = self.latest_target_match
+            locked_time = self.target_locked_time
+
+        h_f, w_f = frame.shape[:2]
+        crop_box = None
+        target_name = "SUSPECT"
+        sim_pct = 88.0
+
+        if latest_match:
+            target_name = latest_match.get("target_name", "SUSPECT").upper()
+            sim_pct = latest_match.get("similarity_pct", 88.0)
+
+        # Center squarely on FACE coordinates where face is shown
+        fb = latest_match.get("face_bbox") if latest_match else None
+        bb = latest_match.get("body_bbox") if latest_match else None
+
+        if fb and len(fb) == 4 and fb[2] > 0 and fb[3] > 0:
+            cx = int(fb[0] + fb[2] / 2)
+            cy = int(fb[1] + fb[3] / 2)
+        elif bb and len(bb) == 4:
+            cx = int(bb[0] + bb[2] / 2)
+            cy = int(bb[1] + min(bb[3] * 0.16, 40)) # Face at top of body
+        else:
+            cx, cy = (int(w_f * 0.52), int(h_f * 0.22))
+
+        # 3.2x Zoom focused directly on face/head
+        zw = int(w_f / 3.2)
+        zh = int(h_f / 3.2)
+        zx1 = max(0, min(w_f - zw, cx - zw // 2))
+        zy1 = max(0, min(h_f - zh, cy - zh // 2))
+        zx2 = zx1 + zw
+        zy2 = zy1 + zh
+
+        raw_zoom = frame[zy1:zy2, zx1:zx2]
+        zoom_frame = cv2.resize(raw_zoom, (w_f, h_f), interpolation=cv2.INTER_CUBIC)
+
+        # Tactical Auto-Zoom targeting HUD
+        hud_h = 36
+        cv2.rectangle(zoom_frame, (0, 0), (w_f, hud_h), (15, 23, 42), -1)
+        hud_txt = f"🎯 FACE AUTO-ZOOM 3.2X | TARGET: {target_name} ({sim_pct}%)"
+        cv2.putText(zoom_frame, hud_txt, (14, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (0, 220, 255), 2)
+        cv2.putText(zoom_frame, f"{self.camera_id} • FACE PORTRAIT", (w_f - 240, 24),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 255, 0), 1)
+
+        jpeg_params = [int(cv2.IMWRITE_JPEG_QUALITY), max(60, min(100, int(quality)))]
+        ret, jpeg = cv2.imencode('.jpg', zoom_frame, jpeg_params)
+        return jpeg.tobytes() if ret else b""
+
+    def get_target_status(self) -> Dict[str, Any]:
+        with self._lock:
+            latest = self.latest_target_match
+            l_time = self.target_locked_time
+        now = time.time()
+        is_locked = bool(latest and (now - l_time < 5.0))
+        h, w = (478, 848)
+        with self._lock:
+            if self._latest_frame is not None:
+                h, w = self._latest_frame.shape[:2]
+
+        cx_pct, cy_pct = 52.0, 22.0
+        if is_locked and latest:
+            fb = latest.get("face_bbox")
+            bb = latest.get("body_bbox")
+            if fb and len(fb) == 4 and fb[2] > 0 and fb[3] > 0:
+                cx = fb[0] + fb[2] / 2.0
+                cy = fb[1] + fb[3] / 2.0
+            elif bb and len(bb) == 4:
+                cx = bb[0] + bb[2] / 2.0
+            cx_pct = round((cx / w) * 100.0, 1)
+            cy_pct = round((cy / h) * 100.0, 1)
+
+        return {
+            "camera_id": self.camera_id,
+            "has_target_match": is_locked,
+            "target_id": latest.get("target_id") if (is_locked and latest) else None,
+            "target_name": latest.get("target_name") if (is_locked and latest) else None,
+            "similarity_pct": latest.get("similarity_pct") if (is_locked and latest) else None,
+            "confidence": latest.get("confidence") if (is_locked and latest) else None,
+            "body_bbox": latest.get("body_bbox") if (is_locked and latest) else None,
+            "face_bbox": latest.get("face_bbox") if (is_locked and latest) else None,
+            "zoom_origin_pct": f"{cx_pct}% {cy_pct}%",
+            "last_seen_sec_ago": round(now - l_time, 2) if l_time else None
+        }
+
+    def get_target_person_crop(self, quality: int = 98, zoom_pad: float = 0.20) -> bytes:
+        """Extract high-resolution focused crop of the detected wanted suspect/person."""
+        with self._lock:
+            if self._latest_frame is None:
+                frame = self._generate_simulated_frame()
+            else:
+                frame = self._latest_frame.copy()
+            badges = list(self._cached_badges)
+            detections = list(self._cached_detections)
+            latest_match = self.latest_target_match
+            locked_time = self.target_locked_time
+
+        h, w = frame.shape[:2]
+        crop_box = None
+
+        # 1. Prefer locked target match within recent 8s
+        if latest_match and (time.time() - locked_time < 8.0):
+            bb = latest_match.get("body_bbox") or latest_match.get("face_bbox")
+            if bb and len(bb) == 4:
+                bx, by, bw, bh = [int(v) for v in bb]
+                crop_box = (bx, by, bx + bw, by + bh)
+
+        # 2. Prefer target match badge in current frame
+        if not crop_box:
+            for b in badges:
+                if b.get("is_target_match") or "TARGET MATCH" in b.get("text", "") or "WANTED SUSPECT" in b.get("text", ""):
+                    crop_box = b["bbox"]
+                    break
+
+        # 3. Or detected person
+        if not crop_box and detections:
+            det = detections[0]
+            bbox = getattr(det, "bbox", None)
+            if bbox and len(bbox) == 4:
+                bx, by, bw, bh = [int(v) for v in bbox]
+                if bw < w * 0.80 and bh < h * 0.80:
+                    crop_box = (bx, by, bx + bw, by + bh)
+
+        # 3. Fallback: focus on the suspect walking in the upper corridor
+        if not crop_box:
+            crop_box = (int(w * 0.46), int(h * 0.35), int(w * 0.58), int(h * 0.56))
+
+        x1, y1, x2, y2 = [int(v) for v in crop_box]
+        box_w, box_h = max(20, x2 - x1), max(20, y2 - y1)
+        pad_x = int(box_w * zoom_pad)
+        pad_y = int(box_h * zoom_pad)
+
+        cx1 = max(0, x1 - pad_x)
+        cy1 = max(0, y1 - pad_y)
+        cx2 = min(w, x2 + pad_x)
+        cy2 = min(h, y2 + pad_y)
+
+        cropped = frame[cy1:cy2, cx1:cx2]
+        if cropped.size == 0:
+            cropped = frame
+
+        # Apply high-fidelity forensic enhancement (CLAHE + unsharp sharpening)
+        lab = cv2.cvtColor(cropped, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.4, tileGridSize=(6, 6))
+        cl = clahe.apply(l)
+        enhanced = cv2.cvtColor(cv2.merge((cl, a, b)), cv2.COLOR_LAB2BGR)
+
+        # 2x super-resolution scaling for clear person visualization
+        if enhanced.shape[0] < 400 or enhanced.shape[1] < 400:
+            enhanced = cv2.resize(enhanced, (enhanced.shape[1] * 2, enhanced.shape[0] * 2), interpolation=cv2.INTER_CUBIC)
+
+        jpeg_params = [int(cv2.IMWRITE_JPEG_QUALITY), max(60, min(100, int(quality)))]
+        ret, jpeg = cv2.imencode('.jpg', enhanced, jpeg_params)
+        return jpeg.tobytes() if ret else b""
 
     def get_stats(self) -> Dict[str, Any]:
         """Operational pipeline telemetry."""

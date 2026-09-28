@@ -23,6 +23,7 @@ data/samples/*.mp4
 /*.mp4
 data/extracted_test_faces/
 data/search_results/
+data/debug_frames/
 data/police_records.db
 *.db
 

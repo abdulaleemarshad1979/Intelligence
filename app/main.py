@@ -735,6 +735,63 @@ async def video_feed_by_cam(camera_id: str, quality: int = 95):
         media_type="multipart/x-mixed-replace; boundary=frame"
     )
 
+@app.get("/api/camera/{camera_id}/frame")
+@app.get("/api/snapshot")
+async def camera_frame(camera_id: str = "CAM-001", quality: int = 85, auto_zoom: bool = False):
+    """Camera-specific single JPEG frame for non-blocking multi-camera grid rendering."""
+    overlay_mode = STREAM_OVERLAY_CONFIG.get("mode", "clean")
+    worker = stream_mgr.get_or_create_worker(camera_id)
+    jpeg_bytes = worker.get_jpeg_frame(overlay_mode=overlay_mode, quality=quality, auto_zoom=auto_zoom)
+    return Response(
+        content=jpeg_bytes,
+        media_type="image/jpeg",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
+
+@app.get("/api/camera/{camera_id}/zoomed_frame")
+async def camera_zoomed_frame(camera_id: str = "CAM-001", quality: int = 98):
+    """Camera-specific digitally auto-zoomed PTZ frame centered directly on detected suspect."""
+    overlay_mode = STREAM_OVERLAY_CONFIG.get("mode", "clean")
+    worker = stream_mgr.get_or_create_worker(camera_id)
+    jpeg_bytes = worker.get_zoomed_camera_frame(overlay_mode=overlay_mode, quality=quality)
+    return Response(
+        content=jpeg_bytes,
+        media_type="image/jpeg",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
+
+@app.get("/api/camera/{camera_id}/target_status")
+async def camera_target_status(camera_id: str = "CAM-001"):
+    """Query live real-time target lock status, bounding box, and auto-zoom coordinates for camera."""
+    worker = stream_mgr.get_or_create_worker(camera_id)
+    return worker.get_target_status()
+
+@app.get("/api/camera/{camera_id}/person_crop")
+@app.get("/api/camera/{camera_id}/target_crop")
+async def camera_person_crop(camera_id: str = "CAM-001", quality: int = 95):
+    """Retrieve focused, high-resolution AI crop of the detected wanted suspect/person in camera feed."""
+    worker = stream_mgr.get_or_create_worker(camera_id)
+    jpeg_bytes = worker.get_target_person_crop(quality=quality)
+    return Response(
+        content=jpeg_bytes,
+        media_type="image/jpeg",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
+
+
+
 @app.post("/api/cameras/connect_matrix")
 async def connect_matrix_camera(payload: MatrixCameraConnectPayload):
     """Directly connect or reassign a Matrix Comsec IP camera to any camera slot with low latency."""
@@ -1231,26 +1288,33 @@ async def set_mode(request: Request):
 async def get_notifications():
     """Retrieve active stampede and suspect alert notifications for the dashboard drawer."""
     notifs = []
-    for alert in ACTIVE_ALERTS[:20]:
+    for alert in ACTIVE_ALERTS[:30]:
         notifs.append({
             "id": alert.get("alert_id", "ALT-001"),
             "camera_id": alert.get("camera_id", "CAM-001"),
-            "camera_name": alert.get("camera_id", "CAM-001"),
-            "location": "District CCTV Live Feed",
+            "camera_name": alert.get("camera_name") or alert.get("camera_id", "CAM-001"),
+            "location": "District Hospital North Wing" if alert.get("camera_id") == "CAM-001" else "District CCTV Live Feed",
             "timestamp": alert.get("timestamp", time.time()),
             "time_str": time.strftime("%H:%M:%S", time.localtime(alert.get("timestamp", time.time()))),
             "severity": "CRITICAL" if alert.get("tier") == "TIER_1_HIGH_CONFIDENCE" else "WARNING",
             "message": f"Person of Interest Match: {alert.get('suspect_name', 'Unknown')} ({alert.get('fir_no', 'N/A')}) at {alert.get('camera_id', 'CAM-001')}",
             "confidence": alert.get("confidence", 0.85),
-            "confidence_percent": round(alert.get("confidence", 0.85) * 100, 1),
-            "risk_index": round(alert.get("confidence", 0.85) * 100, 1),
+            "confidence_percent": round(alert.get("similarity_pct") or (alert.get("confidence", 0.85) * 100), 1),
+            "risk_index": round(alert.get("similarity_pct") or (alert.get("confidence", 0.85) * 100), 1),
             "tier": alert.get("tier", "TIER_1"),
             "status": alert.get("status", "ACTIVE"),
-            "raw_detection_crop": alert.get("raw_detection_crop", "/frontend/assets/placeholder.jpg"),
-            "enhanced_detection_crop": alert.get("enhanced_detection_crop", "/frontend/assets/placeholder.jpg"),
+            "raw_detection_crop": alert.get("zoomed_cam_url") or alert.get("body_crop_url") or f"/api/camera/{alert.get('camera_id', 'CAM-001')}/zoomed_frame",
+            "enhanced_detection_crop": alert.get("zoomed_cam_url") or alert.get("body_crop_url") or f"/api/camera/{alert.get('camera_id', 'CAM-001')}/zoomed_frame",
+            "body_crop_url": alert.get("zoomed_cam_url") or (alert.get("body_crop_url") if (alert.get("body_crop_url") and not alert.get("body_crop_url").startswith("/api/camera/CAM-001/frame")) else f"/api/camera/{alert.get('camera_id', 'CAM-001')}/zoomed_frame"),
+            "zoomed_cam_url": alert.get("zoomed_cam_url") or f"/api/camera/{alert.get('camera_id', 'CAM-001')}/zoomed_frame",
+            "face_crop_url": alert.get("face_crop_url"),
+            "full_frame_url": alert.get("full_frame_url"),
+            "face_bbox": alert.get("face_bbox"),
+            "body_bbox": alert.get("body_bbox"),
             "probe_photo": alert.get("probe_photo", "/frontend/assets/placeholder.jpg"),
             "scores": alert.get("scores", {}),
-            "biometric_comparison": alert.get("biometric_comparison", {})
+            "biometric_comparison": alert.get("biometric_comparison", {}),
+            "is_target_match": True
         })
     if not notifs:
         notifs.append({

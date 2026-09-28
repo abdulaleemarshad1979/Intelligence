@@ -7,6 +7,7 @@ to prevent unreliable facial landmarks from corrupting multi-factor surveillance
 """
 
 import os
+import threading
 import logging
 from typing import List, Dict, Any, Optional, Tuple, Union
 import numpy as np
@@ -40,6 +41,7 @@ class FaceBiometricEngine:
         conf_threshold: float = 0.60,
         backend: str = "auto"
     ):
+        self._lock = threading.Lock()
         self.conf_threshold = conf_threshold
         self.backend_preference = backend.lower()
         self.yunet_detector = None
@@ -193,54 +195,55 @@ class FaceBiometricEngine:
         if frame is None or frame.size == 0:
             return []
 
-        h, w = frame.shape[:2]
+        with self._lock:
+            h, w = frame.shape[:2]
 
-        if self.yunet_detector is not None:
-            try:
-                self.yunet_detector.setInputSize((w, h))
-                _, faces = self.yunet_detector.detect(frame)
-                if faces is not None:
-                    results = []
-                    for f in faces:
-                        box = [float(f[0]), float(f[1]), float(f[2]), float(f[3])]
-                        score = float(f[14])
-                        bx, by, bw, bh = int(box[0]), int(box[1]), int(box[2]), int(box[3])
-                        bx1, by1 = max(0, bx), max(0, by)
-                        bx2, by2 = min(w, bx + bw), min(h, by + bh)
+            if self.yunet_detector is not None:
+                try:
+                    self.yunet_detector.setInputSize((w, h))
+                    _, faces = self.yunet_detector.detect(frame)
+                    if faces is not None:
+                        results = []
+                        for f in faces:
+                            box = [float(f[0]), float(f[1]), float(f[2]), float(f[3])]
+                            score = float(f[14])
+                            bx, by, bw, bh = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+                            bx1, by1 = max(0, bx), max(0, by)
+                            bx2, by2 = min(w, bx + bw), min(h, by + bh)
 
-                        # Extract 5 landmarks: right eye, left eye, nose tip, right mouth, left mouth
-                        landmarks = []
-                        if len(f) >= 14:
-                            for idx in range(4, 14, 2):
-                                landmarks.append([float(f[idx]), float(f[idx + 1])])
+                            # Extract 5 landmarks: right eye, left eye, nose tip, right mouth, left mouth
+                            landmarks = []
+                            if len(f) >= 14:
+                                for idx in range(4, 14, 2):
+                                    landmarks.append([float(f[idx]), float(f[idx + 1])])
 
-                        # Crop and evaluate quality
-                        if bx2 > bx1 and by2 > by1:
-                            crop = frame[by1:by2, bx1:bx2]
-                            q_assessment = self.assess_face_quality(crop)
-                        else:
-                            q_assessment = {
-                                "is_viable": False,
-                                "rejection_reasons": ["OUT_OF_BOUNDS"],
-                                "laplacian_var": 0.0,
-                                "resolution": (0, 0),
-                                "quality_score": 0.0
-                            }
+                            # Crop and evaluate quality
+                            if bx2 > bx1 and by2 > by1:
+                                crop = frame[by1:by2, bx1:bx2]
+                                q_assessment = self.assess_face_quality(crop)
+                            else:
+                                q_assessment = {
+                                    "is_viable": False,
+                                    "rejection_reasons": ["OUT_OF_BOUNDS"],
+                                    "laplacian_var": 0.0,
+                                    "resolution": (0, 0),
+                                    "quality_score": 0.0
+                                }
 
-                        results.append({
-                            "bbox": box,
-                            "score": score,
-                            "landmarks": landmarks,
-                            "raw_detection": f,
-                            "quality": q_assessment,
-                            "is_viable": q_assessment["is_viable"] and (score >= self.conf_threshold)
-                        })
-                    return results
-            except Exception as ex:
-                logger.debug(f"YuNet detect error: {ex}")
+                            results.append({
+                                "bbox": box,
+                                "score": score,
+                                "landmarks": landmarks,
+                                "raw_detection": f,
+                                "quality": q_assessment,
+                                "is_viable": q_assessment["is_viable"] and (score >= self.conf_threshold)
+                            })
+                        return results
+                except Exception as ex:
+                    logger.debug(f"YuNet detect error: {ex}")
 
-        # Fallback: locate face region in upper pedestrian silhouette
-        return self._heuristic_face_detection(frame)
+            # Fallback: locate face region in upper pedestrian silhouette
+            return self._heuristic_face_detection(frame)
 
     def _heuristic_face_detection(self, frame: np.ndarray) -> List[Dict[str, Any]]:
         h, w = frame.shape[:2]
@@ -319,45 +322,46 @@ class FaceBiometricEngine:
         if frame is None or frame.size == 0:
             return np.zeros((output_size[1], output_size[0], 3), dtype=np.uint8)
 
-        # 1. OpenCV SFace native alignCrop if raw YuNet detection row is provided
-        if self.sface_recognizer is not None and isinstance(landmarks_or_raw, np.ndarray) and len(landmarks_or_raw) >= 14:
+        with self._lock:
+            # 1. OpenCV SFace native alignCrop if raw YuNet detection row is provided
+            if self.sface_recognizer is not None and isinstance(landmarks_or_raw, np.ndarray) and len(landmarks_or_raw) >= 14:
+                try:
+                    aligned = self.sface_recognizer.alignCrop(frame, landmarks_or_raw)
+                    if aligned is not None and aligned.shape[0] == output_size[1] and aligned.shape[1] == output_size[0]:
+                        return aligned
+                except Exception as ex:
+                    logger.debug(f"SFace alignCrop note: {ex}")
+
+            # 2. General 5-point affine transform to canonical reference points
             try:
-                aligned = self.sface_recognizer.alignCrop(frame, landmarks_or_raw)
-                if aligned is not None and aligned.shape[0] == output_size[1] and aligned.shape[1] == output_size[0]:
-                    return aligned
+                if isinstance(landmarks_or_raw, np.ndarray) and len(landmarks_or_raw) >= 14:
+                    # Raw YuNet array: extract [x, y] for 5 landmarks
+                    src_pts = np.array([
+                        [landmarks_or_raw[4], landmarks_or_raw[5]],
+                        [landmarks_or_raw[6], landmarks_or_raw[7]],
+                        [landmarks_or_raw[8], landmarks_or_raw[9]],
+                        [landmarks_or_raw[10], landmarks_or_raw[11]],
+                        [landmarks_or_raw[12], landmarks_or_raw[13]]
+                    ], dtype=np.float32)
+                else:
+                    src_pts = np.array(landmarks_or_raw, dtype=np.float32)
+
+                if src_pts.shape == (5, 2):
+                    M, _ = cv2.estimateAffinePartial2D(src_pts, CANONICAL_5_POINTS)
+                    if M is not None:
+                        aligned = cv2.warpAffine(
+                            frame,
+                            M,
+                            output_size,
+                            flags=cv2.INTER_LINEAR,
+                            borderMode=cv2.BORDER_REFLECT
+                        )
+                        return aligned
             except Exception as ex:
-                logger.debug(f"SFace alignCrop note: {ex}")
+                logger.debug(f"5-point affine alignment fallback: {ex}")
 
-        # 2. General 5-point affine transform to canonical reference points
-        try:
-            if isinstance(landmarks_or_raw, np.ndarray) and len(landmarks_or_raw) >= 14:
-                # Raw YuNet array: extract [x, y] for 5 landmarks
-                src_pts = np.array([
-                    [landmarks_or_raw[4], landmarks_or_raw[5]],
-                    [landmarks_or_raw[6], landmarks_or_raw[7]],
-                    [landmarks_or_raw[8], landmarks_or_raw[9]],
-                    [landmarks_or_raw[10], landmarks_or_raw[11]],
-                    [landmarks_or_raw[12], landmarks_or_raw[13]]
-                ], dtype=np.float32)
-            else:
-                src_pts = np.array(landmarks_or_raw, dtype=np.float32)
-
-            if src_pts.shape == (5, 2):
-                M, _ = cv2.estimateAffinePartial2D(src_pts, CANONICAL_5_POINTS)
-                if M is not None:
-                    aligned = cv2.warpAffine(
-                        frame,
-                        M,
-                        output_size,
-                        flags=cv2.INTER_LINEAR,
-                        borderMode=cv2.BORDER_REFLECT
-                    )
-                    return aligned
-        except Exception as ex:
-            logger.debug(f"5-point affine alignment fallback: {ex}")
-
-        # Direct resize fallback
-        return cv2.resize(frame, output_size)
+            # Direct resize fallback
+            return cv2.resize(frame, output_size)
 
     def extract_face_embedding(
         self,
@@ -391,34 +395,35 @@ class FaceBiometricEngine:
         else:
             aligned_face = cv2.resize(face_crop, (112, 112))
 
-        # 1. InsightFace ArcFace backend (512-d)
-        if self.insight_app is not None:
-            try:
-                faces = self.insight_app.get(aligned_face)
-                if faces and len(faces) > 0:
-                    best = max(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
-                    vec = best.embedding.flatten().astype(np.float32)
+        with self._lock:
+            # 1. InsightFace ArcFace backend (512-d)
+            if self.insight_app is not None:
+                try:
+                    faces = self.insight_app.get(aligned_face)
+                    if faces and len(faces) > 0:
+                        best = max(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
+                        vec = best.embedding.flatten().astype(np.float32)
+                        norm = np.linalg.norm(vec)
+                        if norm > 1e-6:
+                            vec = vec / norm
+                        return True, vec
+                except Exception as ex:
+                    logger.debug(f"InsightFace embedding note: {ex}")
+
+            # 2. OpenCV SFace FaceRecognizerSF (128-d)
+            if self.sface_recognizer is not None:
+                try:
+                    feature = self.sface_recognizer.feature(aligned_face)
+                    vec = feature.flatten().astype(np.float32)
                     norm = np.linalg.norm(vec)
                     if norm > 1e-6:
                         vec = vec / norm
                     return True, vec
-            except Exception as ex:
-                logger.debug(f"InsightFace embedding note: {ex}")
+                except Exception as ex:
+                    logger.debug(f"SFace embedding error: {ex}")
 
-        # 2. OpenCV SFace FaceRecognizerSF (128-d)
-        if self.sface_recognizer is not None:
-            try:
-                feature = self.sface_recognizer.feature(aligned_face)
-                vec = feature.flatten().astype(np.float32)
-                norm = np.linalg.norm(vec)
-                if norm > 1e-6:
-                    vec = vec / norm
-                return True, vec
-            except Exception as ex:
-                logger.debug(f"SFace embedding error: {ex}")
-
-        # 3. High-frequency texture & geometry structural fallback
-        return self._extract_structural_fallback(aligned_face)
+            # 3. High-frequency texture & geometry structural fallback
+            return self._extract_structural_fallback(aligned_face)
 
     def _extract_structural_fallback(self, aligned_face: np.ndarray) -> Tuple[bool, np.ndarray]:
         """Deterministic gradient and spatial frequency feature representation."""

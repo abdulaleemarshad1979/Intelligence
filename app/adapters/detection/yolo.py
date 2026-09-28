@@ -34,7 +34,7 @@ class YOLODetectorAdapter(BasePedestrianDetector):
     def __init__(
         self,
         model_name: str = "yolov8n.pt",
-        conf_thresh: float = 0.35,
+        conf_thresh: float = 0.24,
         iou_thresh: float = 0.45,
         device: Optional[str] = None
     ):
@@ -107,6 +107,9 @@ class YOLODetectorAdapter(BasePedestrianDetector):
             x1, y1, x2, y2 = box
             w = max(1, x2 - x1)
             h = max(1, y2 - y1)
+            # Filter out whole-frame false positive detections
+            if w > frame.shape[1] * 0.80 and h > frame.shape[0] * 0.80:
+                continue
             results.append(DetectionResult(
                 bbox=(x1, y1, w, h),
                 confidence=round(conf, 3),

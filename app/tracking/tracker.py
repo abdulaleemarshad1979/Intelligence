@@ -1,7 +1,7 @@
 """Multi-object tracker for persistent CCTV person identity tracking."""
 
 import numpy as np
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 def compute_iou(boxA: List[int], boxB: List[int]) -> float:
     xA = max(boxA[0], boxB[0])

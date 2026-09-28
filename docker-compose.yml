@@ -43,6 +43,8 @@ services:
     volumes:
       - cctv_data:/workspace/data
       - ./config:/workspace/config:ro
+      - ./app:/workspace/app
+      - ./frontend:/workspace/frontend
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/api/watchlist/status || exit 1"]
       interval: 20s

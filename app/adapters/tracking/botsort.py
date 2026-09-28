@@ -4,7 +4,7 @@ Combines Kalman tracking with Camera Motion Compensation (CMC) and appearance
 affinity to maintain track IDs during panning/tilting CCTV camera movements.
 """
 
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 import numpy as np
 import cv2
 from app.adapters.base import DetectionResult, TrackingResult
