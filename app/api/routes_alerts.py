@@ -51,30 +51,8 @@ class AlertConnectionManager:
 
 alert_connection_manager = AlertConnectionManager()
 
-# In-memory active alert store
-ACTIVE_ALERTS: List[Dict[str, Any]] = [
-    {
-        "alert_id": "ALT-2026-0089",
-        "incident_id": "INC-2026-0041",
-        "camera_id": "CAM-001",
-        "timestamp": time.time() - 60.0,
-        "confidence": 0.88,
-        "tier": "TIER_1_HIGH_CONFIDENCE",
-        "suspect_name": "John",
-        "fir_no": "FIR-2026-AP-0194",
-        "ps_code": "PS-KAKINADA-PORT",
-        "bns_sections": "BNS Section 303(2), Section 111",
-        "status": "PENDING_OFFICER_CONFIRMATION",
-        "probe_photo": "/data/targets/TGT-15ED13E9_reference.jpg",
-        "enhanced_probe_photo": "/data/targets/TGT-15ED13E9_reference.jpg",
-        "raw_detection_crop": "/api/camera/CAM-001/frame?quality=95",
-        "enhanced_detection_crop": "/api/camera/CAM-001/frame?quality=95",
-        "desk_officer_signoff": None,
-        "supervisor_signoff": None,
-        "raw_frame_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "enhanced_crop_hash": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb"
-    }
-]
+# In-memory active alert store (populated dynamically upon verified detections)
+ACTIVE_ALERTS: List[Dict[str, Any]] = []
 
 
 class DualSignOffPayload(BaseModel):

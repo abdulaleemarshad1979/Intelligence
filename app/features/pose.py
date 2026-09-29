@@ -8,7 +8,10 @@ Supports SOTA neural pose estimation:
 
 import os
 import cv2
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 import numpy as np
 from typing import Dict, Any, List, Tuple, Optional
 
@@ -38,7 +41,7 @@ class PoseEstimator:
         conf_threshold: float = 0.30
     ):
         self.model_name = model_name
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device or ("cuda" if (torch is not None and torch.cuda.is_available()) else "cpu")
         self.conf_threshold = conf_threshold
         self.backend = "GEOMETRIC_SILHOUETTE"
         self.rtm_body = None

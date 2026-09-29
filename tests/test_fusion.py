@@ -101,6 +101,7 @@ def test_evidence_fusion_face_unavailable_masked():
     assert res["weights_used"]["body"] == 0.40
     assert res["weights_used"]["gait"] == 0.45
     assert res["weights_used"]["height"] == 0.15
-    assert res["scores"]["face_score"] == 0.0
-    assert res["total_confidence"] > 0.70  # Still high confidence candidate based on body, gait, height!
+    assert res["raw_confidence"] > 0.70  # Raw multi-modal candidate match
+    assert res["total_confidence"] <= 0.45  # Enforces 1:N soft-only cap when face is unavailable
+    assert res["status"] == "REVIEW_REQUIRED"
     assert res["face_evidence_status"] == "UNAVAILABLE (Masked/Rear/Blur)"

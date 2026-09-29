@@ -541,7 +541,7 @@ class CameraStreamWorker:
         # Tactical Auto-Zoom targeting HUD
         hud_h = 36
         cv2.rectangle(zoom_frame, (0, 0), (w_f, hud_h), (15, 23, 42), -1)
-        hud_txt = f"🎯 FACE AUTO-ZOOM 3.2X | TARGET: {target_name} ({sim_pct}%)"
+        hud_txt = f"[TARGET] FACE AUTO-ZOOM 3.2X | TARGET: {target_name} ({sim_pct}%)"
         cv2.putText(zoom_frame, hud_txt, (14, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (0, 220, 255), 2)
         cv2.putText(zoom_frame, f"{self.camera_id} • FACE PORTRAIT", (w_f - 240, 24),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 255, 0), 1)

@@ -111,10 +111,13 @@ class GaitAnalyzer:
         mean_stride_px = float(np.mean(stride_arr))
         max_stride_px = float(np.max(stride_arr))
 
-        # Calibrated stride in cm
-        stature = max(150.0, min(195.0, estimated_height_cm))
-        stride_ratio = max(0.2, min(0.6, (mean_stride_px / 120.0) * 0.42))
-        calibrated_stride_cm = round(stature * stride_ratio, 1)
+        # Calibrated stride in cm (only compute if genuine height measurement exists)
+        if estimated_height_cm and estimated_height_cm >= 120.0:
+            stature = min(220.0, float(estimated_height_cm))
+            stride_ratio = max(0.2, min(0.6, (mean_stride_px / 120.0) * 0.42))
+            calibrated_stride_cm = round(stature * stride_ratio, 1)
+        else:
+            calibrated_stride_cm = 0.0
 
         # 1. Stride frequency / Cadence calculation
         diffs = np.diff(stride_arr)

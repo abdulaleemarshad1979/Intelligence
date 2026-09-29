@@ -9,7 +9,10 @@ Supports:
 
 import os
 import cv2
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 import numpy as np
 from typing import List, Dict, Any, Optional
 from app.adapters.base import DetectionResult
@@ -19,9 +22,9 @@ from app.detection.person_detector import PersonDetector
 
 def get_default_device() -> str:
     """Determine the optimal hardware accelerator available."""
-    if torch.cuda.is_available():
+    if torch is not None and torch.cuda.is_available():
         return "cuda"
-    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+    if torch is not None and hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         return "mps"
     return "cpu"
 

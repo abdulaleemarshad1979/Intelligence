@@ -3845,42 +3845,39 @@
         if (keys.length > 0) alertData = window._activeNotificationsMap[keys[0]];
       }
 
-      currentActiveAlert = alertData || {
-        alert_id: "ALT-2026-AP-7711",
-        camera_id: "CAM-001",
-        confidence: 0.785,
-        suspect_name: "John",
-        fir_no: "FIR-2026-AP-0194",
-        probe_photo: "/data/targets/TGT-15ED13E9_reference.jpg",
-        raw_detection_crop: "/api/camera/CAM-001/frame?quality=95",
-        enhanced_detection_crop: "/api/camera/CAM-001/frame?quality=95",
-        biometric_comparison: {
-          estimated_height_cm: 174.0,
-          known_height_cm: 174.0,
-          height_delta_cm: 0.0,
-          track_stride_cm: 66.0,
-          suspect_stride_cm: 66.0,
-          track_carried_objects: ["patterned attire"],
-          suspect_carried_objects: ["patterned attire"]
-        },
-        scores: {
-          height_score: 0.971,
-          gait_score: 0.942,
-          body_score: 0.885,
-          face_score: 0.785
-        }
-      };
+      if (!alertData) {
+        alertData = {
+          alert_id: "ALT-PENDING-REVIEW",
+          camera_id: "CAM-001",
+          confidence: 0.0,
+          suspect_name: "Candidate Subject",
+          fir_no: "—",
+          probe_photo: "",
+          raw_detection_crop: "",
+          enhanced_detection_crop: "",
+          biometric_comparison: {},
+          scores: {}
+        };
+      }
+      currentActiveAlert = alertData;
 
       const m = document.getElementById("officerConfirmModal");
       if (!m) return;
 
       const altId = currentActiveAlert.alert_id || "ALT-001";
       document.getElementById("confAlertId").textContent = altId;
-      document.getElementById("confCameraLocation").textContent = `${currentActiveAlert.camera_id || "CAM-001"} — Public Corridor Feed`;
-      document.getElementById("confConfidenceBadge").textContent = `${Math.round((currentActiveAlert.confidence || 0.75) * 100)}% CONFIDENCE`;
+      document.getElementById("confCameraLocation").textContent = `${currentActiveAlert.camera_id || "CAM-001"} — Monitored Feed`;
+      const confVal = Math.round((currentActiveAlert.confidence || 0.0) * 100);
+      const confBadge = document.getElementById("confConfidenceBadge");
+      confBadge.textContent = `${confVal}% CONFIDENCE`;
+      if (confVal < 50) {
+        confBadge.style.background = "#d97706";
+      } else {
+        confBadge.style.background = "#e11d48";
+      }
 
-      document.getElementById("confProbeFir").textContent = currentActiveAlert.fir_no || "FIR-2026-AP-0194";
-      document.getElementById("confSuspectName").textContent = currentActiveAlert.suspect_name || "John";
+      document.getElementById("confProbeFir").textContent = currentActiveAlert.fir_no || "—";
+      document.getElementById("confSuspectName").textContent = currentActiveAlert.suspect_name || "Candidate Under Verification";
 
       // Robust probe photo resolution from enrolled suspect database
       let probeSrc = currentActiveAlert.probe_photo || currentActiveAlert.enhanced_probe_photo;
@@ -3892,36 +3889,50 @@
         }
       }
 
-      // Robust detection crop resolution from live CCTV stream or saved capture
-      let detSrc = currentActiveAlert.enhanced_detection_crop || currentActiveAlert.raw_detection_crop;
-      if (!detSrc || detSrc.includes("placeholder.jpg")) {
-        detSrc = `/api/camera/${encodeURIComponent(currentActiveAlert.camera_id || 'CAM-001')}/frame?quality=95&_t=${Date.now()}`;
+      // Detection crop resolution: DO NOT fetch live stream frame if crop is missing or fails
+      let detSrc = currentActiveAlert.enhanced_detection_crop || currentActiveAlert.raw_detection_crop || currentActiveAlert.person_crop_url || currentActiveAlert.face_crop_url;
+      if (!detSrc) {
+        detSrc = "/frontend/assets/placeholder.jpg";
       }
 
       const probeImg = document.getElementById("confProbeImg");
       const detImg = document.getElementById("confDetectionImg");
       if (probeImg) {
         probeImg.src = probeSrc;
-        probeImg.onerror = () => { probeImg.src = "/data/targets/TGT-15ED13E9_reference.jpg"; };
+        probeImg.onerror = () => { probeImg.src = "/frontend/assets/placeholder.jpg"; };
       }
       if (detImg) {
         detImg.src = detSrc;
-        detImg.onerror = () => { detImg.src = `/api/camera/CAM-001/frame?quality=95`; };
+        detImg.onerror = () => { detImg.src = "/frontend/assets/placeholder.jpg"; };
       }
 
       const bio = currentActiveAlert.biometric_comparison || {};
       const scores = currentActiveAlert.scores || {};
 
-      document.getElementById("tdLiveHeight").textContent = `${bio.estimated_height_cm || 174} cm`;
-      document.getElementById("tdKnownHeight").textContent = `${bio.known_height_cm || 174} cm`;
-      document.getElementById("tdHeightScore").textContent = `${Math.round((scores.height_score || 0.96) * 100)}%`;
+      const estH = bio.estimated_height_cm;
+      const knwH = bio.known_height_cm;
+      document.getElementById("tdLiveHeight").textContent = estH ? `${estH} cm` : "— (Not Measured)";
+      document.getElementById("tdKnownHeight").textContent = knwH ? `${knwH} cm` : "—";
+      document.getElementById("tdHeightScore").textContent = scores.height_score != null ? `${Math.round(scores.height_score * 100)}%` : "— (Excluded)";
 
-      document.getElementById("tdLiveGait").textContent = `Stride ${bio.track_stride_cm || 66}cm, Cadence Normal`;
-      document.getElementById("tdKnownGait").textContent = `Stride ${bio.suspect_stride_cm || 66}cm, Kinematics Matched`;
-      document.getElementById("tdGaitScore").textContent = `${Math.round((scores.gait_score || 0.94) * 100)}%`;
+      const trkStride = bio.track_stride_cm;
+      const suspStride = bio.suspect_stride_cm;
+      document.getElementById("tdLiveGait").textContent = trkStride ? `Stride ${trkStride}cm` : "— (No Gait Signal)";
+      document.getElementById("tdKnownGait").textContent = suspStride ? `Stride ${suspStride}cm` : "—";
+      document.getElementById("tdGaitScore").textContent = scores.gait_score != null ? `${Math.round(scores.gait_score * 100)}%` : "— (Excluded)";
 
-      document.getElementById("tdBodyScore").textContent = `${Math.round((scores.body_score || 0.88) * 100)}%`;
-      document.getElementById("tdFaceScore").textContent = scores.face_score > 0 ? `${Math.round(scores.face_score * 100)}%` : "N/A (Shifted to Gait & Re-ID)";
+      document.getElementById("tdBodyScore").textContent = scores.body_score != null ? `${Math.round(scores.body_score * 100)}%` : "— (Excluded)";
+      document.getElementById("tdFaceScore").textContent = (scores.face_score != null && scores.face_score > 0) ? `${Math.round(scores.face_score * 100)}%` : "N/A (Face Occluded / Shifted)";
+
+      // Update meta under images
+      const confEstH = document.getElementById("confEstHeight");
+      if (confEstH) confEstH.textContent = estH ? `${estH} cm` : "N/A";
+      const confGait = document.getElementById("confGaitMatch");
+      if (confGait) confGait.textContent = scores.gait_score != null ? `${Math.round(scores.gait_score * 100)}%` : "N/A";
+      const confKnwH = document.getElementById("confKnownHeight");
+      if (confKnwH) confKnwH.textContent = knwH ? `${knwH} cm` : "—";
+      const confBag = document.getElementById("confSuspectBag");
+      if (confBag) confBag.textContent = (bio.suspect_carried_objects && bio.suspect_carried_objects.length > 0) ? bio.suspect_carried_objects.join(", ") : "—";
 
       document.getElementById("bsaCertContainer").classList.add("hidden");
       m.classList.remove("hidden");
@@ -4468,10 +4479,10 @@
       <div class="police-modal-body">
         <div style="background: #fff1f2; border: 1px solid #fecdd3; padding: 10px 14px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <span style="font-weight: 800; color: #9f1239; font-size: 13px;" id="confAlertId">ALT-2026-AP-7711</span>
-            <span style="font-size: 11px; color: #be123c; margin-left: 8px;" id="confCameraLocation">CAM 1 — District Hospital North Wing</span>
+            <span style="font-weight: 800; color: #9f1239; font-size: 13px;" id="confAlertId">ALT-PENDING-REVIEW</span>
+            <span style="font-size: 11px; color: #be123c; margin-left: 8px;" id="confCameraLocation">CAM-001 — Monitored Feed</span>
           </div>
-          <span style="font-size: 11px; font-weight: 800; background: #e11d48; color: #fff; padding: 3px 8px; border-radius: 9999px;" id="confConfidenceBadge">78.5% CONFIDENCE</span>
+          <span style="font-size: 11px; font-weight: 800; background: #e11d48; color: #fff; padding: 3px 8px; border-radius: 9999px;" id="confConfidenceBadge">—% CONFIDENCE</span>
         </div>
 
         <!-- Side-by-Side Probe vs CCTV Detection Crop -->
@@ -4479,14 +4490,14 @@
           <div class="compare-box">
             <div class="compare-box-title">
               <span>Probe Photo (Database Record)</span>
-              <span id="confProbeFir" style="color: #64748b; font-size: 10px;">FIR-2026-AP-0194</span>
+              <span id="confProbeFir" style="color: #64748b; font-size: 10px;">—</span>
             </div>
             <div class="compare-img-wrap" style="background: #0f172a; position: relative;">
-              <img id="confProbeImg" src="/data/targets/TGT-15ED13E9_reference.jpg" class="compare-img" alt="Probe Photo" onerror="this.src='/data/targets/TGT-15ED13E9_reference.jpg'">
+              <img id="confProbeImg" src="/frontend/assets/placeholder.jpg" class="compare-img" alt="Probe Photo" onerror="this.src='/frontend/assets/placeholder.jpg'">
             </div>
             <div style="font-size: 11px; color: #334155;" id="confProbeMeta">
-              <strong>Suspect:</strong> <span id="confSuspectName">John</span><br>
-              <strong>Known Height:</strong> <span id="confKnownHeight">174 cm</span> | <strong>Attire:</strong> <span id="confSuspectBag">Patterned Kurti / Dress</span>
+              <strong>Suspect:</strong> <span id="confSuspectName">Candidate Subject</span><br>
+              <strong>Known Height:</strong> <span id="confKnownHeight">—</span> | <strong>Attire:</strong> <span id="confSuspectBag">—</span>
             </div>
           </div>
 
@@ -4504,11 +4515,11 @@
               </div>
             </div>
             <div class="compare-img-wrap" style="background: #0f172a; position: relative; overflow: hidden;">
-              <img id="confDetectionImg" src="/api/camera/CAM-001/frame?quality=95" class="compare-img" alt="CCTV Crop" style="transition: transform 0.2s ease, filter 0.2s ease; transform-origin: center 25%;" onerror="this.src='/api/camera/CAM-001/frame?quality=95'">
+              <img id="confDetectionImg" src="/frontend/assets/placeholder.jpg" class="compare-img" alt="CCTV Crop" style="transition: transform 0.2s ease, filter 0.2s ease; transform-origin: center 25%;" onerror="this.src='/frontend/assets/placeholder.jpg'">
             </div>
             <div style="font-size: 11px; color: #334155;" id="confDetectionMeta">
-              <strong>Detected:</strong> <span id="confTrackMeta">Track on CAM 1</span><br>
-              <strong>Est. Height:</strong> <span id="confEstHeight">174.0 cm</span> | <strong>Gait Match:</strong> <span id="confGaitMatch">94.2%</span>
+              <strong>Detected:</strong> <span id="confTrackMeta">Track Observation</span><br>
+              <strong>Est. Height:</strong> <span id="confEstHeight">—</span> | <strong>Gait Match:</strong> <span id="confGaitMatch">—</span>
             </div>
           </div>
         </div>
@@ -4517,8 +4528,8 @@
         <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; margin: 12px 0; font-size: 11.5px; color: #1e40af; display: flex; align-items: flex-start; gap: 8px;">
           <span style="font-size: 18px; line-height: 1;">ℹ️</span>
           <div>
-            <strong>High-Angle Surveillance Perception Notice:</strong>
-            When subject is distant (~15–20m) or viewed from an elevated ~45° CCTV angle where facial pixels are small or angled, the AI system automatically shifts biometric weighting to <strong>Exo-Skeleton Walking Gait Kinematics (94.2%)</strong>, <strong>Homographic Calibrated Height (174cm)</strong>, and <strong>Clothing Pattern Re-ID (88.5%)</strong> to maintain positive identification. Use <em>[2x] / [4x]</em> or <em>✨ Shadow & Detail Boost</em> to clarify facial contours.
+            <strong>Candidate Verification Protocol (Section 3 Guardrail):</strong>
+            Multi-modal biometric fusion only evaluates modalities with genuine sensor detection. Missing signals are excluded from candidate ranking and never assumed to match. When face biometrics are occluded or unavailable, candidate confidence is strictly capped (max 0.45) and mandatory human officer verification is required before action.
           </div>
         </div>
 
@@ -4536,31 +4547,31 @@
           <tbody id="confBiometricTableBody">
             <tr>
               <td><strong>Calibrated Height</strong></td>
-              <td id="tdLiveHeight">178.4 cm</td>
-              <td id="tdKnownHeight">178.0 cm</td>
-              <td id="tdHeightScore">97.1%</td>
-              <td><span style="color:#15803d; font-weight:700;">✓ MATCH (Δ &lt; 2cm)</span></td>
+              <td id="tdLiveHeight">—</td>
+              <td id="tdKnownHeight">—</td>
+              <td id="tdHeightScore">—</td>
+              <td><span style="color:#64748b; font-weight:700;" id="tdHeightStatus">—</span></td>
             </tr>
             <tr>
               <td><strong>Gait & Posture Dynamics</strong></td>
-              <td id="tdLiveGait">Stride 68cm, Tilt 3.8°</td>
-              <td id="tdKnownGait">Stride 68cm, Tilt 3.5°</td>
-              <td id="tdGaitScore">91.5%</td>
-              <td><span style="color:#15803d; font-weight:700;">✓ KINEMATICS PASSED</span></td>
+              <td id="tdLiveGait">—</td>
+              <td id="tdKnownGait">—</td>
+              <td id="tdGaitScore">—</td>
+              <td><span style="color:#64748b; font-weight:700;" id="tdGaitStatus">—</span></td>
             </tr>
             <tr>
               <td><strong>Body & Carried Objects</strong></td>
-              <td id="tdLiveBody">Dark Attire + Backpack</td>
-              <td id="tdKnownBody">#121826 + Backpack</td>
-              <td id="tdBodyScore">88.2%</td>
-              <td><span style="color:#15803d; font-weight:700;">✓ PAR MATCH</span></td>
+              <td id="tdLiveBody">—</td>
+              <td id="tdKnownBody">—</td>
+              <td id="tdBodyScore">—</td>
+              <td><span style="color:#64748b; font-weight:700;" id="tdBodyStatus">—</span></td>
             </tr>
             <tr>
-              <td><strong>Facial ArcFace (FRS)</strong></td>
-              <td id="tdLiveFace">Face Masked / Occluded</td>
-              <td id="tdKnownFace">ArcFace 512D Profile</td>
-              <td id="tdFaceScore">N/A (Shifted)</td>
-              <td><span style="color:#b45309; font-weight:700;">⚠ WEIGHT SHIFTED</span></td>
+              <td><strong>Facial Biometrics (YuNet / ArcFace)</strong></td>
+              <td id="tdLiveFace">—</td>
+              <td id="tdKnownFace">—</td>
+              <td id="tdFaceScore">—</td>
+              <td><span style="color:#64748b; font-weight:700;" id="tdFaceStatus">—</span></td>
             </tr>
           </tbody>
         </table>
@@ -4573,7 +4584,7 @@
           <div class="form-grid-3">
             <div class="form-group">
               <label class="form-label">Verifying Officer</label>
-              <input type="text" id="officerName" class="form-input" value="Inspector K. Sitarama Raju">
+              <input type="text" id="officerName" class="form-input" value="Duty Desk Officer">
             </div>
             <div class="form-group">
               <label class="form-label">Badge / General No.</label>
@@ -4581,12 +4592,12 @@
             </div>
             <div class="form-group">
               <label class="form-label">Police Station</label>
-              <input type="text" id="officerPs" class="form-input" value="Rajahmundry Central PS">
+              <input type="text" id="officerPs" class="form-input" value="District Central PS">
             </div>
           </div>
           <div class="form-group" style="margin-top: 8px;">
             <label class="form-label">Forensic Notes / Observation Confirmation</label>
-            <input type="text" id="officerNotes" class="form-input" value="Verified gait characteristics, height 178cm, and black backpack. Candidate confirmed.">
+            <input type="text" id="officerNotes" class="form-input" value="Visual verification completed. Candidate reviewed against probe database profile.">
           </div>
         </div>
 
@@ -4598,11 +4609,14 @@
       </div>
 
       <div class="police-modal-footer">
-        <button type="button" onclick="submitOfficerConfirmation('REJECTED_SUPPRESSED')" class="btn" style="background:#fecdd3; color:#be123c; border:1px solid #fda4af;">
-          Reject Candidate (Humility Veto)
+        <button type="button" onclick="submitOfficerConfirmation('REJECTED_FALSE_ALARM')" class="btn" style="background:#fecdd3; color:#be123c; border:1px solid #fda4af;">
+          ✕ Not the Person / False Alarm (Humility Veto)
         </button>
-        <button type="button" onclick="submitOfficerConfirmation('CONFIRMED_MATCH')" class="btn" style="background:#15803d; color:#ffffff; font-weight:700;">
-          Confirm Match & Dispatch Intercept (Sec 63 BSA)
+        <button type="button" onclick="submitOfficerConfirmation('INCONCLUSIVE')" class="btn" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">
+          ⚠ Inconclusive / Insufficient Evidence
+        </button>
+        <button type="button" id="btnConfirmCandidate" onclick="submitOfficerConfirmation('CONFIRMED_MATCH')" class="btn" style="background:#15803d; color:#ffffff; font-weight:700;">
+          ✓ Candidate Resembles Reference (Confirm Candidate)
         </button>
       </div>
     </div>

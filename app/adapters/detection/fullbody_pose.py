@@ -11,7 +11,10 @@ Supports YOLO11-Pose (yolo11x-pose, yolo11l-pose, yolo11n-pose) and YOLOv8-Pose 
 
 import os
 import cv2
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
 from app.adapters.base import DetectionResult
@@ -27,9 +30,9 @@ COCO_KEYPOINT_NAMES = [
 
 
 def get_default_device() -> str:
-    if torch.cuda.is_available():
+    if torch is not None and torch.cuda.is_available():
         return "cuda"
-    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+    if torch is not None and hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         return "mps"
     return "cpu"
 

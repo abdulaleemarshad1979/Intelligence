@@ -278,7 +278,7 @@ class LiveFaceWatcher:
 
         for f in frame_faces:
             score = f.get("score", 0.0)
-            if score < 0.20:
+            if score < 0.45:
                 continue
 
             bx, by, bw, bh = [int(v) for v in f["bbox"]]
@@ -288,7 +288,7 @@ class LiveFaceWatcher:
                 continue
 
             face_crop = frame[by1:by2, bx1:bx2]
-            if min(face_crop.shape[:2]) < 10:
+            if min(face_crop.shape[:2]) < 20:
                 continue
 
             # Associate with YOLO person detection if available
@@ -302,11 +302,7 @@ class LiveFaceWatcher:
                             matched_body_bbox = [px, py, pw, ph]
                             break
 
-            if not matched_body_bbox:
-                body_h = min(h - by1, int(bh * 4.5))
-                body_w = min(w, int(bw * 2.2))
-                b_x = max(0, bx1 - int(bw * 0.6))
-                matched_body_bbox = [b_x, by1, body_w, body_h]
+            # Never fabricate synthetic body bounding boxes when no genuine person detection exists
 
             align_ref = f.get("raw_detection") if f.get("raw_detection") is not None else f.get("landmarks")
             if f.get("is_head_crop") and f.get("head_img") is not None:
@@ -510,9 +506,9 @@ class LiveFaceWatcher:
             cy_z = int((center_y - zy1) * scale_y)
             cv2.circle(zoom_frame, (cx_z, cy_z), 38, (0, 0, 255), 2)
 
-        # High-tech HUD OSD Header
+        # High-tech HUD OSD Header (Plain ASCII to avoid ???? unicode artifacts in cv2.putText)
         cv2.rectangle(zoom_frame, (0, 0), (w_f, 38), (15, 23, 42), -1)
-        hud_txt = f"🎯 FACE AUTO-ZOOM 3.2X | SUSPECT: {target['name'].upper()} ({round(float(similarity)*100, 1)}%) | {camera_id}"
+        hud_txt = f"[TARGET] FACE AUTO-ZOOM 3.2X | CANDIDATE: {target['name'].upper()} ({round(float(similarity)*100, 1)}%) | {camera_id}"
         cv2.putText(zoom_frame, hud_txt, (14, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.50, (0, 220, 255), 2)
         cv2.putText(zoom_frame, f"FACE SHOWN: {ts_str}", (w_f - 240, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (0, 255, 0), 1)
 
@@ -527,6 +523,7 @@ class LiveFaceWatcher:
 
         alert_id = f"ALT-FACE-{uuid.uuid4().hex[:8].upper()}"
 
+        crop_url = f"/data/captures/{body_filename}" if body_filename else f"/data/captures/{face_filename}"
         capture_rec = {
             "alert_id": alert_id,
             "target_id": target["target_id"],
@@ -544,10 +541,10 @@ class LiveFaceWatcher:
             "zoomed_cam_path": zoom_cam_path,
             "full_frame_url": f"/data/captures/{full_filename}",
             "face_crop_url": f"/data/captures/{face_filename}",
-            "person_crop_url": f"/data/captures/{body_filename}" if body_filename else f"/data/captures/{face_filename}",
+            "person_crop_url": crop_url,
             "zoomed_cam_url": f"/data/captures/{zoom_cam_filename}",
-            "body_crop_url": f"/data/captures/{zoom_cam_filename}",
-            "raw_detection_crop": f"/data/captures/{zoom_cam_filename}",
+            "body_crop_url": crop_url,
+            "raw_detection_crop": crop_url,
             "raw_frame_hash": full_hash,
             "face_crop_hash": face_hash,
             "zoomed_cam_hash": zoom_hash,
@@ -569,17 +566,21 @@ class LiveFaceWatcher:
             from app.api.routes_alerts import ACTIVE_ALERTS
             target = self.targets.get(capture_event.get("target_id"), {})
             probe_photo = target.get("reference_url") or f"/data/targets/{capture_event['target_id']}_reference.jpg"
-            det_crop = capture_event.get("body_crop_url") or capture_event.get("face_crop_url") or capture_event.get("full_frame_url")
+            det_crop = capture_event.get("person_crop_url") or capture_event.get("face_crop_url") or capture_event.get("full_frame_url")
             face_crop = capture_event.get("face_crop_url") or det_crop
+
+            conf_val = round(float(capture_event.get("confidence", 0.0)), 4)
+            tier_val = "TIER_1_HIGH_CONFIDENCE" if conf_val >= 0.78 else "TIER_2_REVIEW_REQUIRED"
+
             active_alert_entry = {
                 "alert_id": capture_event["alert_id"],
                 "incident_id": f"INC-FACE-{capture_event['target_id']}",
                 "camera_id": capture_event["camera_id"],
                 "timestamp": capture_event["timestamp"],
-                "confidence": capture_event["confidence"],
-                "similarity_pct": capture_event.get("similarity_pct", 85.0),
-                "tier": "TIER_1_HIGH_CONFIDENCE",
-                "suspect_name": capture_event["target_name"],
+                "confidence": conf_val,
+                "similarity_pct": capture_event.get("similarity_pct", round(conf_val * 100, 1)),
+                "tier": tier_val,
+                "suspect_name": capture_event.get("target_name", "Target Subject"),
                 "suspect_id": capture_event.get("target_id", "TGT-001"),
                 "fir_no": f"WATCH-{capture_event['target_id']}",
                 "ps_code": "LIVE-FACE-RECOGNITION",
@@ -596,21 +597,20 @@ class LiveFaceWatcher:
                 "full_frame_url": capture_event["full_frame_url"],
                 "face_bbox": capture_event.get("face_bbox"),
                 "body_bbox": capture_event.get("body_bbox"),
-                "full_frame_url": capture_event["full_frame_url"],
                 "scores": {
-                    "height_score": 0.965,
-                    "gait_score": 0.942,
-                    "body_score": 0.885,
-                    "face_score": round(float(capture_event["confidence"]), 2)
+                    "height_score": None,
+                    "gait_score": None,
+                    "body_score": None,
+                    "face_score": round(conf_val, 3)
                 },
                 "biometric_comparison": {
-                    "estimated_height_cm": 174.0,
-                    "known_height_cm": 174.0,
-                    "height_delta_cm": 0.0,
-                    "track_stride_cm": 66.0,
-                    "suspect_stride_cm": 66.0,
-                    "track_carried_objects": ["bag"],
-                    "suspect_carried_objects": ["bag"]
+                    "estimated_height_cm": None,
+                    "known_height_cm": target.get("known_height_cm"),
+                    "height_delta_cm": None,
+                    "track_stride_cm": None,
+                    "suspect_stride_cm": target.get("stride_length_cm"),
+                    "track_carried_objects": [],
+                    "suspect_carried_objects": target.get("carried_objects", []) or []
                 }
             }
             ACTIVE_ALERTS.insert(0, active_alert_entry)

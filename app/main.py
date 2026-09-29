@@ -1674,7 +1674,12 @@ async def confirm_officer_alert(payload: OfficerConfirmPayload):
         }
         ACTIVE_ALERTS.insert(0, alert)
 
-    decision_status = "CONFIRMED_DISPATCH" if payload.decision == "CONFIRMED_MATCH" else "REJECTED_FALSE_ALARM"
+    if payload.decision == "CONFIRMED_MATCH":
+        decision_status = "CONFIRMED_DISPATCH"
+    elif payload.decision == "INCONCLUSIVE":
+        decision_status = "INCONCLUSIVE_FLAGGED"
+    else:
+        decision_status = "REJECTED_FALSE_ALARM"
     alert["status"] = decision_status
     alert["officer_confirmation"] = {
         "officer_name": payload.officer_name,

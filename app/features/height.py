@@ -52,7 +52,17 @@ class HeightEstimator:
         x1, y1, x2, y2 = box
         foot_y = float(y2)
         head_y = float(y1)
-        h_px = max(1.0, foot_y - head_y)
+        h_px = max(0.0, foot_y - head_y)
+        w_px = max(0.0, float(x2 - x1))
+
+        if h_px < 35 or w_px < 12:
+            return {
+                "estimated_height_cm": None,
+                "raw_pixel_height": int(h_px),
+                "ground_distance_m": 0.0,
+                "confidence": 0.0,
+                "method": "UNRELIABLE_DETECTION"
+            }
 
         # 1. High-Precision SolvePnP Ray-Intersection Mode (if calibration loaded)
         if self.calibration is not None and solvepnp_estimate_height_cm is not None:
@@ -61,15 +71,16 @@ class HeightEstimator:
                 h_pt = head_px if head_px is not None else ((x1 + x2) / 2.0, head_y)
                 h_cm = solvepnp_estimate_height_cm(f_pt, h_pt, self.calibration)
                 gx, gy = ground_position_m(f_pt, self.calibration) if ground_position_m else (0.0, 0.0)
-                bounded_h_cm = round(max(140.0, min(210.0, h_cm)), 1)
-                return {
-                    "estimated_height_cm": bounded_h_cm,
-                    "raw_pixel_height": int(h_px),
-                    "ground_distance_m": round(math.hypot(gx, gy), 2),
-                    "ground_position_m": (round(gx, 2), round(gy, 2)),
-                    "confidence": 0.95,
-                    "method": "SOLVEPNP_RAY_INTERSECTION"
-                }
+                if 120.0 <= h_cm <= 220.0:
+                    bounded_h_cm = round(h_cm, 1)
+                    return {
+                        "estimated_height_cm": bounded_h_cm,
+                        "raw_pixel_height": int(h_px),
+                        "ground_distance_m": round(math.hypot(gx, gy), 2),
+                        "ground_position_m": (round(gx, 2), round(gy, 2)),
+                        "confidence": 0.95,
+                        "method": "SOLVEPNP_RAY_INTERSECTION"
+                    }
             except Exception:
                 pass
 
@@ -94,8 +105,17 @@ class HeightEstimator:
         # Apply empirical CCTV floor-plane normalization factor for typical human stature (150 - 195 cm)
         h_cm = h_real_m * 100.0 * 0.88
 
-        # Bound to realistic adult human height range
-        bounded_h_cm = round(max(150.0, min(195.0, h_cm)), 1)
+        # Only report height if measurement falls within realistic human bounds
+        if h_cm < 120.0 or h_cm > 220.0:
+            return {
+                "estimated_height_cm": None,
+                "raw_pixel_height": int(h_px),
+                "ground_distance_m": round(ground_distance_m, 2),
+                "confidence": 0.0,
+                "method": "OUT_OF_BOUNDS_ESTIMATION"
+            }
+
+        bounded_h_cm = round(h_cm, 1)
 
         # Quality/confidence based on bounding box size and central placement
         confidence = 0.85 if h_px > 120 else (0.65 if h_px > 70 else 0.45)

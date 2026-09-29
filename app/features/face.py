@@ -1,5 +1,6 @@
 """Face detection and 3-Tier Partition (Upper, Mid, Lower) module for partial-face CCTV intelligence."""
 
+import os
 import cv2
 import numpy as np
 from typing import Dict, Any, Tuple, Optional, List
@@ -7,9 +8,10 @@ from typing import Dict, Any, Tuple, Optional, List
 class FaceAnalyzer:
     def __init__(self):
         # Load Haar cascades as reliable, ultra-fast CPU fallback for face and eye detection
-        self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        self.profile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_profileface.xml')
-        self.eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+        haar_dir = getattr(getattr(cv2, 'data', None), 'haarcascades', '/usr/share/opencv4/haarcascades/')
+        self.face_cascade = cv2.CascadeClassifier(os.path.join(haar_dir, 'haarcascade_frontalface_default.xml'))
+        self.profile_cascade = cv2.CascadeClassifier(os.path.join(haar_dir, 'haarcascade_profileface.xml'))
+        self.eye_cascade = cv2.CascadeClassifier(os.path.join(haar_dir, 'haarcascade_eye.xml'))
 
     def analyze_person_crop(self, person_crop: np.ndarray) -> Dict[str, Any]:
         """Analyzes a person crop to locate head/face and decompose into 3 tiers."""
@@ -32,9 +34,17 @@ class FaceAnalyzer:
         gray_head = cv2.cvtColor(head_crop, cv2.COLOR_BGR2GRAY)
 
         # 1. Check for frontal/profile face detection
-        faces = self.face_cascade.detectMultiScale(gray_head, scaleFactor=1.1, minNeighbors=3, minSize=(20, 20))
-        if len(faces) == 0:
-            faces = self.profile_cascade.detectMultiScale(gray_head, scaleFactor=1.1, minNeighbors=3, minSize=(20, 20))
+        faces = ()
+        if not self.face_cascade.empty():
+            try:
+                faces = self.face_cascade.detectMultiScale(gray_head, scaleFactor=1.1, minNeighbors=3, minSize=(20, 20))
+            except Exception:
+                faces = ()
+        if len(faces) == 0 and not self.profile_cascade.empty():
+            try:
+                faces = self.profile_cascade.detectMultiScale(gray_head, scaleFactor=1.1, minNeighbors=3, minSize=(20, 20))
+            except Exception:
+                faces = ()
 
         if len(faces) > 0:
             fx, fy, fw, fh = faces[0]
