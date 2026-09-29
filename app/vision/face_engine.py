@@ -28,8 +28,8 @@ CANONICAL_5_POINTS = np.array([
 class FaceBiometricEngine:
     """YuNet detector with ArcFace / SFace / AdaFace feature extraction and quality gating."""
 
-    MIN_FACE_RESOLUTION = 24      # Gating threshold: crops below 24x24 px are marked unviable
-    MIN_LAPLACIAN_VAR = 35.0      # Gating threshold: low Laplacian variance indicates motion blur
+    MIN_FACE_RESOLUTION = 12      # Gating threshold: crops below 12x12 px are marked unviable (calibrated for CCTV surveillance)
+    MIN_LAPLACIAN_VAR = 20.0      # Gating threshold: low Laplacian variance indicates motion blur
     MIN_BRIGHTNESS = 15.0         # Under-exposure gate
     MAX_BRIGHTNESS = 245.0        # Over-exposure gate
     MIN_CONTRAST = 8.0            # Minimum standard deviation in pixel intensity
@@ -202,7 +202,7 @@ class FaceBiometricEngine:
                 try:
                     self.yunet_detector.setInputSize((w, h))
                     _, faces = self.yunet_detector.detect(frame)
-                    if faces is not None:
+                    if faces is not None and len(faces) > 0:
                         results = []
                         for f in faces:
                             box = [float(f[0]), float(f[1]), float(f[2]), float(f[3])]
@@ -239,11 +239,17 @@ class FaceBiometricEngine:
                                 "is_viable": q_assessment["is_viable"] and (score >= self.conf_threshold)
                             })
                         return results
+                    else:
+                        # Full surveillance frames with no faces should return empty, not hallucinate contours
+                        if max(w, h) >= 150:
+                            return []
                 except Exception as ex:
                     logger.debug(f"YuNet detect error: {ex}")
 
-            # Fallback: locate face region in upper pedestrian silhouette
-            return self._heuristic_face_detection(frame)
+            # Fallback only for small candidate crops / avatars
+            if max(w, h) < 150:
+                return self._heuristic_face_detection(frame)
+            return []
 
     def _heuristic_face_detection(self, frame: np.ndarray) -> List[Dict[str, Any]]:
         h, w = frame.shape[:2]
@@ -360,7 +366,18 @@ class FaceBiometricEngine:
             except Exception as ex:
                 logger.debug(f"5-point affine alignment fallback: {ex}")
 
-            # Direct resize fallback
+            # Direct resize fallback on cropped face region if bounding box is known
+            try:
+                if isinstance(landmarks_or_raw, (np.ndarray, list)) and len(landmarks_or_raw) >= 4:
+                    bx, by, bw, bh = [int(v) for v in landmarks_or_raw[:4]]
+                    h, w = frame.shape[:2]
+                    bx1, by1 = max(0, bx), max(0, by)
+                    bx2, by2 = min(w, bx + bw), min(h, by + bh)
+                    if bx2 > bx1 and by2 > by1:
+                        return cv2.resize(frame[by1:by2, bx1:bx2], output_size)
+            except Exception:
+                pass
+
             return cv2.resize(frame, output_size)
 
     def extract_face_embedding(
@@ -380,7 +397,7 @@ class FaceBiometricEngine:
             return False, np.zeros(self.embedding_dim, dtype=np.float32)
 
         h, w = face_crop.shape[:2]
-        if min(h, w) < self.MIN_FACE_RESOLUTION:
+        if min(h, w) < 10:
             return False, np.zeros(self.embedding_dim, dtype=np.float32)
 
         # Quality gating check when strict mode is requested

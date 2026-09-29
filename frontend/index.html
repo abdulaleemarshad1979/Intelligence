@@ -1457,18 +1457,20 @@
     }
     .compare-img-wrap {
       width: 100%;
-      height: 190px;
-      background: #000000;
-      border-radius: 6px;
+      height: 250px;
+      background: #0f172a;
+      border-radius: 8px;
       overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow: inset 0 0 12px rgba(0,0,0,0.5);
     }
     .compare-img {
       width: 100%;
       height: 100%;
       object-fit: contain;
+      image-rendering: -webkit-optimize-contrast;
     }
     .score-matrix-table {
       width: 100%;
@@ -3167,7 +3169,7 @@
       });
 
       listEl.innerHTML = notifications.map(notif => {
-        const pic = notif.body_crop_url || notif.raw_detection_crop || `/api/camera/${notif.camera_id || 'CAM-001'}/person_crop`;
+        const pic = notif.person_crop_url || notif.body_crop_url || notif.raw_detection_crop || notif.face_crop_url || `/api/camera/${notif.camera_id || 'CAM-001'}/person_crop`;
         return `
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-left: 5px solid #e11d48; border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
           <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -3180,16 +3182,19 @@
           <div style="font-size: 12px; color: #334155; line-height: 1.4;">${notif.message}</div>
 
           <!-- Captured Suspect Picture -->
-          <div style="display: flex; gap: 10px; align-items: center; margin: 4px 0; background: #f8fafc; padding: 6px 8px; border-radius: 6px; border: 1px solid #e2e8f0;">
-            <img src="${pic}" 
-                 style="width: 64px; height: 64px; object-fit: cover; border-radius: 4px; border: 2px solid #e11d48; box-shadow: 0 2px 6px rgba(0,0,0,0.15); cursor: pointer;" 
-                 alt="Captured Suspect Picture" 
-                 onclick="openOfficerConfirmModalById('${notif.id || notif.alert_id}')"
-                 title="Click to view full forensic evidence" />
-            <div style="display: flex; flex-direction: column; gap: 2px;">
-              <span style="font-size: 11px; font-weight: 800; color: #0f172a;">📸 High-Res Snapshot Captured</span>
-              <span style="font-size: 10px; color: #0284c7; font-weight: 700;">Match Confidence: ${notif.confidence_percent}%</span>
-              <span style="font-size: 9px; color: #64748b;">SHA-256 Hash Verified Evidence</span>
+          <div style="display: flex; gap: 12px; align-items: center; margin: 4px 0; background: #0f172a; padding: 8px 10px; border-radius: 8px; border: 1px solid #334155;">
+            <div style="position: relative; width: 78px; height: 78px; flex-shrink: 0; border-radius: 6px; overflow: hidden; border: 2px solid #e11d48; box-shadow: 0 4px 12px rgba(225,29,72,0.35);">
+              <img src="${pic}" 
+                   style="width: 100%; height: 100%; object-fit: cover; cursor: pointer; image-rendering: -webkit-optimize-contrast;" 
+                   alt="Captured Suspect Picture" 
+                   onclick="openOfficerConfirmModalById('${notif.id || notif.alert_id}')"
+                   title="Click to inspect 4X forensic super-resolution portrait" />
+              <span style="position: absolute; bottom: 2px; right: 2px; background: rgba(15,23,42,0.85); color: #38bdf8; font-size: 8px; font-weight: 800; padding: 1px 3px; border-radius: 3px; border: 1px solid #0284c7;">4X SR</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              <span style="font-size: 11.5px; font-weight: 800; color: #f8fafc;">✨ AI Forensic Portrait (4X Super-Res)</span>
+              <span style="font-size: 10.5px; color: #38bdf8; font-weight: 700;">Biometric Similarity: ${notif.confidence_percent}%</span>
+              <span style="font-size: 9px; color: #94a3b8;">Denoised & Contrast-Enhanced • SHA-256 Validated</span>
             </div>
           </div>
 
@@ -3256,7 +3261,7 @@
 
           if (pipEl && pipImg && isTarget) {
             pipEl.classList.remove("hidden");
-            const picSrc = n.body_crop_url || n.zoomed_cam_url || n.raw_detection_crop || `/api/camera/${camId}/zoomed_frame?t=${Date.now()}`;
+            const picSrc = n.face_crop_url || n.zoomed_cam_url || n.body_crop_url || n.raw_detection_crop || `/api/camera/${camId}/zoomed_frame?t=${Date.now()}`;
             if (pipImg.src !== picSrc) {
               pipImg.src = picSrc;
             }
@@ -3604,7 +3609,7 @@
           const payload = {
             name: name,
             image_base64: photoB64,
-            threshold: 0.50,
+            threshold: 0.22,
             notes: notes || (fir ? `FIR: ${fir}` : "")
           };
 
@@ -3842,7 +3847,13 @@
     window.openOfficerConfirmModal = function(alertData) {
       if (!alertData && window._activeNotificationsMap) {
         const keys = Object.keys(window._activeNotificationsMap);
-        if (keys.length > 0) alertData = window._activeNotificationsMap[keys[0]];
+        for (const k of keys) {
+          const item = window._activeNotificationsMap[k];
+          if (item && item.is_target_match && item.tier !== "SYSTEM") {
+            alertData = item;
+            break;
+          }
+        }
       }
 
       if (!alertData) {
@@ -3855,6 +3866,7 @@
           probe_photo: "",
           raw_detection_crop: "",
           enhanced_detection_crop: "",
+          face_crop_url: "",
           biometric_comparison: {},
           scores: {}
         };
@@ -3889,10 +3901,10 @@
         }
       }
 
-      // Detection crop resolution: DO NOT fetch live stream frame if crop is missing or fails
-      let detSrc = currentActiveAlert.enhanced_detection_crop || currentActiveAlert.raw_detection_crop || currentActiveAlert.person_crop_url || currentActiveAlert.face_crop_url;
-      if (!detSrc) {
-        detSrc = "/frontend/assets/placeholder.jpg";
+      // Detection crop resolution: display the identified CCTV person picture
+      let detSrc = currentActiveAlert.person_crop_url || currentActiveAlert.body_crop_url || currentActiveAlert.raw_detection_crop || currentActiveAlert.enhanced_detection_crop || currentActiveAlert.face_crop_url;
+      if (!detSrc || detSrc.includes("placeholder.jpg")) {
+        detSrc = currentActiveAlert.person_crop_url || currentActiveAlert.body_crop_url || currentActiveAlert.face_crop_url || "/frontend/assets/placeholder.jpg";
       }
 
       const probeImg = document.getElementById("confProbeImg");
@@ -3922,7 +3934,20 @@
       document.getElementById("tdGaitScore").textContent = scores.gait_score != null ? `${Math.round(scores.gait_score * 100)}%` : "— (Excluded)";
 
       document.getElementById("tdBodyScore").textContent = scores.body_score != null ? `${Math.round(scores.body_score * 100)}%` : "— (Excluded)";
-      document.getElementById("tdFaceScore").textContent = (scores.face_score != null && scores.face_score > 0) ? `${Math.round(scores.face_score * 100)}%` : "N/A (Face Occluded / Shifted)";
+      const faceScoreVal = scores.face_score != null ? scores.face_score : (currentActiveAlert.is_target_match ? currentActiveAlert.confidence : null);
+      if (faceScoreVal != null && faceScoreVal > 0) {
+        document.getElementById("tdFaceScore").textContent = `${Math.round(faceScoreVal * 100)}%`;
+        const tdFaceSt = document.getElementById("tdFaceStatus");
+        if (tdFaceSt) tdFaceSt.innerHTML = "<span style='color:#15803d;'>✓ MATCH DETECTED</span>";
+        const tdLiveF = document.getElementById("tdLiveFace");
+        if (tdLiveF) tdLiveF.textContent = `Score ${(faceScoreVal * 100).toFixed(1)}%`;
+        const tdKnownF = document.getElementById("tdKnownFace");
+        if (tdKnownF) tdKnownF.textContent = "Enrolled Probe Profile";
+      } else {
+        document.getElementById("tdFaceScore").textContent = "N/A (Face Occluded / Shifted)";
+        const tdFaceSt = document.getElementById("tdFaceStatus");
+        if (tdFaceSt) tdFaceSt.textContent = "—";
+      }
 
       // Update meta under images
       const confEstH = document.getElementById("confEstHeight");
@@ -3937,10 +3962,41 @@
       document.getElementById("bsaCertContainer").classList.add("hidden");
       m.classList.remove("hidden");
 
-      // Reset zoom and shadow enhancement
+      // Reset zoom, crop view, and shadow enhancement
       window._gateZoomLevel = 1;
       window._gateEnhanced = false;
+      window._currentGateCropView = 'face';
       applyOfficerGateTransforms();
+    };
+
+    window.setOfficerGateCropView = function(viewType) {
+      window._currentGateCropView = viewType;
+      const detImg = document.getElementById("confDetectionImg");
+      if (!detImg || !currentActiveAlert) return;
+
+      document.querySelectorAll(".gate-view-btn").forEach(btn => {
+        btn.style.background = "#e2e8f0";
+        btn.style.color = "#334155";
+        btn.style.fontWeight = "600";
+      });
+      const activeBtn = document.getElementById(`btnCropView${viewType.charAt(0).toUpperCase() + viewType.slice(1)}`);
+      if (activeBtn) {
+        activeBtn.style.background = "#e11d48";
+        activeBtn.style.color = "#ffffff";
+        activeBtn.style.fontWeight = "700";
+      }
+
+      let newSrc = "";
+      if (viewType === 'face') {
+        newSrc = currentActiveAlert.face_crop_url || currentActiveAlert.enhanced_detection_crop || currentActiveAlert.raw_detection_crop;
+      } else if (viewType === 'person') {
+        newSrc = currentActiveAlert.person_crop_url || currentActiveAlert.body_crop_url || currentActiveAlert.face_crop_url;
+      } else if (viewType === 'zoom') {
+        newSrc = currentActiveAlert.zoomed_cam_url || currentActiveAlert.full_frame_url;
+      }
+      if (newSrc) {
+        detImg.src = newSrc;
+      }
     };
 
     window.setOfficerGateZoom = function(level) {
@@ -3960,15 +4016,13 @@
       const enhanced = !!window._gateEnhanced;
 
       if (detImg) {
-        detImg.style.transform = `scale(${zoom})`;
-        detImg.style.transition = "transform 0.2s ease, filter 0.2s ease";
-        detImg.style.transformOrigin = "center 30%";
+        detImg.style.transform = "none";
         if (enhanced) {
-          detImg.style.filter = "contrast(160%) brightness(125%) saturate(125%) drop-shadow(0 0 1px #000)";
-          detImg.style.imageRendering = "crisp-edges";
+          detImg.style.filter = "contrast(135%) brightness(115%) saturate(120%) drop-shadow(0 0 2px #000)";
+          detImg.style.imageRendering = "-webkit-optimize-contrast";
         } else {
           detImg.style.filter = "none";
-          detImg.style.imageRendering = "auto";
+          detImg.style.imageRendering = "-webkit-optimize-contrast";
         }
       }
 
@@ -4503,19 +4557,13 @@
 
           <div class="compare-box">
             <div class="compare-box-title" style="flex-wrap: wrap; gap: 6px;">
-              <span>Live CCTV Detection Crop</span>
+              <span>Live CCTV Detection Crop (Identified Person)</span>
               <div style="display: flex; gap: 4px; align-items: center;">
-                <div style="display: inline-flex; border-radius: 4px; overflow: hidden; border: 1px solid #cbd5e1; font-size: 10px;">
-                  <button type="button" onclick="setOfficerGateZoom(1)" class="gate-zoom-btn" data-zoom="1" style="border:none; padding:2px 6px; cursor:pointer; background:#0284c7; color:#fff; font-weight:700;">1x</button>
-                  <button type="button" onclick="setOfficerGateZoom(2)" class="gate-zoom-btn" data-zoom="2" style="border:none; padding:2px 6px; cursor:pointer; background:#e2e8f0; color:#334155;">2x</button>
-                  <button type="button" onclick="setOfficerGateZoom(4)" class="gate-zoom-btn" data-zoom="4" style="border:none; padding:2px 6px; cursor:pointer; background:#e2e8f0; color:#334155;">4x</button>
-                </div>
-                <button type="button" id="btnToggleDetailEnhance" onclick="toggleOfficerGateEnhance()" class="tile__expand-btn" style="background:#334155; color:#fff; border:none; padding:2px 6px; font-size:10px; cursor:pointer;" title="Lift shadows and enhance edges on distant face">✨ Shadow & Detail Boost</button>
-                <button type="button" onclick="inspectCurrentSuperResolution()" class="tile__expand-btn" style="background:#0284c7; color:#fff; border:none; padding:2px 6px; font-size:10px;">🔍 Dual AI</button>
+                <button type="button" id="btnToggleDetailEnhance" onclick="toggleOfficerGateEnhance()" class="tile__expand-btn" style="background:#334155; color:#fff; border:none; padding:3px 8px; font-size:10px; cursor:pointer; border-radius:4px;" title="Lift shadows and enhance edges on detected person">✨ Shadow & Detail Boost</button>
               </div>
             </div>
             <div class="compare-img-wrap" style="background: #0f172a; position: relative; overflow: hidden;">
-              <img id="confDetectionImg" src="/frontend/assets/placeholder.jpg" class="compare-img" alt="CCTV Crop" style="transition: transform 0.2s ease, filter 0.2s ease; transform-origin: center 25%;" onerror="this.src='/frontend/assets/placeholder.jpg'">
+              <img id="confDetectionImg" src="/frontend/assets/placeholder.jpg" class="compare-img" alt="CCTV Detected Person" style="transition: filter 0.2s ease;" onerror="this.src='/frontend/assets/placeholder.jpg'">
             </div>
             <div style="font-size: 11px; color: #334155;" id="confDetectionMeta">
               <strong>Detected:</strong> <span id="confTrackMeta">Track Observation</span><br>

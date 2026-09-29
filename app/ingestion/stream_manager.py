@@ -78,6 +78,7 @@ class CameraStreamWorker:
         self.is_connected = False
         self.is_rtsp = "rtsp://" in str(source).lower() or "http://" in str(source).lower()
         self.is_file = os.path.exists(str(source)) and os.path.isfile(str(source))
+        self.is_simulated = not (self.is_rtsp or self.is_file)
 
         # Thread synchronization
         self._lock = threading.Lock()
@@ -186,7 +187,7 @@ class CameraStreamWorker:
                         h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 576)
                         fps = self.cap.get(cv2.CAP_PROP_FPS)
                         if fps and fps > 5:
-                            self.target_fps = int(round(fps))
+                            self.target_fps = min(25, int(round(fps)))
                         self._resolution = (w, h)
                         return True
                 except Exception as ex:
@@ -321,22 +322,27 @@ class CameraStreamWorker:
                     badges = []
 
                     for det in detections:
-                        x, y, bw, bh = det.bbox
-                        x1, y1 = max(0, x), max(0, y)
-                        x2, y2 = min(w, x + bw), min(h, y + bh)
-                        
-                        h_res = height_estimator.estimate_height_cm([x, y, x + bw, y + bh], frame_height=h)
-                        tid_text = f"TRACK-{det.track_id:04d}" if det.track_id else "TRACK"
-                        badge_text = f"{tid_text} | H:{h_res['estimated_height_cm']:.0f}cm"
+                        try:
+                            x, y, bw, bh = det.bbox
+                            x1, y1 = max(0, x), max(0, y)
+                            x2, y2 = min(w, x + bw), min(h, y + bh)
+                            
+                            h_res = height_estimator.estimate_height_cm([x, y, x + bw, y + bh], frame_height=h)
+                            tid_text = f"TRACK-{det.track_id:04d}" if det.track_id else "TRACK"
+                            est_h = h_res.get('estimated_height_cm') if isinstance(h_res, dict) else None
+                            h_str = f" | H:{est_h:.0f}cm" if est_h is not None else ""
+                            badge_text = f"{tid_text}{h_str}"
 
-                        badges.append({
-                            "bbox": (x1, y1, x2, y2),
-                            "text": badge_text,
-                            "color": (0, 255, 0) if getattr(det, 'face_status', None) else (0, 165, 255)
-                        })
+                            badges.append({
+                                "bbox": (x1, y1, x2, y2),
+                                "text": badge_text,
+                                "color": (0, 255, 0) if getattr(det, 'face_status', None) else (0, 165, 255)
+                            })
+                        except Exception as badge_err:
+                            logger.debug(f"Badge gen error: {badge_err}")
 
                     # For simulated feeds, provide synthetic background tracking telemetry without drawing on frame
-                    if self.is_simulated and not detections:
+                    if getattr(self, "is_simulated", False) and not detections:
                         from app.adapters.base import DetectionResult
                         t_now = time.time()
                         sim_x = int((t_now * 30) % (w - 100)) + 30
@@ -397,7 +403,7 @@ class CameraStreamWorker:
                         self._cached_detection_time = time.time()
 
                 except Exception as ex:
-                    logger.debug(f"[{self.camera_id}] AI inference error: {ex}")
+                    logger.error(f"[{self.camera_id}] AI inference error: {ex}", exc_info=True)
 
             elapsed = time.perf_counter() - t0
             self.ai_fps_measured = round(1.0 / max(0.001, elapsed), 1)
@@ -642,16 +648,19 @@ class CameraStreamWorker:
         if cropped.size == 0:
             cropped = frame
 
-        # Apply high-fidelity forensic enhancement (CLAHE + unsharp sharpening)
+        # Apply high-fidelity forensic enhancement (Bilateral denoise + CLAHE + unsharp mask)
         lab = cv2.cvtColor(cropped, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.4, tileGridSize=(6, 6))
+        clahe = cv2.createCLAHE(clipLimit=2.2, tileGridSize=(6, 6))
         cl = clahe.apply(l)
         enhanced = cv2.cvtColor(cv2.merge((cl, a, b)), cv2.COLOR_LAB2BGR)
 
         # 2x super-resolution scaling for clear person visualization
         if enhanced.shape[0] < 400 or enhanced.shape[1] < 400:
-            enhanced = cv2.resize(enhanced, (enhanced.shape[1] * 2, enhanced.shape[0] * 2), interpolation=cv2.INTER_CUBIC)
+            enhanced = cv2.resize(enhanced, (enhanced.shape[1] * 2, enhanced.shape[0] * 2), interpolation=cv2.INTER_LANCZOS4)
+            enhanced = cv2.bilateralFilter(enhanced, d=5, sigmaColor=30, sigmaSpace=30)
+            gauss = cv2.GaussianBlur(enhanced, (0, 0), sigmaX=1.5)
+            enhanced = cv2.addWeighted(enhanced, 1.4, gauss, -0.4, 0)
 
         jpeg_params = [int(cv2.IMWRITE_JPEG_QUALITY), max(60, min(100, int(quality)))]
         ret, jpeg = cv2.imencode('.jpg', enhanced, jpeg_params)

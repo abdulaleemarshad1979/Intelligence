@@ -204,8 +204,12 @@ incident_manager = IncidentManager(repo)
 timeline_generator = TimelineGenerator()
 graph_builder = InvestigationGraphBuilder()
 human_adjudication_gate = HumanAdjudicationGate(repo)
-person_search_coordinator = PersonSearchCoordinator(repo, camera_configs)
 stream_mgr = get_stream_manager(DATA_DIR)
+# Auto-start CAM-001 background surveillance ingestion and AI inference worker
+try:
+    stream_mgr.get_or_create_worker("CAM-001")
+except Exception as _cam_err:
+    logger.warning(f"CAM-001 auto-start deferred: {_cam_err}")
 
 # Auto-seed the reference Gotham investigation demo scenario
 if not repo.get_incident_by_id("INC-2026-0041"):
@@ -738,6 +742,30 @@ async def video_feed_by_cam(camera_id: str, quality: int = 95):
         generate_mjpeg_stream(camera_id=camera_id, quality=quality),
         media_type="multipart/x-mixed-replace; boundary=frame"
     )
+
+@app.get("/api/debug/threads")
+async def debug_threads():
+    import threading
+    worker = stream_mgr.workers.get("CAM-001")
+    w_info = None
+    if worker:
+        w_info = {
+            "source": worker.source,
+            "enable_ai": worker.enable_ai,
+            "is_running": worker.is_running,
+            "frames_captured": worker.frames_captured,
+            "fps_measured": worker.fps_measured,
+            "ai_fps_measured": worker.ai_fps_measured,
+            "reader_alive": worker._reader_thread.is_alive() if worker._reader_thread else False,
+            "inference_alive": worker._inference_thread.is_alive() if worker._inference_thread else False,
+            "latest_frame_id": worker._frame_id,
+            "latest_frame_none": worker._latest_frame is None,
+        }
+    return {
+        "threads": [t.name for t in threading.enumerate()],
+        "worker": w_info,
+        "active_workers": list(stream_mgr.workers.keys())
+    }
 
 @app.get("/api/camera/{camera_id}/frame")
 @app.get("/api/snapshot")
@@ -1293,23 +1321,29 @@ async def get_notifications():
     """Retrieve active stampede and suspect alert notifications for the dashboard drawer."""
     notifs = []
     for alert in ACTIVE_ALERTS[:30]:
+        alt_id = alert.get("alert_id", "ALT-001")
+        s_name = alert.get("suspect_name", "Target Subject")
         notifs.append({
-            "id": alert.get("alert_id", "ALT-001"),
+            "id": alt_id,
+            "alert_id": alt_id,
+            "title": f"🚨 WANTED TARGET: {s_name.upper()}",
+            "suspect_name": s_name,
             "camera_id": alert.get("camera_id", "CAM-001"),
             "camera_name": alert.get("camera_name") or alert.get("camera_id", "CAM-001"),
             "location": "District Hospital North Wing" if alert.get("camera_id") == "CAM-001" else "District CCTV Live Feed",
             "timestamp": alert.get("timestamp", time.time()),
             "time_str": time.strftime("%H:%M:%S", time.localtime(alert.get("timestamp", time.time()))),
             "severity": "CRITICAL" if alert.get("tier") == "TIER_1_HIGH_CONFIDENCE" else "WARNING",
-            "message": f"Person of Interest Match: {alert.get('suspect_name', 'Unknown')} ({alert.get('fir_no', 'N/A')}) at {alert.get('camera_id', 'CAM-001')}",
+            "message": f"Person of Interest Match: {s_name} ({alert.get('fir_no', 'N/A')}) at {alert.get('camera_id', 'CAM-001')}",
             "confidence": alert.get("confidence", 0.85),
             "confidence_percent": round(alert.get("similarity_pct") or (alert.get("confidence", 0.85) * 100), 1),
             "risk_index": round(alert.get("similarity_pct") or (alert.get("confidence", 0.85) * 100), 1),
             "tier": alert.get("tier", "TIER_1"),
             "status": alert.get("status", "ACTIVE"),
-            "raw_detection_crop": alert.get("zoomed_cam_url") or alert.get("body_crop_url") or f"/api/camera/{alert.get('camera_id', 'CAM-001')}/zoomed_frame",
-            "enhanced_detection_crop": alert.get("zoomed_cam_url") or alert.get("body_crop_url") or f"/api/camera/{alert.get('camera_id', 'CAM-001')}/zoomed_frame",
-            "body_crop_url": alert.get("zoomed_cam_url") or (alert.get("body_crop_url") if (alert.get("body_crop_url") and not alert.get("body_crop_url").startswith("/api/camera/CAM-001/frame")) else f"/api/camera/{alert.get('camera_id', 'CAM-001')}/zoomed_frame"),
+            "raw_detection_crop": alert.get("person_crop_url") or alert.get("body_crop_url") or alert.get("face_crop_url") or f"/api/camera/{alert.get('camera_id', 'CAM-001')}/person_crop",
+            "enhanced_detection_crop": alert.get("person_crop_url") or alert.get("body_crop_url") or alert.get("face_crop_url") or f"/api/camera/{alert.get('camera_id', 'CAM-001')}/person_crop",
+            "person_crop_url": alert.get("person_crop_url") or alert.get("body_crop_url") or f"/api/camera/{alert.get('camera_id', 'CAM-001')}/person_crop",
+            "body_crop_url": alert.get("person_crop_url") or alert.get("body_crop_url") or f"/api/camera/{alert.get('camera_id', 'CAM-001')}/person_crop",
             "zoomed_cam_url": alert.get("zoomed_cam_url") or f"/api/camera/{alert.get('camera_id', 'CAM-001')}/zoomed_frame",
             "face_crop_url": alert.get("face_crop_url"),
             "full_frame_url": alert.get("full_frame_url"),
@@ -1330,11 +1364,17 @@ async def get_notifications():
             "time_str": time.strftime("%H:%M:%S"),
             "severity": "INFO",
             "message": "AP Police CCTV Neural Perception Stack operating normally across all 16 cameras.",
-            "confidence": 0.99,
-            "confidence_percent": 99.0,
+            "confidence": 0.0,
+            "confidence_percent": 0.0,
             "risk_index": 5.0,
             "tier": "SYSTEM",
-            "status": "ACTIVE"
+            "status": "ACTIVE",
+            "is_target_match": False,
+            "raw_detection_crop": "/frontend/assets/placeholder.jpg",
+            "enhanced_detection_crop": "/frontend/assets/placeholder.jpg",
+            "probe_photo": "/frontend/assets/placeholder.jpg",
+            "scores": {},
+            "biometric_comparison": {}
         })
     return notifs
 
@@ -1731,7 +1771,7 @@ class TargetFaceEnrollPayload(BaseModel):
     image_base64: Optional[str] = None
     image_path: Optional[str] = None
     target_id: Optional[str] = None
-    threshold: Optional[float] = 0.55
+    threshold: Optional[float] = 0.22
     notes: Optional[str] = ""
 
 
@@ -1744,12 +1784,14 @@ async def enroll_target_face_api(payload: TargetFaceEnrollPayload):
     if not raw_input:
         raise HTTPException(status_code=400, detail="Either image_base64 or image_path must be provided.")
     try:
+        t_val = float(payload.threshold if payload.threshold is not None else 0.20)
+        calibrated_t = min(t_val, 0.22) if t_val > 0.25 else t_val
         res = await asyncio.to_thread(
             live_face_watcher.enroll_target_face,
             image_input=raw_input,
             name=payload.name,
             target_id=payload.target_id,
-            threshold=payload.threshold,
+            threshold=calibrated_t,
             notes=payload.notes or ""
         )
         audit_logger.log_action(
