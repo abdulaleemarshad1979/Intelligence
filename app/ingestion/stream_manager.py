@@ -777,13 +777,12 @@ class CameraStreamManager:
                 elif camera_id == "CAM-001":
                     raw_path = os.path.join(self.data_dir, "samples", "cctv_sample_raw.mp4")
                     sample_path = os.path.join(self.data_dir, "samples", "cctv_sample.mp4")
-                    fallback_path = "/home/abdul-aleem-arshad/Downloads/WhatsApp Video 2026-09-17 at 4.40.40 PM.mp4"
                     if os.path.exists(raw_path):
                         resolved_source = raw_path
                     elif os.path.exists(sample_path):
                         resolved_source = sample_path
                     else:
-                        resolved_source = fallback_path
+                        resolved_source = f"simulated://{camera_id}"
                 else:
                     resolved_source = f"simulated://{camera_id}"
 

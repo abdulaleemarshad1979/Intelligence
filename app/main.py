@@ -108,7 +108,7 @@ class ScanNetworkPayload(BaseModel):
     include_simulated_if_empty: Optional[bool] = True
 
 class ProcessVideoTargetPayload(BaseModel):
-    video_path: Optional[str] = "data/samples/cctv_sample_clean.mp4"
+    video_path: Optional[str] = None
     target_name: Optional[str] = "Subject of Interest"
     target_id: Optional[str] = None
     initial_box: Optional[List[int]] = None
@@ -963,9 +963,14 @@ async def process_video_target_endpoint(payload: ProcessVideoTargetPayload):
     """Extract exo-skeleton keypoints, gait kinematics, enhance video, and save to SQL."""
     from app.pipeline.video_target_processor import VideoTargetProcessor
     processor = VideoTargetProcessor()
+    if not payload.video_path or not os.path.exists(payload.video_path):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Surveillance video file not found: {payload.video_path or 'None provided'}"
+        )
     try:
         results = processor.process_video_target(
-            video_path=payload.video_path or "data/samples/cctv_sample_clean.mp4",
+            video_path=payload.video_path,
             target_name=payload.target_name or "Subject of Interest",
             target_id=payload.target_id,
             initial_box=payload.initial_box,

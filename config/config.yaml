@@ -9,7 +9,7 @@ system:
   db_path: "data/police_records.db"
 
 video:
-  default_source: "data/samples/cctv_sample.mp4"
+  default_source: ""
   stream_fps: 25
   process_width: 1024
   process_height: 576

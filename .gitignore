@@ -19,8 +19,17 @@ data/captures/*
 !data/captures/.gitkeep
 data/targets/*
 !data/targets/.gitkeep
-data/samples/*.mp4
-/*.mp4
+# Video files and media streams
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.h264
+*.264
+data/samples/*
+!data/samples/.gitkeep
+Training/*.mp4
 data/extracted_test_faces/
 data/search_results/
 data/target_search/*
