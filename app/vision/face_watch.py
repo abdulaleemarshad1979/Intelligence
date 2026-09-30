@@ -128,11 +128,7 @@ class LiveFaceWatcher:
 
         with self._lock:
             tid = target_id or f"TGT-{uuid.uuid4().hex[:8].upper()}"
-            raw_t = float(threshold if threshold is not None else self.default_threshold)
-            # Automatic CCTV surveillance calibration:
-            # Enrolled mobile/studio portraits vs distant 12-25px surveillance feeds have an empirical SFace cosine similarity around 0.20 - 0.35.
-            # Setting threshold > 0.25 causes 100% false negatives in live CCTV.
-            thresh = min(raw_t, 0.22) if raw_t > 0.25 else raw_t
+            thresh = float(threshold if threshold is not None else self.default_threshold)
 
             h, w = img.shape[:2]
 
@@ -330,11 +326,9 @@ class LiveFaceWatcher:
                 target_emb = np.array(target["embedding"], dtype=np.float32)
                 sim = self.engine.compute_face_similarity(cand_emb, target_emb)
 
-                # Calibrate threshold for CCTV surveillance
-                raw_thresh = float(target.get("threshold", self.default_threshold))
-                cctv_thresh = min(raw_thresh, 0.22) if raw_thresh > 0.25 else raw_thresh
+                target_thresh = float(target.get("threshold", self.default_threshold))
 
-                if sim >= cctv_thresh:
+                if sim >= target_thresh:
                     cooldown_key = (tid, camera_id)
                     last_time = self._last_capture_times.get(cooldown_key, 0.0)
                     is_new_alert = (now - last_time >= self.cooldown_sec)
@@ -346,7 +340,7 @@ class LiveFaceWatcher:
                     confirmation_count = target.get("total_matches", 0) + (1 if is_new_alert else 0)
                     track_consistency = 1.0
                     confirmation_score = raw_sim
-                    status = "CONFIRMED_CANDIDATE" if sim >= cctv_thresh else "OBSERVED"
+                    status = "CONFIRMED_CANDIDATE" if sim >= target_thresh else "OBSERVED"
 
                     if is_new_alert:
                         self._last_capture_times[cooldown_key] = now

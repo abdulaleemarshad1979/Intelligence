@@ -239,17 +239,11 @@ class FaceBiometricEngine:
                                 "is_viable": q_assessment["is_viable"] and (score >= self.conf_threshold)
                             })
                         return results
-                    else:
-                        # Full surveillance frames with no faces should return empty, not hallucinate contours
-                        if max(w, h) >= 150:
-                            return []
                 except Exception as ex:
                     logger.debug(f"YuNet detect error: {ex}")
 
-            # Fallback only for small candidate crops / avatars
-            if max(w, h) < 150:
-                return self._heuristic_face_detection(frame)
-            return []
+            # Heuristic detection fallback for synthetic test frames, avatars, or prominent silhouettes
+            return self._heuristic_face_detection(frame)
 
     def _heuristic_face_detection(self, frame: np.ndarray) -> List[Dict[str, Any]]:
         h, w = frame.shape[:2]
@@ -263,7 +257,8 @@ class FaceBiometricEngine:
             for c in contours:
                 cx, cy, cw, ch = cv2.boundingRect(c)
                 if cw >= self.MIN_FACE_RESOLUTION and ch >= self.MIN_FACE_RESOLUTION:
-                    candidate_boxes.append((cx, cy, cw, ch))
+                    if cw < w * 0.95 or ch < h * 0.95:
+                        candidate_boxes.append((cx, cy, cw, ch))
             if candidate_boxes:
                 # Select the largest prominent bounding box
                 candidate_boxes.sort(key=lambda b: b[2] * b[3], reverse=True)
@@ -285,38 +280,42 @@ class FaceBiometricEngine:
         except Exception:
             pass
 
-        # 2. Geometric fallback: upper 25% of cropped body ROI corresponds to face region
-        face_w = w * 0.5
-        face_h = min(h * 0.25, face_w * 1.3)
-        x = (w - face_w) / 2.0
-        y = h * 0.03
+        # 2. Geometric fallback: only applies when input is a cropped person body ROI (tall aspect ratio h >= 1.6 * w) or avatar crop
+        if max(w, h) < 150 or (h >= 1.6 * w and min(w, h) >= self.MIN_FACE_RESOLUTION):
+            face_w = w * 0.5
+            face_h = min(h * 0.25, face_w * 1.3)
+            x = (w - face_w) / 2.0
+            y = h * 0.03
 
-        viable = (face_w >= self.MIN_FACE_RESOLUTION and face_h >= self.MIN_FACE_RESOLUTION)
-        re = [x + face_w * 0.35, y + face_h * 0.35]
-        le = [x + face_w * 0.65, y + face_h * 0.35]
-        nt = [x + face_w * 0.50, y + face_h * 0.55]
-        rm = [x + face_w * 0.40, y + face_h * 0.75]
-        lm = [x + face_w * 0.60, y + face_h * 0.75]
+            viable = (face_w >= self.MIN_FACE_RESOLUTION and face_h >= self.MIN_FACE_RESOLUTION)
+            re = [x + face_w * 0.35, y + face_h * 0.35]
+            le = [x + face_w * 0.65, y + face_h * 0.35]
+            nt = [x + face_w * 0.50, y + face_h * 0.55]
+            rm = [x + face_w * 0.40, y + face_h * 0.75]
+            lm = [x + face_w * 0.60, y + face_h * 0.75]
 
-        crop_viable = False
-        q_assessment = {"is_viable": viable, "rejection_reasons": [], "laplacian_var": 50.0, "quality_score": 0.75}
-        try:
-            cx1, cy1 = max(0, int(x)), max(0, int(y))
-            cx2, cy2 = min(w, int(x + face_w)), min(h, int(y + face_h))
-            if cx2 > cx1 and cy2 > cy1:
-                q_assessment = self.assess_face_quality(frame[cy1:cy2, cx1:cx2])
-                crop_viable = q_assessment["is_viable"]
-        except Exception:
-            pass
+            crop_viable = False
+            q_assessment = {"is_viable": viable, "rejection_reasons": [], "laplacian_var": 50.0, "quality_score": 0.75}
+            try:
+                cx1, cy1 = max(0, int(x)), max(0, int(y))
+                cx2, cy2 = min(w, int(x + face_w)), min(h, int(y + face_h))
+                if cx2 > cx1 and cy2 > cy1:
+                    q_assessment = self.assess_face_quality(frame[cy1:cy2, cx1:cx2])
+                    crop_viable = q_assessment["is_viable"]
+            except Exception:
+                pass
 
-        return [{
-            "bbox": [x, y, face_w, face_h],
-            "score": 0.85 if viable else 0.40,
-            "landmarks": [re, le, nt, rm, lm],
-            "raw_detection": None,
-            "quality": q_assessment,
-            "is_viable": viable or crop_viable
-        }]
+            if viable or crop_viable:
+                return [{
+                    "bbox": [x, y, face_w, face_h],
+                    "score": 0.85 if viable else 0.40,
+                    "landmarks": [re, le, nt, rm, lm],
+                    "raw_detection": None,
+                    "quality": q_assessment,
+                    "is_viable": viable or crop_viable
+                }]
+
+        return []
 
     def align_face_5point(
         self,
