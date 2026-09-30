@@ -125,6 +125,21 @@ def test_api_tracking_topology(client):
 
 
 def test_api_alerts_live_and_dual_signoff(client):
+    from app.api.routes_alerts import ACTIVE_ALERTS
+    if not ACTIVE_ALERTS:
+        ACTIVE_ALERTS.append({
+            "alert_id": "ALT-TEST-001",
+            "tier": "TIER_1_FACE",
+            "camera_id": "CAM-001",
+            "fir_no": "FIR-2026-99",
+            "ps_code": "II Town PS",
+            "bns_sections": "BNS-303",
+            "raw_frame_hash": "a" * 64,
+            "enhanced_crop_hash": "b" * 64,
+            "status": "PENDING_VERIFICATION",
+            "similarity_pct": 92.5
+        })
+
     # 1. Get live alerts
     res = client.get("/api/alerts/live")
     assert res.status_code == 200

@@ -9,8 +9,15 @@ DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__)
 def get_db_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
     target_path = db_path or DB_PATH
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
-    conn = sqlite3.connect(target_path)
+    conn = sqlite3.connect(target_path, timeout=60.0)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
+        conn.execute("PRAGMA busy_timeout=60000;")
+        conn.execute("PRAGMA cache_size=-64000;")
+    except Exception:
+        pass
     return conn
 
 def init_db(db_path: Optional[str] = None):
@@ -367,6 +374,14 @@ def init_db(db_path: Optional[str] = None):
         created_at REAL
     )
     """)
+
+    # High-Performance Indices for 600-Camera Fleet Throughput
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_tracks_camera ON tracks (camera_id);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_tracks_first_seen ON tracks (first_seen);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_observations_cam_time ON observations (camera_id, timestamp);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_match_events_cam ON match_events (camera_id, created_at);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_cameras_zone_active ON cameras (zone, is_active);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_target_search_events_session ON target_search_events (session_id, camera_id);")
 
     conn.commit()
     conn.close()

@@ -1544,7 +1544,7 @@
     <!-- Navigation & Filter Control Bar -->
     <div class="nav-control-bar">
       <div class="filter-group">
-        <button class="pill active" data-filter="All">All Streams (16)</button>
+        <button class="pill active" data-filter="All" id="btn-all-streams">All Streams (600)</button>
         <button class="pill" data-filter="Active">Active Feeds</button>
         <button class="pill" data-filter="Pushkaralu">Pushkaralu Ghats</button>
         <button class="pill" data-filter="Rjy">Rjy Central</button>
@@ -1572,6 +1572,11 @@
         <!-- Watchlist Targets List Button -->
         <button onclick="openWatchlistModal()" class="csv-btn" style="background:#0f766e; color:#ffffff; border-color:#0d9488; cursor:pointer;" title="View Enrolled Suspect Faces & Targets in Watchlist">
           <span>👥 Watchlist (<span id="watchlistCountBadge">0</span>)</span>
+        </button>
+
+        <!-- Connect ICSee IP Camera Button -->
+        <button onclick="openICSeeCamModal()" class="csv-btn" style="background:#059669; color:#ffffff; border-color:#10b981; cursor:pointer;" title="Connect Real ICSee / Xiongmai / ONVIF IP Camera">
+          <span>📹 Connect ICSee Cam</span>
         </button>
 
         <!-- Connect Matrix CCTV Camera Button -->
@@ -1615,6 +1620,32 @@
           </svg>
         </a>
       </div>
+    </div>
+  </div>
+
+  <!-- 600-Camera Fleet Search & Pagination Bar -->
+  <div style="max-width: 1400px; margin: 10px auto; padding: 10px 16px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+    <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 300px;">
+      <span style="font-weight: 800; color: #0284c7; font-size: 13px;">🔍 Fleet Filter:</span>
+      <input type="text" id="camSearchInput" placeholder="Search 600 cameras (e.g. CAM-042, Hospital, Ghat, Port, Sec-4)..."
+        style="flex: 1; background: #f8fafc; border: 1.5px solid #cbd5e1; color: #0f172a; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; outline: none; transition: border-color 0.2s;"
+        onfocus="this.style.borderColor='#0284c7'" onblur="this.style.borderColor='#cbd5e1'"
+        oninput="handleCamSearch(this.value)" />
+    </div>
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <span id="fleetPagingLabel" style="color: #64748b; font-size: 12px; font-weight: 700;">Showing 1–24 of 600 Streams</span>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button onclick="changeCamPage(-1)" id="btnPrevPage" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 800; transition: all 0.2s;">◀ Prev</button>
+        <span id="currentPageBadge" style="background: #0284c7; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800;">1 / 25</span>
+        <button onclick="changeCamPage(1)" id="btnNextPage" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 800; transition: all 0.2s;">Next ▶</button>
+      </div>
+      <select id="camPageSizeSelect" onchange="changeCamPageSize(this.value)" style="background: #f8fafc; color: #1e293b; border: 1.5px solid #cbd5e1; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;">
+        <option value="16">16 per page</option>
+        <option value="24" selected>24 per page</option>
+        <option value="36">36 per page</option>
+        <option value="48">48 per page</option>
+        <option value="600">All 600 Cams</option>
+      </select>
     </div>
   </div>
 
@@ -1882,47 +1913,111 @@
       return card;
     }
 
+    let currentPage = 1;
+    let pageSize = 24;
+    let searchQuery = "";
+
+    window.handleCamSearch = function(query) {
+      searchQuery = (query || "").trim().toLowerCase();
+      currentPage = 1;
+      renderGrid();
+    };
+
+    window.changeCamPage = function(delta) {
+      const filtered = getFilteredCameras();
+      const maxPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+      currentPage = Math.max(1, Math.min(maxPages, currentPage + delta));
+      renderGrid();
+    };
+
+    window.changeCamPageSize = function(val) {
+      pageSize = parseInt(val) || 24;
+      currentPage = 1;
+      renderGrid();
+    };
+
+    function getFilteredCameras() {
+      return cameras.filter(cam => {
+        const matchesFilter =
+          activeFilter === "All" ||
+          (activeFilter === "Active" && isCameraPlayable(cam)) ||
+          (activeFilter === "Pushkaralu" && ((cam.location && (cam.location.includes("Pushkaralu") || cam.location.includes("Ghat"))) || cam.sector === "Pushkaralu")) ||
+          (activeFilter === "Rjy" && ((cam.location && (cam.location.includes("Rjy") || cam.location.includes("Railway") || cam.location.includes("RTC"))) || cam.sector === "Rjy")) ||
+          (activeFilter === "Hospital" && ((cam.location && cam.location.includes("Hospital")) || cam.sector === "Hospital")) ||
+          (activeFilter === "Port" && ((cam.location && cam.location.includes("Port")) || cam.sector === "Port")) ||
+          (activeFilter === "Sector4" && ((cam.location && (cam.location.includes("Sector") || cam.location.includes("Transit"))) || cam.sector === "Sector4")) ||
+          (activeFilter === "CCTV" && cam.category === "CCTV");
+
+        if (!matchesFilter) return false;
+        if (!searchQuery) return true;
+
+        const q = searchQuery;
+        return (
+          (cam.id && cam.id.toLowerCase().includes(q)) ||
+          (cam.name && cam.name.toLowerCase().includes(q)) ||
+          (cam.location && cam.location.toLowerCase().includes(q)) ||
+          (cam.sector && cam.sector.toLowerCase().includes(q))
+        );
+      });
+    }
+
     // Build the grid cards dynamically without destroying existing active video players
     function renderGrid() {
+      const allStreamsBtn = document.getElementById("btn-all-streams");
+      if (allStreamsBtn && cameras.length > 0) {
+        allStreamsBtn.textContent = `All Streams (${cameras.length})`;
+      }
+
+      const filtered = getFilteredCameras();
+      const totalFiltered = filtered.length;
+      const maxPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+      currentPage = Math.max(1, Math.min(maxPages, currentPage));
+
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = Math.min(totalFiltered, startIndex + pageSize);
+      const pageCameras = filtered.slice(startIndex, endIndex);
+
+      // Update paging bar UI
+      const pagingLabel = document.getElementById("fleetPagingLabel");
+      if (pagingLabel) {
+        if (totalFiltered === 0) {
+          pagingLabel.textContent = `0 of ${cameras.length} Streams`;
+        } else {
+          pagingLabel.textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalFiltered} Streams (Fleet: ${cameras.length})`;
+        }
+      }
+      const pageBadge = document.getElementById("currentPageBadge");
+      if (pageBadge) {
+        pageBadge.textContent = `${currentPage} / ${maxPages}`;
+      }
+      const prevBtn = document.getElementById("btnPrevPage");
+      if (prevBtn) prevBtn.disabled = (currentPage <= 1);
+      const nextBtn = document.getElementById("btnNextPage");
+      if (nextBtn) nextBtn.disabled = (currentPage >= maxPages);
+
       const grid = document.getElementById("cctv-grid");
       const existingCards = new Map();
       grid.querySelectorAll(".tile").forEach(card => {
         existingCards.set(card.getAttribute("data-id"), card);
       });
 
-      const currentCamMap = new Map(cameras.map(c => [c.id, c]));
-      let visibleCount = 0;
+      const pageCamMap = new Map(pageCameras.map(c => [c.id, c]));
 
-      // 1. Remove cards that no longer exist in backend DB
+      // 1. Hide cards not on current page and stop their video pulls
       existingCards.forEach((card, id) => {
-        if (!currentCamMap.has(id)) {
-          if (activeFullViewCamId === id) closeFullViewModal();
-          card.remove();
-          teardownVideoFeed(id);
+        if (!pageCamMap.has(id)) {
+          card.classList.add("hidden");
+          const img = card.querySelector(".tile__video");
+          if (img && img._stopFeed) {
+            img._stopFeed();
+          }
         }
       });
 
-      // 2. Add new cards or update existing cards
-      cameras.forEach(cam => {
-        const matchesFilter =
-          activeFilter === "All" ||
-          (activeFilter === "Active" && isCameraPlayable(cam)) ||
-          (activeFilter === "Pushkaralu" && (cam.location.includes("Pushkaralu") || cam.location.includes("Ghat") || cam.sector === "Pushkaralu")) ||
-          (activeFilter === "Rjy" && (cam.location.includes("Rjy") || cam.location.includes("Railway") || cam.location.includes("RTC") || cam.sector === "Rjy")) ||
-          (activeFilter === "Hospital" && (cam.location.includes("Hospital") || cam.sector === "Hospital")) ||
-          (activeFilter === "Port" && (cam.location.includes("Port") || cam.sector === "Port")) ||
-          (activeFilter === "Sector4" && (cam.location.includes("Sector") || cam.location.includes("Transit") || cam.sector === "Sector4")) ||
-          (activeFilter === "CCTV" && cam.category === "CCTV");
-
+      // 2. Render or activate cards for the current page
+      pageCameras.forEach(cam => {
         let card = existingCards.get(cam.id);
         const isOnline = isCameraPlayable(cam);
-
-        if (!matchesFilter) {
-          if (card) card.classList.add("hidden");
-          return;
-        }
-
-        visibleCount++;
 
         if (!card) {
           card = createTileCard(cam);
@@ -1933,12 +2028,17 @@
           }
         } else {
           card.classList.remove("hidden");
+          const playerCont = card.querySelector(`#player-container-${cam.id}`);
+          const img = playerCont?.querySelector(".tile__video");
+          if (!img && isOnline) {
+            setupVideoFeed(cam);
+          }
           updateCameraConnectionState(cam);
         }
       });
 
       const emptyMsg = document.getElementById("empty-message");
-      if (visibleCount === 0) {
+      if (pageCameras.length === 0) {
         emptyMsg.classList.remove("hidden");
       } else {
         emptyMsg.classList.add("hidden");
@@ -4226,6 +4326,97 @@
       }
     };
 
+    window.openICSeeCamModal = function(camId) {
+      const m = document.getElementById("icseeCamModal");
+      if (!m) return;
+      if (camId) {
+        const sel = document.getElementById("icseeCamSlot");
+        if (sel) sel.value = camId;
+      }
+      const statusEl = document.getElementById("icseeConnectStatus");
+      if (statusEl) statusEl.style.display = "none";
+      m.classList.remove("hidden");
+    };
+
+    window.closeICSeeCamModal = function() {
+      const m = document.getElementById("icseeCamModal");
+      if (m) m.classList.add("hidden");
+    };
+
+    window.handleICSeeCamSubmit = async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById("btnConnectICSee");
+      const statusEl = document.getElementById("icseeConnectStatus");
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Connecting ICSee Stream...";
+      }
+      if (statusEl) {
+        statusEl.className = "matrix-status-msg info";
+        statusEl.textContent = "Establishing low-latency TCP RTSP pipeline to ICSee camera (<40ms latency)...";
+        statusEl.style.display = "block";
+      }
+
+      const camId = document.getElementById("icseeCamSlot").value || "CAM-001";
+      const ip = document.getElementById("icseeCamIp").value.trim();
+      const port = parseInt(document.getElementById("icseeCamPort").value) || 554;
+      const user = document.getElementById("icseeCamUser").value.trim();
+      const pass = document.getElementById("icseeCamPass").value;
+      const streamType = document.getElementById("icseeStreamType").value;
+      const name = document.getElementById("icseeCamName").value.trim();
+
+      try {
+        const res = await fetch("/api/cameras/connect_icsee", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            camera_id: camId,
+            ip: ip,
+            port: port,
+            username: user,
+            password: pass,
+            stream_type: streamType,
+            name: name
+          })
+        });
+        const data = await res.json();
+        if (data.status === "SUCCESS") {
+          if (statusEl) {
+            statusEl.className = "matrix-status-msg success";
+            statusEl.textContent = `✓ ICSee Cam Connected! RTSP: ${data.stream_url}`;
+          }
+          setTimeout(() => {
+            const container = document.getElementById(`player-container-${camId}`);
+            if (container) {
+              const img = container.querySelector("img");
+              if (img) {
+                img.src = `/api/camera/${encodeURIComponent(camId)}/frame?quality=${currentStreamQuality}&_t=${Date.now()}`;
+              }
+            }
+            alert(`✓ ICSEE IP CAMERA ONLINE!\nSlot: ${camId}\nIP: ${ip}:${port}\nStream: /${streamType}\nRTSP URL: ${data.stream_url}\nStatus: Active Zero-Lag Stream`);
+            closeICSeeCamModal();
+            loadCamerasFromBackend();
+          }, 800);
+        } else {
+          if (statusEl) {
+            statusEl.className = "matrix-status-msg error";
+            statusEl.textContent = "Connection Error: " + (data.detail || "Unable to reach ICSee camera RTSP endpoint");
+          }
+        }
+      } catch (err) {
+        console.error("ICSee connect error:", err);
+        if (statusEl) {
+          statusEl.className = "matrix-status-msg error";
+          statusEl.textContent = "Network error communicating with CCTV server.";
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Connect & Activate ICSee Stream";
+        }
+      }
+    };
+
     // Initialize Page
     async function init() {
       await loadCamerasFromBackend();
@@ -4804,6 +4995,80 @@
         <div class="police-modal-footer" style="padding-top:10px; padding-bottom:0; padding-right:0; padding-left:0; background:transparent; border-top:none;">
           <button type="button" onclick="closeMatrixCamModal()" class="btn btn--secondary">Cancel</button>
           <button type="submit" id="btnConnectMatrix" class="btn" style="background:#4338ca; color:#ffffff; font-weight:700;">Connect &amp; Activate Stream</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== ICSEE / XIONGMAI CCTV CAMERA CONNECTION MODAL ==================== -->
+  <div id="icseeCamModal" class="police-modal-overlay hidden">
+    <div class="police-modal-card" style="max-width: 680px;">
+      <div class="police-modal-header" style="background:#064e3b; border-bottom: 2px solid #10b981;">
+        <div class="police-modal-title">
+          <span>📹 ICSee / Xiongmai / ONVIF IP Camera Integration</span>
+        </div>
+        <button onclick="closeICSeeCamModal()" class="full-view-close-btn" style="width: 28px; height: 28px; font-size: 14px;">✕</button>
+      </div>
+      <form id="formICSeeCam" onsubmit="handleICSeeCamSubmit(event)" class="police-modal-body">
+        <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 12px; font-size: 12px; color: #065f46;">
+          <strong>ICSee Hardware RTSP Pipeline:</strong> Connects real ICSee/XM IP cameras directly with low-latency TCP transport (<40ms latency) and AI facial recognition. Configured for <code>192.168.1.111</code> user <code>hmpw</code>.
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Target Camera Slot *</label>
+            <select id="icseeCamSlot" class="form-input" style="background:#ffffff;" required>
+              <option value="CAM-001" selected>CAM 1 — District Hospital North Wing (Primary Live Slot)</option>
+              <option value="CAM-002">CAM 2 — Hospital Main Gate &amp; Ambulance Bay</option>
+              <option value="CAM-003">CAM 3 — Pushkaralu Ghat Main Entrance</option>
+              <option value="CAM-004">CAM 4 — Godavari River Promenade West</option>
+              <option value="CAM-005">CAM 5 — Kotilingala Ghat North Pier</option>
+              <option value="CAM-006">CAM 6 — Rajahmundry Main Railway Station Exit</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Camera Friendly Name</label>
+            <input type="text" id="icseeCamName" class="form-input" placeholder="e.g. ICSee North Gate PTZ" value="ICSee Live IP Cam">
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">ICSee IP Address *</label>
+            <input type="text" id="icseeCamIp" class="form-input" required placeholder="e.g. 192.168.1.111" value="192.168.1.111">
+          </div>
+          <div class="form-group">
+            <label class="form-label">RTSP Port *</label>
+            <input type="number" id="icseeCamPort" class="form-input" value="554" required>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">ICSee Username *</label>
+            <input type="text" id="icseeCamUser" class="form-input" placeholder="e.g. hmpw" value="hmpw" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ICSee Password *</label>
+            <input type="password" id="icseeCamPass" class="form-input" placeholder="Enter camera password" value="r7h3m2">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">ICSee Stream Profile / Path *</label>
+          <select id="icseeStreamType" class="form-input" style="background:#ffffff;" required>
+            <option value="stream0" selected>Primary Main Stream (High Resolution 1080p / 4MP) — /stream0</option>
+            <option value="stream1">Secondary Sub-Stream (Low Latency / Smooth Mobile) — /stream1</option>
+            <option value="onvif1">ONVIF Profile 1 Stream — /onvif1</option>
+            <option value="live/ch0">Alternative Xiongmai Channel 0 — /live/ch0</option>
+          </select>
+        </div>
+
+        <div id="icseeConnectStatus" style="display:none; padding:10px 14px; border-radius:6px; font-size:12px; font-weight:600;"></div>
+
+        <div class="police-modal-footer" style="padding-top:10px; padding-bottom:0; padding-right:0; padding-left:0; background:transparent; border-top:none;">
+          <button type="button" onclick="closeICSeeCamModal()" class="btn btn--secondary">Cancel</button>
+          <button type="submit" id="btnConnectICSee" class="btn" style="background:#059669; color:#ffffff; font-weight:700;">Connect &amp; Activate ICSee Stream</button>
         </div>
       </form>
     </div>

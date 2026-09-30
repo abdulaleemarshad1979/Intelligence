@@ -56,6 +56,37 @@ def build_matrix_rtsp_url(
     return f"rtsp://{clean_ip}:{clean_port}/{clean_type}"
 
 
+def build_icsee_rtsp_url(
+    ip: str,
+    port: int = 554,
+    username: str = "",
+    password: str = "",
+    stream_type: str = "stream0"
+) -> str:
+    """Build standardized ICSee / Xiongmai / XM RTSP stream URL.
+    
+    ICSee Profiles:
+    - 'stream0': Primary Main Stream (1080p/2K/4MP High Resolution)
+    - 'stream1': Secondary Sub-Stream (Low Latency / Bandwidth Friendly)
+    - 'onvif1': Standard ONVIF Profile 1
+    - 'live/ch0': Alternative Xiongmai Channel 0
+    - 'user={u}&password={p}&channel=1&stream=0.sdp': Sofia Protocol SDP Stream
+    """
+    clean_ip = ip.strip()
+    clean_port = port or 554
+    clean_type = stream_type.strip().lstrip("/")
+    if not clean_type:
+        clean_type = "stream0"
+
+    user_part = ""
+    if username and password:
+        user_part = f"{username}:{password}@"
+    elif username:
+        user_part = f"{username}@"
+
+    return f"rtsp://{user_part}{clean_ip}:{clean_port}/{clean_type}"
+
+
 class CameraStreamWorker:
     """Independent background worker for a single camera feed with zero-latency grabber."""
 
@@ -725,7 +756,25 @@ class CameraStreamManager:
             # Determine default source for camera
             resolved_source = source
             if not resolved_source:
-                if camera_id == "CAM-001":
+                icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip()
+                icsee_target_cam = os.getenv("ICSEE_CAMERA_ID", "CAM-001").strip()
+                if icsee_ip and (camera_id == icsee_target_cam or camera_id == "CAM-001"):
+                    icsee_user = os.getenv("ICSEE_CAMERA_USER", "").strip()
+                    icsee_pw = os.getenv("ICSEE_CAMERA_PASSWORD", "").strip()
+                    try:
+                        icsee_port = int(os.getenv("ICSEE_CAMERA_PORT", "554"))
+                    except Exception:
+                        icsee_port = 554
+                    icsee_stream = os.getenv("ICSEE_STREAM", "stream0").strip()
+                    resolved_source = build_icsee_rtsp_url(
+                        ip=icsee_ip,
+                        port=icsee_port,
+                        username=icsee_user,
+                        password=icsee_pw,
+                        stream_type=icsee_stream
+                    )
+                    logger.info(f"Auto-configured live ICSee RTSP camera feed on [{camera_id}]: {resolved_source}")
+                elif camera_id == "CAM-001":
                     raw_path = os.path.join(self.data_dir, "samples", "cctv_sample_raw.mp4")
                     sample_path = os.path.join(self.data_dir, "samples", "cctv_sample.mp4")
                     fallback_path = "/home/abdul-aleem-arshad/Downloads/WhatsApp Video 2026-09-17 at 4.40.40 PM.mp4"
@@ -768,6 +817,27 @@ class CameraStreamManager:
         )
         logger.info(f"Connecting Matrix Camera [{camera_id}] via RTSP: {rtsp_url}")
         return self.get_or_create_worker(camera_id=camera_id, source=rtsp_url, name=name or f"Matrix CCTV {ip}")
+
+    def attach_icsee_camera(
+        self,
+        camera_id: str,
+        ip: str,
+        port: int = 554,
+        username: str = "",
+        password: str = "",
+        stream_type: str = "stream0",
+        name: str = ""
+    ) -> CameraStreamWorker:
+        """Connect real ICSee IP camera via low-latency RTSP."""
+        rtsp_url = build_icsee_rtsp_url(
+            ip=ip,
+            port=port,
+            username=username,
+            password=password,
+            stream_type=stream_type
+        )
+        logger.info(f"Connecting ICSee Camera [{camera_id}] via RTSP: {rtsp_url}")
+        return self.get_or_create_worker(camera_id=camera_id, source=rtsp_url, name=name or f"ICSee CCTV {ip}")
 
     def generate_mjpeg_stream(
         self,

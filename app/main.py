@@ -179,11 +179,20 @@ app.mount("/data/target_search", StaticFiles(directory=os.path.join(DATA_DIR, "t
 
 # Load camera configs & initialize Cross-Camera Tracker
 def load_camera_config() -> Dict[str, Any]:
+    cfg_600_path = os.path.join(BASE_DIR, "config", "cameras_600.yaml")
     cfg_path = os.path.join(BASE_DIR, "config", "cameras.yaml")
-    if os.path.exists(cfg_path):
-        with open(cfg_path, "r") as f:
-            return yaml.safe_load(f).get("cameras", {})
-    return {}
+    target_path = cfg_600_path if os.path.isfile(cfg_600_path) else cfg_path
+    cams: Dict[str, Any] = {}
+    if os.path.exists(target_path):
+        with open(target_path, "r") as f:
+            cams = yaml.safe_load(f).get("cameras", {})
+
+    # Augment CAM-001 if ICSEE_CAMERA_IP is configured
+    icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip()
+    if icsee_ip and "CAM-001" in cams:
+        cams["CAM-001"]["name"] = f"District Hospital North Wing (ICSee {icsee_ip})"
+        cams["CAM-001"]["location"] = f"ICSee IP Camera ({icsee_ip})"
+    return cams
 
 camera_configs = load_camera_config()
 cross_camera_tracker = CrossCameraTracker(camera_configs)
@@ -623,7 +632,8 @@ async def get_behavior_alerts():
 
         # Reconstruct synthetic multi-frame trajectory from recorded bounding box & posture
         pts = []
-        base_h = trk.get("estimated_height_cm", 170.0) * 1.5
+        raw_h = trk.get("estimated_height_cm")
+        base_h = (float(raw_h) if raw_h is not None else 170.0) * 1.5
         for f in range(fc):
             t_f = t_start + f * 0.04
             # Model slight natural trajectory variation
@@ -1224,33 +1234,126 @@ class OfficerConfirmPayload(BaseModel):
     officer_badge: str
     notes: Optional[str] = ""
 
-# 16-Camera District CCTV Grid Registry
-CCTV_CAMERAS_REGISTRY = [
-    {"camera_id": "CAM-001", "name": "CAM 1", "location": "District Hospital North Wing", "sector": "Hospital", "subdivision": "East Zone", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam1", "status": "ACTIVE", "fps": 25, "is_main": True},
-    {"camera_id": "CAM-002", "name": "CAM 2", "location": "Hospital Main Gate & Ambulance Bay", "sector": "Pushkaralu", "subdivision": "East Zone", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam2", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-003", "name": "CAM 3", "location": "Pushkaralu Ghat Main Entrance", "sector": "Pushkaralu", "subdivision": "Rajahmundry", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam3", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-004", "name": "CAM 4", "location": "Godavari River Promenade West", "sector": "Pushkaralu", "subdivision": "Rajahmundry", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam4", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-005", "name": "CAM 5", "location": "Kotilingala Ghat North Pier", "sector": "Pushkaralu", "subdivision": "Rajahmundry", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam5", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-006", "name": "CAM 6", "location": "Rajahmundry Main Railway Station Exit", "sector": "Rjy", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam6", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-007", "name": "CAM 7", "location": "Railway Feeder Road Junction", "sector": "Rjy", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam7", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-008", "name": "CAM 8", "location": "RTC Central Bus Complex Concourse", "sector": "Rjy", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam8", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-009", "name": "CAM 9", "location": "Kakinada Port Deepwater Terminal Gate", "sector": "Port", "subdivision": "Kakinada Port", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam9", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-010", "name": "CAM 10", "location": "Port Container Freight Station East", "sector": "Port", "subdivision": "Kakinada Port", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam10", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-011", "name": "CAM 11", "location": "Beach Road Flyover Interchange", "sector": "Rjy", "subdivision": "Traffic South", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam11", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-012", "name": "CAM 12", "location": "Pushkaralu VIP Vehicle Entry Point", "sector": "Pushkaralu", "subdivision": "Rajahmundry", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam12", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-013", "name": "CAM 13", "location": "Sector 4 Commercial Plaza North Exit", "sector": "Sector4", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam13", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-014", "name": "CAM 14", "location": "Sector 4 Bank Square Corridor", "sector": "Sector4", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam14", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-015", "name": "CAM 15", "location": "North Transit Avenue Checkpoint", "sector": "Sector4", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam15", "status": "ACTIVE", "fps": 25, "is_main": False},
-    {"camera_id": "CAM-016", "name": "CAM 16", "location": "Anaparthi Canal Bridge Checkpoint", "sector": "Rjy", "subdivision": "Anaparthi", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam16", "status": "ACTIVE", "fps": 25, "is_main": False}
-]
+# 600-Camera District CCTV Grid Registry Builder
+def build_600_cctv_registry() -> List[Dict[str, Any]]:
+    """Build full 600-camera district CCTV matrix for Command Center grid."""
+    base_16 = [
+        {"camera_id": "CAM-001", "name": "CAM 1", "location": "District Hospital North Wing", "sector": "Hospital", "subdivision": "East Zone", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam1", "status": "ACTIVE", "fps": 25, "is_main": True},
+        {"camera_id": "CAM-002", "name": "CAM 2", "location": "Hospital Main Gate & Ambulance Bay", "sector": "Pushkaralu", "subdivision": "East Zone", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam2", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-003", "name": "CAM 3", "location": "Pushkaralu Ghat Main Entrance", "sector": "Pushkaralu", "subdivision": "Rajahmundry", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam3", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-004", "name": "CAM 4", "location": "Godavari River Promenade West", "sector": "Pushkaralu", "subdivision": "Rajahmundry", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam4", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-005", "name": "CAM 5", "location": "Kotilingala Ghat North Pier", "sector": "Pushkaralu", "subdivision": "Rajahmundry", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam5", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-006", "name": "CAM 6", "location": "Rajahmundry Main Railway Station Exit", "sector": "Rjy", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam6", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-007", "name": "CAM 7", "location": "Railway Feeder Road Junction", "sector": "Rjy", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam7", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-008", "name": "CAM 8", "location": "RTC Central Bus Complex Concourse", "sector": "Rjy", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam8", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-009", "name": "CAM 9", "location": "Kakinada Port Deepwater Terminal Gate", "sector": "Port", "subdivision": "Kakinada Port", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam9", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-010", "name": "CAM 10", "location": "Port Container Freight Station East", "sector": "Port", "subdivision": "Kakinada Port", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam10", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-011", "name": "CAM 11", "location": "Beach Road Flyover Interchange", "sector": "Rjy", "subdivision": "Traffic South", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam11", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-012", "name": "CAM 12", "location": "Pushkaralu VIP Vehicle Entry Point", "sector": "Pushkaralu", "subdivision": "Rajahmundry", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam12", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-013", "name": "CAM 13", "location": "Sector 4 Commercial Plaza North Exit", "sector": "Sector4", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam13", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-014", "name": "CAM 14", "location": "Sector 4 Bank Square Corridor", "sector": "Sector4", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam14", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-015", "name": "CAM 15", "location": "North Transit Avenue Checkpoint", "sector": "Sector4", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam15", "status": "ACTIVE", "fps": 25, "is_main": False},
+        {"camera_id": "CAM-016", "name": "CAM 16", "location": "Anaparthi Canal Bridge Checkpoint", "sector": "Rjy", "subdivision": "Anaparthi", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam16", "status": "ACTIVE", "fps": 25, "is_main": False}
+    ]
+
+    # Check ICSee Camera Environment Variable
+    icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip()
+    if icsee_ip:
+        base_16[0]["name"] = f"CAM 1 (ICSee Live {icsee_ip})"
+        base_16[0]["location"] = f"ICSee IP Camera ({icsee_ip})"
+
+    registry = list(base_16)
+
+    # Sector mapping pool for remaining cameras up to 600
+    sectors_pool = [
+        ("Pushkaralu", "Pushkaralu Ghats Zone", ["Pushkar Main Ghat", "Saraswati Ghat Stairs", "VIP Ghat Corridor", "Kotilingala Temple Point", "Ramakrishna Ghat Pier", "Feeder Line Ingress", "Riverfront Promenade", "Ghat Holding Bay"]),
+        ("Hospital", "East Zone", ["Government Hospital South Wing", "Medical College Campus", "Sub-Jail Road", "Suryaraopeta Junction", "Jagannaickpur Bridge", "Daba Gardens Corridor", "Trauma Care Ingress"]),
+        ("Rjy", "Central Division", ["District Collectorate", "Municipal Corporation Plaza", "RTC Central Complex", "Main Market Bazaar", "Clock Tower Square", "Cinema Road Junction", "Bhanugudi Square"]),
+        ("Port", "South Port Zone", ["Deep Water Port Berth", "Fertilizer City Gate", "Coromandel Junction", "Beach Bypass Checkpost", "Fisheries Harbor Gate", "Naval Coastal Corridor", "Canal Lock Checkpoint"]),
+        ("Sector4", "North Division", ["Sector 4 Outer Gate", "Ring Road North Terminal", "Smart City Command Hub", "JNTU Engineering Perimeter", "Nagaram Checkpoint", "Atchampeta Overpass", "Sarpavaram Corridor"]),
+    ]
+
+    for i in range(17, 601):
+        cam_id = f"CAM-{i:03d}"
+        s_idx = (i - 17) % len(sectors_pool)
+        sector_name, subdiv, locations = sectors_pool[s_idx]
+        loc_name = locations[(i - 17) % len(locations)]
+        sector_num = ((i - 17) // len(sectors_pool)) + 1
+        registry.append({
+            "camera_id": cam_id,
+            "name": f"CAM {i}",
+            "location": f"{loc_name} Sec-{sector_num}",
+            "sector": sector_name,
+            "subdivision": subdiv,
+            "rtmp": f"rtmp://publish.police.gov.in:1935/live/cam{i}",
+            "status": "ACTIVE",
+            "fps": 25,
+            "is_main": False
+        })
+
+    return registry
+
+CCTV_CAMERAS_REGISTRY = build_600_cctv_registry()
+
+class ICSeeCameraConnectPayload(BaseModel):
+    camera_id: Optional[str] = "CAM-001"
+    ip: str
+    port: int = 554
+    username: Optional[str] = "admin"
+    password: Optional[str] = ""
+    stream_type: Optional[str] = "stream0"
+    name: Optional[str] = None
+
+@app.post("/api/cameras/connect_icsee")
+async def connect_icsee_camera(payload: ICSeeCameraConnectPayload):
+    """Connect live ICSee IP camera via low-latency RTSP."""
+    try:
+        cid = payload.camera_id or "CAM-001"
+        worker = stream_mgr.attach_icsee_camera(
+            camera_id=cid,
+            ip=payload.ip,
+            port=payload.port,
+            username=payload.username or "",
+            password=payload.password or "",
+            stream_type=payload.stream_type or "stream0",
+            name=payload.name or f"ICSee IP Camera ({payload.ip})"
+        )
+        return {
+            "status": "SUCCESS",
+            "camera_id": cid,
+            "ip": payload.ip,
+            "stream_url": worker.source.replace(payload.password, "******") if payload.password else worker.source,
+            "is_connected": worker.is_connected
+        }
+    except Exception as ex:
+        raise HTTPException(status_code=500, detail=str(ex))
 
 @app.get("/api/cctv/cameras")
-async def list_cctv_cameras():
-    """Retrieve full 16-camera district CCTV matrix for Command Center grid."""
+async def list_cctv_cameras(
+    limit: Optional[int] = None,
+    offset: int = 0,
+    sector: Optional[str] = None,
+    search: Optional[str] = None
+):
+    """Retrieve full 600-camera district CCTV matrix for Command Center grid."""
+    cams = CCTV_CAMERAS_REGISTRY
+    if sector and sector.lower() != "all":
+        cams = [c for c in cams if c.get("sector", "").lower() == sector.lower()]
+    if search:
+        s_low = search.lower()
+        cams = [c for c in cams if s_low in c["name"].lower() or s_low in c["location"].lower() or s_low in c["camera_id"].lower()]
+    
+    total = len(cams)
+    if limit is not None:
+        cams = cams[offset:offset + limit]
+
     return {
         "status": "SUCCESS",
-        "total": len(CCTV_CAMERAS_REGISTRY),
-        "cameras": CCTV_CAMERAS_REGISTRY
+        "total": total,
+        "returned": len(cams),
+        "offset": offset,
+        "limit": limit,
+        "cameras": cams
     }
 
 GLOBAL_COUNTING_MODE = "counting"

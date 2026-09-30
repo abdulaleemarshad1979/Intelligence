@@ -147,8 +147,10 @@ class CrossCameraTracker:
         cloth_sim = 0.6 * up_sim + 0.4 * low_sim
 
         # Height compatibility
-        ha = track_a.get("estimated_height_cm", 170.0)
-        hb = track_b.get("estimated_height_cm", 170.0)
+        ha = track_a.get("estimated_height_cm")
+        hb = track_b.get("estimated_height_cm")
+        ha = float(ha) if ha is not None else 170.0
+        hb = float(hb) if hb is not None else 170.0
         h_diff = abs(ha - hb)
         height_sim = max(0.0, 1.0 - (h_diff / 12.0))
 
