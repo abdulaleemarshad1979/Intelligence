@@ -28,6 +28,9 @@ data/target_search/*
 data/debug_frames/
 data/police_records.db
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 
 # Logs and environment
 *.log
