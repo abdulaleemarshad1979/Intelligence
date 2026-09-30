@@ -22,7 +22,7 @@ import numpy as np
 
 # Set low-delay environment variables for OpenCV FFMPEG backend
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = (
-    "rtsp_transport;tcp|fflags;nobuffer|flags;low_delay|max_delay;500000|reorder_queue_size;0|probesize;32"
+    "rtsp_transport;tcp|fflags;nobuffer|flags;low_delay|max_delay;500000|reorder_queue_size;0|probesize;32|stimeout;3000000"
 )
 
 logger = logging.getLogger(__name__)
