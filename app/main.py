@@ -143,6 +143,13 @@ app.include_router(tracking_router)
 app.include_router(alerts_router)
 app.include_router(target_search_router)
 
+try:
+    from app.missing_person.lost_found import build_router as build_lost_found_router, get_lost_found_engine
+    app.include_router(build_lost_found_router(get_lost_found_engine()))
+except Exception as ex:
+    logger.warning("Could not initialize Lost & Found router: %s", ex)
+
+
 # Initialize database and core repositories
 init_db()
 repo = Repository()

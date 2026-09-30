@@ -34,6 +34,7 @@ data/police_records.db
 
 # Logs and environment
 *.log
+*.jsonl
 .env
 .DS_Store
 .pytest_cache/
