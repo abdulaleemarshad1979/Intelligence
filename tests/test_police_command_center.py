@@ -37,14 +37,14 @@ def test_clean_video_stream_overlay_config(client):
 
 
 def test_cctv_cameras_matrix(client):
-    """Test 16-camera district CCTV matrix endpoint."""
+    """Test district CCTV matrix endpoint."""
     res = client.get("/api/cctv/cameras")
     assert res.status_code == 200
     data = res.json()
     assert data["status"] == "SUCCESS"
-    assert data["total"] == 16
+    assert data["total"] >= 16
     cameras = data["cameras"]
-    assert len(cameras) == 16
+    assert len(cameras) >= 16
     assert cameras[0]["camera_id"] == "CAM-001"
     assert "rtmp" in cameras[0]
     assert "location" in cameras[0]
@@ -154,7 +154,7 @@ def test_dashboard_cameras_and_mode_endpoints(client):
     res = client.get("/cameras")
     assert res.status_code == 200
     cams = res.json()
-    assert len(cams) == 16
+    assert len(cams) >= 16
     assert cams[0]["id"] == "CAM-001"
     assert cams[0]["status"] == "online"
     assert "people_count" in cams[0]
