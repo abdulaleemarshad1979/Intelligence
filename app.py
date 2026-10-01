@@ -48,8 +48,8 @@ logger = logging.getLogger("CCTV-Platform")
 def setup_icsee_camera():
     """Verify and initialize ICSee IP Camera connection if environment variables are set."""
     icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip().strip("'\"")
-    icsee_ips_raw = os.getenv("ICSEE_CAMERA_IPS", "").strip()
-    icsee_cameras_raw = os.getenv("ICSEE_CAMERAS", "").strip()
+    icsee_ips_raw = os.getenv("ICSEE_CAMERA_IPS", "").strip().strip("'\"")
+    icsee_cameras_raw = os.getenv("ICSEE_CAMERAS", "").strip().strip("'\"")
 
     if not icsee_ip and not icsee_ips_raw and not icsee_cameras_raw:
         logger.info("No ICSEE_CAMERA_IP environment variable set. Running all 600 cameras in fleet-ready standby/simulation mode.")

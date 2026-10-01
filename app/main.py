@@ -195,10 +195,24 @@ def load_camera_config() -> Dict[str, Any]:
         with open(target_path, "r") as f:
             cams = yaml.safe_load(f).get("cameras", {})
 
-    # Augment camera if ICSEE_CAMERA_IP is configured
+    # Augment camera if ICSEE_CAMERA_IP or ICSEE_CAMERA_IPS is configured
     icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip().strip("'\"")
+    icsee_ips_raw = os.getenv("ICSEE_CAMERA_IPS", "").strip().strip("'\"")
     icsee_target_cam = os.getenv("ICSEE_CAMERA_ID", "CAM-001").strip().upper().strip("'\"")
-    if icsee_ip:
+    if icsee_ips_raw:
+        try:
+            start_num = int(icsee_target_cam.replace("CAM-", "")) if "CAM-" in icsee_target_cam else 1
+        except Exception:
+            start_num = 1
+        for idx, ip_str in enumerate(icsee_ips_raw.split(",")):
+            ip = ip_str.strip().strip("'\"")
+            if not ip:
+                continue
+            slot = f"CAM-{start_num + idx:03d}"
+            if slot in cams:
+                cams[slot]["name"] = f"Live ICSee Camera ({ip})"
+                cams[slot]["location"] = f"ICSee IP Camera ({ip})"
+    elif icsee_ip:
         slot = icsee_target_cam if icsee_target_cam in cams else "CAM-001"
         if slot in cams:
             cams[slot]["name"] = f"Live ICSee Camera ({icsee_ip})"
@@ -1274,16 +1288,44 @@ def build_600_cctv_registry() -> List[Dict[str, Any]]:
 
     # Check ICSee Camera Environment Variable
     icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip().strip("'\"")
+    icsee_ips_raw = os.getenv("ICSEE_CAMERA_IPS", "").strip().strip("'\"")
     icsee_target_cam = os.getenv("ICSEE_CAMERA_ID", "CAM-001").strip().upper().strip("'\"")
-    if icsee_ip:
-        icsee_user = os.getenv("ICSEE_CAMERA_USER", "rtsp").strip().strip("'\"")
-        icsee_pass = os.getenv("ICSEE_CAMERA_PASSWORD", "").strip().strip("'\"")
+    icsee_user = os.getenv("ICSEE_CAMERA_USER", "rtsp").strip().strip("'\"")
+    icsee_pass = os.getenv("ICSEE_CAMERA_PASSWORD", "").strip().strip("'\"")
+    try:
+        icsee_port = int(os.getenv("ICSEE_CAMERA_PORT", "554"))
+    except Exception:
+        icsee_port = 554
+    icsee_stream = os.getenv("ICSEE_STREAM", "stream0").strip().strip("'\"")
+    from app.ingestion.stream_manager import build_icsee_rtsp_url
+
+    if icsee_ips_raw:
         try:
-            icsee_port = int(os.getenv("ICSEE_CAMERA_PORT", "554"))
+            start_num = int(icsee_target_cam.replace("CAM-", "")) if "CAM-" in icsee_target_cam else 1
         except Exception:
-            icsee_port = 554
-        icsee_stream = os.getenv("ICSEE_STREAM", "stream0").strip().strip("'\"")
-        from app.ingestion.stream_manager import build_icsee_rtsp_url
+            start_num = 1
+        for idx, ip_str in enumerate(icsee_ips_raw.split(",")):
+            ip = ip_str.strip().strip("'\"")
+            if not ip:
+                continue
+            cid = f"CAM-{start_num + idx:03d}"
+            rtsp_url = build_icsee_rtsp_url(
+                ip=ip,
+                port=icsee_port,
+                username=icsee_user,
+                password=icsee_pass,
+                stream_type=icsee_stream
+            )
+            for c in base_16:
+                if c["camera_id"] == cid:
+                    num_str = cid.replace("CAM-", "").lstrip("0") or "1"
+                    c["name"] = f"CAM {num_str} (ICSee Live {ip})"
+                    c["location"] = f"ICSee IP Camera ({ip})"
+                    c["rtmp"] = rtsp_url
+                    c["status"] = "ACTIVE"
+                    c["ip_address"] = ip
+                    break
+    elif icsee_ip:
         rtsp_url = build_icsee_rtsp_url(
             ip=icsee_ip,
             port=icsee_port,
