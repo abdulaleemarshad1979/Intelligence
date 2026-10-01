@@ -116,8 +116,9 @@ def setup_icsee_camera():
             password=icsee_pass,
             stream_type=icsee_stream
         )
-        cam_name = f"ICSee IP Camera ({ip})"
-        cam_loc = f"ICSee Feed ({ip})"
+        # Find existing camera name if registered
+        existing_cam = next((c for c in CCTV_CAMERAS_REGISTRY if c["camera_id"] == cid), None)
+        cam_name = existing_cam["name"] if (existing_cam and existing_cam.get("name")) else f"ICSee IP Camera ({ip})"
         masked_url = rtsp_url.replace(icsee_pass, '******') if icsee_pass else rtsp_url
 
         try:
@@ -133,16 +134,12 @@ def setup_icsee_camera():
             # Update in-memory registry
             for c in CCTV_CAMERAS_REGISTRY:
                 if c["camera_id"] == cid:
-                    c["name"] = cam_name
-                    c["location"] = cam_loc
                     c["rtmp"] = rtsp_url
                     c["status"] = "ACTIVE"
                     c["ip_address"] = ip
                     break
 
             if cid in camera_configs:
-                camera_configs[cid]["name"] = cam_name
-                camera_configs[cid]["location"] = cam_loc
                 camera_configs[cid]["rtsp_url"] = rtsp_url
 
             logger.info(f"Attached live ICSee camera on [{cid}]: {masked_url}")
