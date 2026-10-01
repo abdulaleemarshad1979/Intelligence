@@ -4284,9 +4284,20 @@
     window.openMatrixCamModal = function(camId) {
       const m = document.getElementById("matrixCamModal");
       if (!m) return;
-      if (camId) {
-        const sel = document.getElementById("matrixCamSlot");
-        if (sel) sel.value = camId;
+      const sel = document.getElementById("matrixCamSlot");
+      if (sel && typeof cameras !== 'undefined' && cameras && cameras.length > 0) {
+        const currentVal = camId || sel.value || "CAM-001";
+        sel.innerHTML = "";
+        cameras.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c.id;
+          const secTag = c.subdivision ? `[${c.subdivision}] ` : (c.sector ? `[${c.sector}] ` : "");
+          opt.textContent = `${c.id} — ${secTag}${c.name}`;
+          if (c.id === currentVal) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      } else if (camId && sel) {
+        sel.value = camId;
       }
       const statusEl = document.getElementById("matrixConnectStatus");
       if (statusEl) statusEl.style.display = "none";
@@ -4461,15 +4472,15 @@
       sel.innerHTML = "";
 
       // Populate from loaded cameras
-      const list = (cameras && cameras.length > 0) ? cameras : [
-        { id: "CAM-001", name: "District Hospital North Wing", sector: "Hospital" },
-        { id: "CAM-002", name: "Hospital Main Gate & Ambulance Bay", sector: "Pushkaralu" }
+      const list = (typeof cameras !== 'undefined' && cameras && cameras.length > 0) ? cameras : [
+        { id: "CAM-001", name: "Thadithota-1", subdivision: "Central Zone", sector: "Central Zone" },
+        { id: "CAM-004", name: "Thadithota-2", subdivision: "Central Zone", sector: "Central Zone" }
       ];
 
       list.forEach(c => {
         const opt = document.createElement("option");
         opt.value = c.id;
-        const secTag = c.sector ? `[${c.sector}] ` : "";
+        const secTag = c.subdivision ? `[${c.subdivision}] ` : (c.sector ? `[${c.sector}] ` : "");
         opt.textContent = `${c.id} — ${secTag}${c.name}`;
         if (c.id === currentVal) opt.selected = true;
         sel.appendChild(opt);
@@ -5360,22 +5371,17 @@
           <div class="form-group">
             <label class="form-label">Target Camera Slot *</label>
             <select id="matrixCamSlot" class="form-input" style="background:#ffffff;" required>
-              <option value="CAM-001">CAM 1 — District Hospital North Wing (Main)</option>
-              <option value="CAM-002">CAM 2 — Hospital Main Gate &amp; Ambulance Bay</option>
-              <option value="CAM-003">CAM 3 — Pushkaralu Ghat Main Entrance</option>
-              <option value="CAM-004">CAM 4 — Godavari River Promenade West</option>
-              <option value="CAM-005">CAM 5 — Kotilingala Ghat North Pier</option>
-              <option value="CAM-006">CAM 6 — Rajahmundry Main Railway Station Exit</option>
-              <option value="CAM-007">CAM 7 — Railway Feeder Road Junction</option>
-              <option value="CAM-008">CAM 8 — RTC Central Bus Complex Concourse</option>
-              <option value="CAM-009">CAM 9 — Kakinada Port Deepwater Terminal Gate</option>
-              <option value="CAM-010">CAM 10 — Port Container Freight Station East</option>
-              <option value="CAM-011">CAM 11 — Beach Road Flyover Interchange</option>
-              <option value="CAM-012">CAM 12 — Pushkaralu VIP Vehicle Entry Point</option>
-              <option value="CAM-013">CAM 13 — Sector 4 Commercial Plaza North Exit</option>
-              <option value="CAM-014">CAM 14 — Sector 4 Bank Square Corridor</option>
-              <option value="CAM-015">CAM 15 — North Transit Avenue Checkpoint</option>
-              <option value="CAM-016">CAM 16 — Anaparthi Canal Bridge Checkpoint</option>
+              <option value="CAM-001">CAM-001 — [Central Zone] Thadithota-1</option>
+              <option value="CAM-004">CAM-004 — [Central Zone] Thadithota-2</option>
+              <option value="CAM-007">CAM-007 — [Central Zone] Thadithota-3</option>
+              <option value="CAM-011">CAM-011 — [Central Zone] Muggupera Centre-1</option>
+              <option value="CAM-014">CAM-014 — [Central Zone] Muggupera Centre-2</option>
+              <option value="CAM-017">CAM-017 — [Central Zone] Muggupera Centre-3</option>
+              <option value="CAM-020">CAM-020 — [Central Zone] Muggupera Centre-4</option>
+              <option value="CAM-023">CAM-023 — [Central Zone] Azad Chowk-1</option>
+              <option value="CAM-026">CAM-026 — [Central Zone] Azad Chowk-2</option>
+              <option value="CAM-029">CAM-029 — [Central Zone] Azad Chowk-3</option>
+              <option value="CAM-032">CAM-032 — [Central Zone] Azad Chowk-4</option>
             </select>
           </div>
           <div class="form-group">
@@ -5467,7 +5473,7 @@
             <label class="form-label" style="font-weight:700;">Target Camera Slot *</label>
             <select id="icseeCamSlot" class="form-input" style="background:#ffffff; font-weight:600;" required onchange="onICSeeSlotChange(this.value)">
               <!-- Dynamically populated from all 600 cameras -->
-              <option value="CAM-001" selected>CAM-001 — District Hospital North Wing (East Zone)</option>
+              <option value="CAM-001" selected>CAM-001 — [Central Zone] Thadithota-1</option>
             </select>
           </div>
           <div class="form-group" id="customSlotWrapper" style="display:none;">
@@ -6057,6 +6063,22 @@
     window.openTargetSearchModal = function() {
       const modal = document.getElementById('targetSearchModal');
       if (modal) modal.classList.remove('hidden');
+      const checklist = document.getElementById('tsCamerasChecklist');
+      if (checklist && typeof cameras !== 'undefined' && cameras && cameras.length > 0) {
+        const existingChecked = new Set();
+        document.querySelectorAll('.ts-cam-cb:checked').forEach(cb => existingChecked.add(cb.value));
+        const hasExisting = document.querySelectorAll('.ts-cam-cb').length > 0;
+        
+        checklist.innerHTML = '';
+        cameras.forEach((c, idx) => {
+          const isChecked = hasExisting ? (existingChecked.has(c.id) || (existingChecked.size === 0 && idx < 8)) : (idx < 8);
+          const lbl = document.createElement('label');
+          lbl.style.cssText = 'font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;';
+          lbl.title = `${c.id}: ${c.name} (${c.location || ''})`;
+          lbl.innerHTML = `<input type="checkbox" class="ts-cam-cb" value="${c.id}" ${isChecked ? 'checked' : ''}> <span>${c.id} - ${c.name}</span>`;
+          checklist.appendChild(lbl);
+        });
+      }
       if (window._activeTargetSearchSessionId) {
         window.pollTargetSearchTelemetry();
       }

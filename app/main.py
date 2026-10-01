@@ -1264,27 +1264,148 @@ class OfficerConfirmPayload(BaseModel):
     officer_badge: str
     notes: Optional[str] = ""
 
+# Connected CCTV Master Registry Table (77 Cameras)
+MASTER_CONNECTED_CAMERAS: Dict[int, Dict[str, Any]] = {
+    1: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Thadithota-1", "lat": 16.9984582, "lon": 81.7795421, "ip": "10.243.0.1", "from": "Stadium Road", "towards": "Towards shelton hotel side"},
+    4: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Thadithota-2", "lat": 16.9985399, "lon": 81.7801136, "ip": "10.243.0.4", "from": "Shelton Center", "towards": "Towards stadium road"},
+    7: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Thadithota-3", "lat": 16.9989963, "lon": 81.7798519, "ip": "10.243.0.7", "from": "Muggupeta", "towards": "Towards thadithota center (T Junction )"},
+    11: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Muggupeta Centre-1", "lat": 17.0050299, "lon": 81.7798762, "ip": "10.243.0.11", "from": "Azad chowk", "towards": "Seelamnookaraju JN, Gorakshana peta"},
+    14: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Muggupeta Centre-2", "lat": 17.0051656, "lon": 81.7802129, "ip": "10.243.0.14", "from": "Nandamganiraju JN", "towards": "Towards Thadithota center"},
+    17: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Muggupeta Centre-3", "lat": 17.004609, "lon": 81.7805149, "ip": "10.243.0.17", "from": "Seelamnookaraju JN, Gorakshana peta", "towards": "Azad Chowk"},
+    20: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Muggupeta Centre-4", "lat": 17.0046617, "lon": 81.7801916, "ip": "10.243.0.20", "from": "Thadithota center", "towards": "Nandamganiraju JN"},
+    23: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Azad Chowk-1", "lat": 17.0067927, "lon": 81.7755929, "ip": "10.243.0.23", "from": "Nandamganiraju JN", "towards": "Jandapanja Road"},
+    26: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Azad Chowk-2", "lat": 17.0070435, "lon": 81.7761807, "ip": "10.243.0.26", "from": "Devi Chowk", "towards": "Muggupeta center"},
+    29: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Azad Chowk-3", "lat": 17.0065256, "lon": 81.7756155, "ip": "10.243.0.29", "from": "Jandapanja Road", "towards": "Jampeta Gandhi bomma center, Nandamganiraju JN"},
+    32: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Azad Chowk-4", "lat": 17.0063626, "lon": 81.7756158, "ip": "10.243.0.32", "from": "Muggupeta Center", "towards": "Devi Chowk"},
+    35: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Nandam Ganiraju Junction-1", "lat": 17.0076458, "lon": 81.7793395, "ip": "10.243.0.35", "from": "Y Junction", "towards": "Azad Chowk"},
+    38: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Nandam Ganiraju Junction-2", "lat": 17.0098123, "lon": 81.7792678, "ip": "10.243.0.38", "from": "Kambala cheruvu Center", "towards": "TTD Road ,Muggupeta center"},
+    41: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Nandam Ganiraju Junction-3", "lat": 17.0092333, "lon": 81.779275, "ip": "10.243.0.41", "from": "Azad Chowk", "towards": "Y Junction"},
+    44: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Nandam Ganiraju Junction-4", "lat": 17.0093167, "lon": 81.779927, "ip": "10.243.0.44", "from": "Muggupeta Center", "towards": "Kambala tank"},
+    47: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Y-Junction-1", "lat": 17.0130646, "lon": 81.7831149, "ip": "10.243.0.47", "from": "Central Jail Road", "towards": "Nandamganiraju JN ( L ), Kambalatank ( R )"},
+    50: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Y-Junction-2", "lat": 17.0124141, "lon": 81.7833041, "ip": "10.243.0.50", "from": "Nandamganiraju JN", "towards": "Central Central jail Road, Lalacheruvu"},
+    53: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Y-Junction-3", "lat": 17.0127364, "lon": 81.7829764, "ip": "10.243.0.53", "from": "Kambalacheruvu", "towards": "Central Jail road, Ats college Lalacheruvu"},
+    64: {"ps": "2 town", "subdiv": "South Zone", "type": "RLVD", "location": "Kotipalli Bus Stand 1", "lat": 16.9936706, "lon": 81.7760878, "ip": "10.243.0.64", "from": "Syamala center", "towards": "Railway Station"},
+    67: {"ps": "2 town", "subdiv": "South Zone", "type": "RLVD", "location": "Kotipalli Bus Stand 2", "lat": 16.9929025, "lon": 81.7764273, "ip": "10.243.0.67", "from": "Railway Station", "towards": "Syamala Center"},
+    74: {"ps": "2 town", "subdiv": "South Zone", "type": "RLVD", "location": "Syamala Centre-1", "lat": 16.9947089, "lon": 81.7752166, "ip": "10.243.0.74", "from": "Kotipalli Bus Stand Center", "towards": "Deluxe center"},
+    77: {"ps": "2 town", "subdiv": "South Zone", "type": "RLVD", "location": "Syamala Centre-2", "lat": 16.995167, "lon": 81.7752528, "ip": "10.243.0.77", "from": "Stadium Road", "towards": "Godavari Bund Road"},
+    80: {"ps": "2 town", "subdiv": "South Zone", "type": "RLVD", "location": "Syamala Centre-3", "lat": 16.9952558, "lon": 81.7748038, "ip": "10.243.0.80", "from": "Deluxe center", "towards": "Kotipalli bus stand"},
+    93: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Quarry Centre-1", "lat": 17.0318758, "lon": 81.7876268, "ip": "10.243.0.93", "from": "Chiranjeevi Bus Stand", "towards": "Korukonda road"},
+    96: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Quarry Centre-2", "lat": 17.0319775, "lon": 81.788576, "ip": "10.243.0.96", "from": "Y.S.R.Statue Centre (lalacheruvu)", "towards": "Anand nagar SBI ATM"},
+    99: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Quarry Centre-3", "lat": 17.0325095, "lon": 81.788439, "ip": "10.243.0.99", "from": "Korukonda road", "towards": "Brethren church, Chiranjeevi bus stand"},
+    115: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Y.S.R.Statue Centre-1 (lalacheruvu)", "lat": 17.0260073, "lon": 81.8046729, "ip": "10.243.0.115", "from": "Quarry Center", "towards": "Lalacheruvu service road (jagan Biriyani)"},
+    118: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Y.S.R.Statue Centre-2 (lalacheruvu)", "lat": 17.025672, "lon": 81.8043241, "ip": "10.243.0.118", "from": "Central Jail Road", "towards": "Visakhapatnam National side"},
+    121: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Y.S.R.Statue Centre-3 (lalacheruvu)", "lat": 17.0258436, "lon": 81.8051439, "ip": "10.243.0.121", "from": "Hiway To", "towards": "Central Jail Road"},
+    124: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Kambal Tank-1", "lat": 17.0114212, "lon": 81.7786058, "ip": "10.243.0.124", "from": "Kambalacheruvu Hi tech bus stand", "towards": "Devi Chowk"},
+    127: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Kambal Tank-2", "lat": 17.0116835, "lon": 81.778576, "ip": "10.243.0.127", "from": "Chiranjeevi bus stand", "towards": "Nandamganiraju JN"},
+    130: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Kambal Tank-3", "lat": 17.0111998, "lon": 81.7777169, "ip": "10.243.0.130", "from": "Devi chowk", "towards": "Kambalacheruvu Hi tech bus stand"},
+    133: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Kambal Tank-4", "lat": 17.0110117, "lon": 81.7784652, "ip": "10.243.0.133", "from": "Nandam gani raju JN", "towards": "Chiranjeevi bus stand"},
+    136: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Devi Chowk-1", "lat": 17.0099485, "lon": 81.7753894, "ip": "10.243.0.136", "from": "", "towards": "Towards Azad chowk (rainbow colour lab )"},
+    139: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Devi Chowk-2", "lat": 17.00942, "lon": 81.7751107, "ip": "10.243.0.139", "from": "", "towards": "Towards"},
+    142: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Devi Chowk-3", "lat": 17.0101798, "lon": 81.7757994, "ip": "10.243.0.142", "from": "", "towards": "Towards rainbow colour lab"},
+    145: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Devi Chowk-4", "lat": 17.0099032, "lon": 81.7755765, "ip": "10.243.0.145", "from": "Gokavaram Bus Stand", "towards": "Kambala cheruvu"},
+    149: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Opp.3 Town Police Station-1", "lat": 17.0096824, "lon": 81.770026, "ip": "10.243.0.149", "from": "Ghandi Statue center, Aryapuram Road", "towards": "Towards 3 town PS, Pushkar Ghat"},
+    150: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Opp.3 Town Police Station-2", "lat": 17.0094509, "lon": 81.7701661, "ip": "10.243.0.150", "from": "Gokavaram Bus Stand", "towards": "Court, Pushkar Ghat"},
+    151: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Opp.3 Town Police Station-3", "lat": 17.0092361, "lon": 81.7695216, "ip": "10.243.0.151", "from": "Pushkara Ghat", "towards": "Aryapuram, Devi Chowk"},
+    158: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Vivekananda Statue-1", "lat": 17.013952, "lon": 81.776433, "ip": "10.243.0.158", "from": "Kambala cheruvu Center", "towards": "Paper mill road"},
+    161: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Vivekananda Statue-2", "lat": 17.0143084, "lon": 81.7793595, "ip": "10.243.0.161", "from": "Hi tech Bus Stand", "towards": "Kambala cheevu center"},
+    164: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Vivekananda Statue-3", "lat": 17.014867, "lon": 81.779383, "ip": "10.243.0.164", "from": "Quarry Center", "towards": "Kambalacheruvu, Hi tech bus stand"},
+    167: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Vivekananda Statue-4", "lat": 17.0149651, "lon": 81.7792557, "ip": "10.243.0.167", "from": "Paper mill road", "towards": "Chiranjeevi Bus stand, Kambalacheruvu"},
+    182: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "CTRI Junction-1", "lat": 17.0201428, "lon": 81.7943355, "ip": "10.243.0.182", "from": "Lalacheruvu Center", "towards": "Central Jail Road"},
+    185: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "CTRI Junction-2", "lat": 17.0198069, "lon": 81.7936358, "ip": "10.243.0.185", "from": "Y Junction", "towards": "Lalacheruvu center"},
+    198: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Bommuru Centre-1", "lat": 16.9696959, "lon": 81.7981421, "ip": "10.243.0.198", "from": "Ravulapalem", "towards": "Visakhapatnam"},
+    201: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Bommuru Centre-2", "lat": 16.9704621, "lon": 81.7979407, "ip": "10.243.0.201", "from": "Visakhapatnam", "towards": "Ravulapalem"},
+    204: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Bommuru Centre-3", "lat": 16.970373, "lon": 81.79794, "ip": "10.243.0.204", "from": "", "towards": "Bommuru Center Hiway"},
+    207: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Hukumpeta-1", "lat": 16.985162, "lon": 81.797158, "ip": "10.243.1.1", "from": "", "towards": "National Highway"},
+    210: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Morampudi Centre-1", "lat": 16.9864049, "lon": 81.8014055, "ip": "10.243.1.4", "from": "RTC Complex", "towards": "Namavaram"},
+    215: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Zero point", "lat": 16.9939688, "lon": 81.8020736, "ip": "10.243.1.9", "from": "", "towards": ""},
+    218: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Lalacheruvu Centre-1", "lat": 17.0263747, "lon": 81.8073832, "ip": "10.243.1.12", "from": "Visakhapatnam", "towards": "Ravulapalem"},
+    221: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Lalacheruvu Centre-2", "lat": 17.0256082, "lon": 81.8059746, "ip": "10.243.1.15", "from": "Ravulapalem", "towards": "Visakhapatnam"},
+    230: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "D.T.C.-1", "lat": 17.018683, "lon": 81.806255, "ip": "10.243.1.24", "from": "", "towards": ""},
+    233: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "D.T.C.-2", "lat": 17.019158, "lon": 81.80651, "ip": "10.243.1.27", "from": "Visakhapatnam", "towards": "Ravulapalem"},
+    236: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "D.T.C.-3", "lat": 17.018545, "lon": 81.806633, "ip": "10.243.1.30", "from": "", "towards": ""},
+    239: {"ps": "2 town", "subdiv": "South Zone", "type": "RLVD", "location": "Electrical Sub Station PV narasimha Park", "lat": 16.997559, "lon": 81.769416, "ip": "10.243.1.33", "from": "", "towards": "Towards Electrical Office"},
+    253: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Shelton Centre-1", "lat": 16.9991717, "lon": 81.784907, "ip": "10.243.1.47", "from": "Shelton Hotel", "towards": "Towards KIMS Hospital"},
+    256: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Shelton Centre-2", "lat": 16.9994082, "lon": 81.7851241, "ip": "10.243.1.50", "from": "RTC Complex", "towards": "Thadithota center"},
+    259: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Shelton Centre-3", "lat": 16.999811, "lon": 81.784997, "ip": "10.243.1.53", "from": "Seelamnookaraju Jn", "towards": "Towards shelton hotel"},
+    262: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Shelton Centre-4", "lat": 16.999393, "lon": 81.784518, "ip": "10.243.1.56", "from": "Thadi thota Center", "towards": "Towards RTC Complex"},
+    285: {"ps": "kadiyam", "subdiv": "South Zone", "type": "RLVD", "location": "Vemagiri Junction-1", "lat": 16.929126, "lon": 81.792914, "ip": "10.243.1.79", "from": "Dowlaiswaram", "towards": "Towards Kadiyam"},
+    288: {"ps": "kadiyam", "subdiv": "South Zone", "type": "RLVD", "location": "Vemagiri Junction-2", "lat": 16.928193, "lon": 81.793347, "ip": "10.243.1.82", "from": "visakhapatnam", "towards": "Towards Ravulapalem"},
+    291: {"ps": "kadiyam", "subdiv": "South Zone", "type": "RLVD", "location": "Vemagiri Junction-3", "lat": 16.927794, "lon": 81.793566, "ip": "10.243.1.85", "from": "Kadiyam", "towards": "Towards Dowlaiswaram"},
+    311: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "J.N. Road Junction-1", "lat": 17.0077986, "lon": 81.8095104, "ip": "10.243.1.105", "from": "", "towards": "Towards JN Road Opp"},
+    314: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "J.N. Road Junction-2", "lat": 17.007624, "lon": 81.8100297, "ip": "10.243.1.108", "from": "Ravulapalem", "towards": "Towards Visakhapatnam"},
+    317: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "J.N. Road Junction-3", "lat": 17.0083198, "lon": 81.8100038, "ip": "10.243.1.111", "from": "Visakhapatnam", "towards": "Towards Ravulapalem"},
+    331: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "Ramalayam Centre-1", "lat": 17.0077186, "lon": 81.7918657, "ip": "10.243.1.125", "from": "Jagruthi Road", "towards": "Towards AVA Road @ JN Road"},
+    334: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "Ramalayam Centre-2", "lat": 17.0075976, "lon": 81.7923634, "ip": "10.243.1.128", "from": "Old Somalamma Temple", "towards": "Towards Opp Relaince Trends TTD Road"},
+    337: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "Ramalayam Centre-3", "lat": 17.0077246, "lon": 81.7925503, "ip": "10.243.1.131", "from": "JN Road", "towards": "Towards Jagruthi Road, Mugdha Shoppingmall"},
+    340: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "Ramalayam Centre-4", "lat": 17.0080553, "lon": 81.7925186, "ip": "10.243.1.134", "from": "AVA Road", "towards": "Towards Jagruthi Road, Keerthi Gift shop"},
+    347: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "VL Puram Junction -1", "lat": 17.0065143, "lon": 81.7940664, "ip": "10.243.1.141", "from": "RTC Complex", "towards": "Towards Morampudi center"},
+    350: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "VL Puram Junction -2", "lat": 17.0062347, "lon": 81.7946798, "ip": "10.243.1.144", "from": "Morampudi Center", "towards": "Towards RTC Complex"},
+    406: {"ps": "Kovvur Town", "subdiv": "Kovvuru sub division", "type": "RLVD", "location": "Merakaveedhi Towards Godavarimata Statue-1", "lat": 17.0225282, "lon": 81.7286091, "ip": "10.244.7.15", "from": "Kovvuru", "towards": "Towards Dommeru road"},
+    409: {"ps": "Kovvur Town", "subdiv": "Kovvuru sub division", "type": "RLVD", "location": "Merakaveedhi Towards Godavarimata Statue-2", "lat": 17.0223309, "lon": 81.7283371, "ip": "10.244.7.16", "from": "Kovvuru Bus Stand", "towards": "Towards Kovvuru main road"},
+    412: {"ps": "Kovvur Town", "subdiv": "Kovvuru sub division", "type": "RLVD", "location": "Merakaveedhi Towards Godavarimata Statue-3", "lat": 17.0224943, "lon": 81.7277394, "ip": "10.244.7.17", "from": "Dommeru", "towards": "Towards RCRB Rajamahendravaram"}
+}
+
 # 600-Camera District CCTV Grid Registry Builder
 def build_600_cctv_registry() -> List[Dict[str, Any]]:
     """Build full 600-camera district CCTV matrix for Command Center grid."""
-    base_16 = [
-        {"camera_id": "CAM-001", "name": "CAM 1", "location": "District Hospital North Wing", "sector": "Hospital", "subdivision": "East Zone", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam1", "status": "ACTIVE", "fps": 25, "is_main": True},
-        {"camera_id": "CAM-002", "name": "CAM 2", "location": "Hospital Main Gate & Ambulance Bay", "sector": "Pushkaralu", "subdivision": "East Zone", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam2", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-003", "name": "CAM 3", "location": "Pushkaralu Ghat Main Entrance", "sector": "Pushkaralu", "subdivision": "Rajahmundry", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam3", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-004", "name": "CAM 4", "location": "Godavari River Promenade West", "sector": "Pushkaralu", "subdivision": "Rajahmundry", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam4", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-005", "name": "CAM 5", "location": "Kotilingala Ghat North Pier", "sector": "Pushkaralu", "subdivision": "Rajahmundry", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam5", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-006", "name": "CAM 6", "location": "Rajahmundry Main Railway Station Exit", "sector": "Rjy", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam6", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-007", "name": "CAM 7", "location": "Railway Feeder Road Junction", "sector": "Rjy", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam7", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-008", "name": "CAM 8", "location": "RTC Central Bus Complex Concourse", "sector": "Rjy", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam8", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-009", "name": "CAM 9", "location": "Kakinada Port Deepwater Terminal Gate", "sector": "Port", "subdivision": "Kakinada Port", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam9", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-010", "name": "CAM 10", "location": "Port Container Freight Station East", "sector": "Port", "subdivision": "Kakinada Port", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam10", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-011", "name": "CAM 11", "location": "Beach Road Flyover Interchange", "sector": "Rjy", "subdivision": "Traffic South", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam11", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-012", "name": "CAM 12", "location": "Pushkaralu VIP Vehicle Entry Point", "sector": "Pushkaralu", "subdivision": "Rajahmundry", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam12", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-013", "name": "CAM 13", "location": "Sector 4 Commercial Plaza North Exit", "sector": "Sector4", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam13", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-014", "name": "CAM 14", "location": "Sector 4 Bank Square Corridor", "sector": "Sector4", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam14", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-015", "name": "CAM 15", "location": "North Transit Avenue Checkpoint", "sector": "Sector4", "subdivision": "Central", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam15", "status": "ACTIVE", "fps": 25, "is_main": False},
-        {"camera_id": "CAM-016", "name": "CAM 16", "location": "Anaparthi Canal Bridge Checkpoint", "sector": "Rjy", "subdivision": "Anaparthi", "rtmp": "rtmp://publish.police.gov.in:1935/live/cam16", "status": "ACTIVE", "fps": 25, "is_main": False}
+    sectors_pool = [
+        ("Hospital", "East Zone", ["Government Hospital South Wing", "Medical College Campus", "Sub-Jail Road", "Suryaraopeta Junction", "Jagannaickpur Bridge", "Daba Gardens Corridor", "Trauma Care Ingress"]),
+        ("Pushkaralu", "Pushkaralu Ghats Zone", ["Pushkar Main Ghat", "Saraswati Ghat Stairs", "VIP Ghat Corridor", "Kotilingala Temple Point", "Ramakrishna Ghat Pier", "Feeder Line Ingress", "Riverfront Promenade", "Ghat Holding Bay"]),
+        ("Rjy", "Central Division", ["District Collectorate", "Municipal Corporation Plaza", "RTC Central Complex", "Main Market Bazaar", "Clock Tower Square", "Cinema Road Junction", "Bhanugudi Square"]),
+        ("Port", "South Port Zone", ["Deep Water Port Berth", "Fertilizer City Gate", "Coromandel Junction", "Beach Bypass Checkpost", "Fisheries Harbor Gate", "Naval Coastal Corridor", "Canal Lock Checkpoint"]),
+        ("Sector4", "North Division", ["Sector 4 Outer Gate", "Ring Road North Terminal", "Smart City Command Hub", "JNTU Engineering Perimeter", "Nagaram Checkpoint", "Atchampeta Overpass", "Sarpavaram Corridor"]),
     ]
+
+    registry: List[Dict[str, Any]] = []
+
+    for i in range(1, 601):
+        cid = f"CAM-{i:03d}"
+        if i in MASTER_CONNECTED_CAMERAS:
+            info = MASTER_CONNECTED_CAMERAS[i]
+            ps_label = info["ps"]
+            ps_station = f"{ps_label} Police Station" if not ps_label.endswith("Station") and not ps_label.endswith("PS") and not ps_label.endswith("Town") else ps_label
+            cam_dict = {
+                "camera_id": cid,
+                "name": info["location"],
+                "location": f"{ps_label} - {info['location']}",
+                "sector": info["subdiv"],
+                "subdivision": info["subdiv"],
+                "police_station": ps_station,
+                "latitude": info["lat"],
+                "longitude": info["lon"],
+                "ip_address": info["ip"],
+                "fromwords": info["from"],
+                "towards": info["towards"],
+                "camera_type": info["type"],
+                "rtmp": f"rtsp://{info['ip']}:554/stream0",
+                "status": "ACTIVE",
+                "fps": 25,
+                "is_main": (i == 1)
+            }
+        else:
+            s_idx = (i - 1) % len(sectors_pool)
+            sector_name, subdiv, locations = sectors_pool[s_idx]
+            loc_name = locations[(i - 1) % len(locations)]
+            sector_num = ((i - 1) // len(sectors_pool)) + 1
+            cam_dict = {
+                "camera_id": cid,
+                "name": f"CAM {i}",
+                "location": f"{loc_name} Sec-{sector_num}",
+                "sector": sector_name,
+                "subdivision": subdiv,
+                "police_station": f"{subdiv} Station",
+                "latitude": round(16.9900 + (i * 0.0005) % 0.05, 6),
+                "longitude": round(81.7800 + (i * 0.0007) % 0.06, 6),
+                "ip_address": f"10.243.{(i // 256)}.{i % 256}",
+                "fromwords": "",
+                "towards": "",
+                "camera_type": "Fixed Surveillance",
+                "rtmp": f"rtmp://publish.police.gov.in:1935/live/cam{i}",
+                "status": "ACTIVE",
+                "fps": 25,
+                "is_main": False
+            }
+        registry.append(cam_dict)
 
     # Check ICSee Camera Environment Variable
     icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip().strip("'\"")
@@ -1316,11 +1437,8 @@ def build_600_cctv_registry() -> List[Dict[str, Any]]:
                 password=icsee_pass,
                 stream_type=icsee_stream
             )
-            for c in base_16:
+            for c in registry:
                 if c["camera_id"] == cid:
-                    num_str = cid.replace("CAM-", "").lstrip("0") or "1"
-                    c["name"] = f"CAM {num_str} (ICSee Live {ip})"
-                    c["location"] = f"ICSee IP Camera ({ip})"
                     c["rtmp"] = rtsp_url
                     c["status"] = "ACTIVE"
                     c["ip_address"] = ip
@@ -1333,52 +1451,12 @@ def build_600_cctv_registry() -> List[Dict[str, Any]]:
             password=icsee_pass,
             stream_type=icsee_stream
         )
-        matched = False
-        for c in base_16:
+        for c in registry:
             if c["camera_id"] == icsee_target_cam:
-                num_str = icsee_target_cam.replace("CAM-", "").lstrip("0") or "1"
-                c["name"] = f"CAM {num_str} (ICSee Live {icsee_ip})"
-                c["location"] = f"ICSee IP Camera ({icsee_ip})"
                 c["rtmp"] = rtsp_url
                 c["status"] = "ACTIVE"
                 c["ip_address"] = icsee_ip
-                matched = True
                 break
-        if not matched and len(base_16) > 0:
-            base_16[0]["name"] = f"CAM 1 (ICSee Live {icsee_ip})"
-            base_16[0]["location"] = f"ICSee IP Camera ({icsee_ip})"
-            base_16[0]["rtmp"] = rtsp_url
-            base_16[0]["status"] = "ACTIVE"
-            base_16[0]["ip_address"] = icsee_ip
-
-    registry = list(base_16)
-
-    # Sector mapping pool for remaining cameras up to 600
-    sectors_pool = [
-        ("Pushkaralu", "Pushkaralu Ghats Zone", ["Pushkar Main Ghat", "Saraswati Ghat Stairs", "VIP Ghat Corridor", "Kotilingala Temple Point", "Ramakrishna Ghat Pier", "Feeder Line Ingress", "Riverfront Promenade", "Ghat Holding Bay"]),
-        ("Hospital", "East Zone", ["Government Hospital South Wing", "Medical College Campus", "Sub-Jail Road", "Suryaraopeta Junction", "Jagannaickpur Bridge", "Daba Gardens Corridor", "Trauma Care Ingress"]),
-        ("Rjy", "Central Division", ["District Collectorate", "Municipal Corporation Plaza", "RTC Central Complex", "Main Market Bazaar", "Clock Tower Square", "Cinema Road Junction", "Bhanugudi Square"]),
-        ("Port", "South Port Zone", ["Deep Water Port Berth", "Fertilizer City Gate", "Coromandel Junction", "Beach Bypass Checkpost", "Fisheries Harbor Gate", "Naval Coastal Corridor", "Canal Lock Checkpoint"]),
-        ("Sector4", "North Division", ["Sector 4 Outer Gate", "Ring Road North Terminal", "Smart City Command Hub", "JNTU Engineering Perimeter", "Nagaram Checkpoint", "Atchampeta Overpass", "Sarpavaram Corridor"]),
-    ]
-
-    for i in range(17, 601):
-        cam_id = f"CAM-{i:03d}"
-        s_idx = (i - 17) % len(sectors_pool)
-        sector_name, subdiv, locations = sectors_pool[s_idx]
-        loc_name = locations[(i - 17) % len(locations)]
-        sector_num = ((i - 17) // len(sectors_pool)) + 1
-        registry.append({
-            "camera_id": cam_id,
-            "name": f"CAM {i}",
-            "location": f"{loc_name} Sec-{sector_num}",
-            "sector": sector_name,
-            "subdivision": subdiv,
-            "rtmp": f"rtmp://publish.police.gov.in:1935/live/cam{i}",
-            "status": "ACTIVE",
-            "fps": 25,
-            "is_main": False
-        })
 
     return registry
 
@@ -1724,10 +1802,21 @@ async def list_cctv_cameras(
     """Retrieve full 600-camera district CCTV matrix for Command Center grid."""
     cams = CCTV_CAMERAS_REGISTRY
     if sector and sector.lower() != "all":
-        cams = [c for c in cams if c.get("sector", "").lower() == sector.lower()]
+        s_low = sector.lower()
+        cams = [c for c in cams if c.get("sector", "").lower() == s_low or s_low in c.get("subdivision", "").lower() or s_low in c.get("sector", "").lower()]
     if search:
         s_low = search.lower()
-        cams = [c for c in cams if s_low in c["name"].lower() or s_low in c["location"].lower() or s_low in c["camera_id"].lower()]
+        cams = [
+            c for c in cams if
+            s_low in c.get("name", "").lower() or
+            s_low in c.get("location", "").lower() or
+            s_low in c.get("camera_id", "").lower() or
+            s_low in c.get("ip_address", "").lower() or
+            s_low in c.get("police_station", "").lower() or
+            s_low in c.get("subdivision", "").lower() or
+            s_low in c.get("fromwords", "").lower() or
+            s_low in c.get("towards", "").lower()
+        ]
     
     total = len(cams)
     if limit is not None:
@@ -1761,7 +1850,12 @@ async def get_dashboard_cameras():
             "name": cam["name"],
             "location": cam["location"],
             "category": "CCTV",
-            "sector": cam.get("sector", "Central"),
+            "sector": cam.get("sector", "Central Zone"),
+            "subdivision": cam.get("subdivision", "Central Zone"),
+            "police_station": cam.get("police_station", "1 town"),
+            "fromwords": cam.get("fromwords", ""),
+            "towards": cam.get("towards", ""),
+            "camera_type": cam.get("camera_type", "RLVD"),
             "source_stream_path": f"live/cctv{idx+1}",
             "stream_path": f"analyzed/cctv{idx+1}",
             "playback_stream_path": f"live/cctv{idx+1}",
@@ -1780,7 +1874,14 @@ async def get_dashboard_cameras():
             "motion_speed": round(1.2 + (idx % 4) * 0.3, 1),
             "turbulence": round(0.10 + (idx % 3) * 0.08, 2),
             "connection_message": "Stream active",
-            "publish_url": cam["rtmp"],
+            "publish_url": cam.get("rtmp", f"rtmp://publish.police.gov.in:1935/live/cctv{idx+1}"),
+            "compliance_zone": comp_zone,
+            "active_alert": "SUSPICIOUS_LOITERING" if (idx % 19 == 0 and not is_main) else ("PERIMETER_PROWLING" if idx % 27 == 0 else "NORMAL"),
+            "resolution": "1920x1080",
+            "fps": 25,
+            "ai_fps": 24.8,
+            "rtsp_url": cam.get("rtmp", f"rtsp://{cam.get('ip_address', '10.243.0.1')}:554/stream0"),
+            "ip_address": cam.get("ip_address", "10.243.0.1"),
             "is_main": is_main,
             "forecast": {
                 "status": "active",

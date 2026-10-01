@@ -14,12 +14,12 @@ metadata:
   version: 2.0.0-scale
 cameras:
   CAM-001:
-    name: District Hospital North Wing Entrance
-    location: Kakinada - Government General Hospital
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 16.989
-    longitude: 82.2475
+    name: Thadithota-1
+    location: 1 town - Thadithota-1
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 16.9984582
+    longitude: 81.7795421
     resolution:
     - 1024
     - 576
@@ -30,6 +30,10 @@ cameras:
     adjacent_cameras:
     - CAM-002
     - CAM-007
+    ip_address: 10.243.0.1
+    fromwords: Stadium Road
+    towards: Towards shelton hotel side
+    camera_type: RLVD
   CAM-002:
     name: Main Hospital Gate & Ambulance Bay
     location: Kakinada - Hospital Junction
@@ -66,12 +70,12 @@ cameras:
     - CAM-002
     - CAM-004
   CAM-004:
-    name: Anaparthi Canal Bridge Checkpoint
-    location: Canal Road
-    subdivision: Anaparthi Circle
-    police_station: Anaparthi PS
-    latitude: 16.8745
-    longitude: 81.951
+    name: Thadithota-2
+    location: 1 town - Thadithota-2
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 16.9985399
+    longitude: 81.7801136
     resolution:
     - 1280
     - 720
@@ -82,13 +86,17 @@ cameras:
     adjacent_cameras:
     - CAM-003
     - CAM-007
+    ip_address: 10.243.0.4
+    fromwords: Shelton Center
+    towards: Towards stadium road
+    camera_type: RLVD
   CAM-007:
-    name: Railway Feeder Road Junction
-    location: Rajahmundry Central Feeder
-    subdivision: Central Division
-    police_station: Rajahmundry I Town
-    latitude: 17.0005
-    longitude: 81.78
+    name: Thadithota-3
+    location: 1 town - Thadithota-3
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 16.9989963
+    longitude: 81.7798519
     resolution:
     - 1920
     - 1080
@@ -99,13 +107,17 @@ cameras:
     adjacent_cameras:
     - CAM-001
     - CAM-004
+    ip_address: 10.243.0.7
+    fromwords: Muggupeta
+    towards: Towards thadithota center (T Junction )
+    camera_type: RLVD
   CAM-017:
-    name: Sector 4 Commercial Plaza North Exit
-    location: Kakinada - Sector 4 Commercial Corridor
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 16.992
-    longitude: 82.245
+    name: Muggupeta Centre-3
+    location: 1 town - Muggupeta Centre-3
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.004609
+    longitude: 81.7805149
     resolution:
     - 1920
     - 1080
@@ -115,6 +127,10 @@ cameras:
     ground_plane_y: 980
     adjacent_cameras:
     - CAM-018
+    ip_address: 10.243.0.17
+    fromwords: Seelamnookaraju JN, Gorakshana peta
+    towards: Azad Chowk
+    camera_type: RLVD
   CAM-018:
     name: North Transit Avenue Checkpoint
     location: Kakinada - Transit Avenue & 5th Cross
@@ -150,12 +166,12 @@ cameras:
     - CAM-018
     - CAM-023
   CAM-023:
-    name: Ring Road North Terminal Perimeter
-    location: Kakinada - Ring Road North Terminal
-    subdivision: North Division
-    police_station: North Sub-Station
-    latitude: 17.0045
-    longitude: 82.2468
+    name: Azad Chowk-1
+    location: 1 town - Azad Chowk-1
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0067927
+    longitude: 81.7755929
     resolution:
     - 1920
     - 1080
@@ -165,6 +181,10 @@ cameras:
     ground_plane_y: 1020
     adjacent_cameras:
     - CAM-021
+    ip_address: 10.243.0.23
+    fromwords: Nandamganiraju JN
+    towards: Jandapanja Road
+    camera_type: RLVD
   CAM-005:
     name: Government General Hospital Sec-1
     location: East Zone - Government General Hospital
@@ -256,12 +276,12 @@ cameras:
     - CAM-011
     - CAM-018
   CAM-011:
-    name: Biccavolu Feeder Crossing Sec-1
-    location: Anaparthi & Transit Circle - Biccavolu Feeder Crossing
-    subdivision: Anaparthi & Transit Circle
-    police_station: Anaparthi PS
-    latitude: 16.8688
-    longitude: 81.9465
+    name: Muggupeta Centre-1
+    location: 1 town - Muggupeta Centre-1
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0050299
+    longitude: 81.7798762
     resolution:
     - 1920
     - 1080
@@ -273,6 +293,10 @@ cameras:
     - CAM-010
     - CAM-012
     - CAM-019
+    ip_address: 10.243.0.11
+    fromwords: Azad chowk
+    towards: Seelamnookaraju JN, Gorakshana peta
+    camera_type: RLVD
   CAM-012:
     name: Jagannaickpur Bridge Sec-2
     location: East Zone - Jagannaickpur Bridge
@@ -310,12 +334,12 @@ cameras:
     - CAM-014
     - CAM-021
   CAM-014:
-    name: Sarpavaram Junction Sec-2
-    location: North Division - Sarpavaram Junction
-    subdivision: North Division
-    police_station: North Sub-Station
-    latitude: 17.005
-    longitude: 82.2455
+    name: Muggupeta Centre-2
+    location: 1 town - Muggupeta Centre-2
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0051656
+    longitude: 81.7802129
     resolution:
     - 1920
     - 1080
@@ -327,6 +351,10 @@ cameras:
     - CAM-013
     - CAM-015
     - CAM-022
+    ip_address: 10.243.0.14
+    fromwords: Nandamganiraju JN
+    towards: Towards Thadithota center
+    camera_type: RLVD
   CAM-015:
     name: Deep Water Port Gate Sec-2
     location: South Division - Deep Water Port Gate
@@ -382,12 +410,12 @@ cameras:
     - CAM-020
     - CAM-027
   CAM-020:
-    name: Beach Road Promenade Sec-3
-    location: East Zone - Beach Road Promenade
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 16.9894
-    longitude: 82.2485
+    name: Muggupeta Centre-4
+    location: 1 town - Muggupeta Centre-4
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0046617
+    longitude: 81.7801916
     resolution:
     - 1280
     - 720
@@ -399,6 +427,10 @@ cameras:
     - CAM-019
     - CAM-021
     - CAM-028
+    ip_address: 10.243.0.20
+    fromwords: Thadithota center
+    towards: Nandamganiraju JN
+    camera_type: RLVD
   CAM-022:
     name: Clock Tower Square Sec-3
     location: Central Division - Clock Tower Square
@@ -454,12 +486,12 @@ cameras:
     - CAM-026
     - CAM-033
   CAM-026:
-    name: Riverfront Holding Area Sec-3
-    location: Pushkaralu Ghats Zone - Riverfront Holding Area
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.0008
-    longitude: 81.779
+    name: Azad Chowk-2
+    location: 1 town - Azad Chowk-2
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0070435
+    longitude: 81.7761807
     resolution:
     - 1920
     - 1080
@@ -471,6 +503,10 @@ cameras:
     - CAM-025
     - CAM-027
     - CAM-034
+    ip_address: 10.243.0.26
+    fromwords: Devi Chowk
+    towards: Muggupeta center
+    camera_type: RLVD
   CAM-027:
     name: Transit Avenue South Sec-3
     location: Anaparthi & Transit Circle - Transit Avenue South
@@ -508,12 +544,12 @@ cameras:
     - CAM-029
     - CAM-036
   CAM-029:
-    name: Municipal Corporation HQ Sec-4
-    location: Central Division - Municipal Corporation HQ
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 16.997
-    longitude: 82.245
+    name: Azad Chowk-3
+    location: 1 town - Azad Chowk-3
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0065256
+    longitude: 81.7756155
     resolution:
     - 1920
     - 1080
@@ -525,6 +561,10 @@ cameras:
     - CAM-028
     - CAM-030
     - CAM-037
+    ip_address: 10.243.0.29
+    fromwords: Jandapanja Road
+    towards: Jampeta Gandhi bomma center, Nandamganiraju JN
+    camera_type: RLVD
   CAM-030:
     name: District Police Office Sec-4
     location: North Division - District Police Office
@@ -562,12 +602,12 @@ cameras:
     - CAM-032
     - CAM-039
   CAM-032:
-    name: Ramakrishna Mission Ghat Sec-4
-    location: Pushkaralu Ghats Zone - Ramakrishna Mission Ghat
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.002
-    longitude: 81.7805
+    name: Azad Chowk-4
+    location: 1 town - Azad Chowk-4
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0063626
+    longitude: 81.7756158
     resolution:
     - 1920
     - 1080
@@ -579,6 +619,10 @@ cameras:
     - CAM-031
     - CAM-033
     - CAM-040
+    ip_address: 10.243.0.32
+    fromwords: Muggupeta Center
+    towards: Devi Chowk
+    camera_type: RLVD
   CAM-033:
     name: Biccavolu Feeder Crossing Sec-4
     location: Anaparthi & Transit Circle - Biccavolu Feeder Crossing
@@ -616,12 +660,12 @@ cameras:
     - CAM-035
     - CAM-042
   CAM-035:
-    name: Feeder Road Plaza Sec-5
-    location: Central Division - Feeder Road Plaza
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 16.9982
-    longitude: 82.2465
+    name: Nandam Ganiraju Junction-1
+    location: 1 town - Nandam Ganiraju Junction-1
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0076458
+    longitude: 81.7793395
     resolution:
     - 1920
     - 1080
@@ -633,6 +677,10 @@ cameras:
     - CAM-034
     - CAM-036
     - CAM-043
+    ip_address: 10.243.0.35
+    fromwords: Y Junction
+    towards: Azad Chowk
+    camera_type: RLVD
   CAM-036:
     name: Sarpavaram Junction Sec-5
     location: North Division - Sarpavaram Junction
@@ -670,12 +718,12 @@ cameras:
     - CAM-038
     - CAM-045
   CAM-038:
-    name: Pushkar Main Ghat Corridor Sec-5
-    location: Pushkaralu Ghats Zone - Pushkar Main Ghat Corridor
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.0032
-    longitude: 81.782
+    name: Nandam Ganiraju Junction-2
+    location: 1 town - Nandam Ganiraju Junction-2
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0098123
+    longitude: 81.7792678
     resolution:
     - 1920
     - 1080
@@ -687,6 +735,10 @@ cameras:
     - CAM-037
     - CAM-039
     - CAM-046
+    ip_address: 10.243.0.38
+    fromwords: Kambala cheruvu Center
+    towards: TTD Road ,Muggupeta center
+    camera_type: RLVD
   CAM-039:
     name: Railway Station East Gate Sec-5
     location: Anaparthi & Transit Circle - Railway Station East Gate
@@ -724,12 +776,12 @@ cameras:
     - CAM-041
     - CAM-048
   CAM-041:
-    name: Clock Tower Square Sec-6
-    location: Central Division - Clock Tower Square
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 16.9994
-    longitude: 82.248
+    name: Nandam Ganiraju Junction-3
+    location: 1 town - Nandam Ganiraju Junction-3
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0092333
+    longitude: 81.779275
     resolution:
     - 1920
     - 1080
@@ -741,6 +793,10 @@ cameras:
     - CAM-040
     - CAM-042
     - CAM-049
+    ip_address: 10.243.0.41
+    fromwords: Azad Chowk
+    towards: Y Junction
+    camera_type: RLVD
   CAM-042:
     name: Industrial Estate Road Sec-6
     location: North Division - Industrial Estate Road
@@ -778,12 +834,12 @@ cameras:
     - CAM-044
     - CAM-051
   CAM-044:
-    name: Riverfront Holding Area Sec-6
-    location: Pushkaralu Ghats Zone - Riverfront Holding Area
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.0044
-    longitude: 81.7835
+    name: Nandam Ganiraju Junction-4
+    location: 1 town - Nandam Ganiraju Junction-4
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0093167
+    longitude: 81.779927
     resolution:
     - 1920
     - 1080
@@ -795,6 +851,10 @@ cameras:
     - CAM-043
     - CAM-045
     - CAM-052
+    ip_address: 10.243.0.44
+    fromwords: Muggupeta Center
+    towards: Kambala tank
+    camera_type: RLVD
   CAM-045:
     name: Transit Avenue South Sec-6
     location: Anaparthi & Transit Circle - Transit Avenue South
@@ -832,12 +892,12 @@ cameras:
     - CAM-047
     - CAM-054
   CAM-047:
-    name: Municipal Corporation HQ Sec-7
-    location: Central Division - Municipal Corporation HQ
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.0006
-    longitude: 82.2495
+    name: Y-Junction-1
+    location: 1 town - Y-Junction-1
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0130646
+    longitude: 81.7831149
     resolution:
     - 1920
     - 1080
@@ -849,6 +909,10 @@ cameras:
     - CAM-046
     - CAM-048
     - CAM-055
+    ip_address: 10.243.0.47
+    fromwords: Central Jail Road
+    towards: Nandamganiraju JN ( L ), Kambalatank ( R )
+    camera_type: RLVD
   CAM-048:
     name: District Police Office Sec-7
     location: North Division - District Police Office
@@ -886,12 +950,12 @@ cameras:
     - CAM-050
     - CAM-057
   CAM-050:
-    name: Ramakrishna Mission Ghat Sec-7
-    location: Pushkaralu Ghats Zone - Ramakrishna Mission Ghat
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.0056
-    longitude: 81.785
+    name: Y-Junction-2
+    location: 1 town - Y-Junction-2
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0124141
+    longitude: 81.7833041
     resolution:
     - 1920
     - 1080
@@ -903,6 +967,10 @@ cameras:
     - CAM-049
     - CAM-051
     - CAM-058
+    ip_address: 10.243.0.50
+    fromwords: Nandamganiraju JN
+    towards: Central Central jail Road, Lalacheruvu
+    camera_type: RLVD
   CAM-051:
     name: Biccavolu Feeder Crossing Sec-7
     location: Anaparthi & Transit Circle - Biccavolu Feeder Crossing
@@ -940,12 +1008,12 @@ cameras:
     - CAM-053
     - CAM-060
   CAM-053:
-    name: Feeder Road Plaza Sec-8
-    location: Central Division - Feeder Road Plaza
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.0018
-    longitude: 82.251
+    name: Y-Junction-3
+    location: 1 town - Y-Junction-3
+    subdivision: Central Zone
+    police_station: 1 town Police Station
+    latitude: 17.0127364
+    longitude: 81.7829764
     resolution:
     - 1920
     - 1080
@@ -957,6 +1025,10 @@ cameras:
     - CAM-052
     - CAM-054
     - CAM-061
+    ip_address: 10.243.0.53
+    fromwords: Kambalacheruvu
+    towards: Central Jail road, Ats college Lalacheruvu
+    camera_type: RLVD
   CAM-054:
     name: Sarpavaram Junction Sec-8
     location: North Division - Sarpavaram Junction
@@ -1138,12 +1210,12 @@ cameras:
     - CAM-064
     - CAM-071
   CAM-064:
-    name: Government General Hospital Sec-10
-    location: East Zone - Government General Hospital
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 16.9978
-    longitude: 82.259
+    name: Kotipalli Bus Stand 1
+    location: 2 town - Kotipalli Bus Stand 1
+    subdivision: South Zone
+    police_station: 2 town Police Station
+    latitude: 16.9936706
+    longitude: 81.7760878
     resolution:
     - 1280
     - 720
@@ -1155,6 +1227,10 @@ cameras:
     - CAM-063
     - CAM-065
     - CAM-072
+    ip_address: 10.243.0.64
+    fromwords: Syamala center
+    towards: Railway Station
+    camera_type: RLVD
   CAM-065:
     name: Municipal Corporation HQ Sec-10
     location: Central Division - Municipal Corporation HQ
@@ -1192,12 +1268,12 @@ cameras:
     - CAM-067
     - CAM-074
   CAM-067:
-    name: Beach Bypass Checkpost Sec-10
-    location: South Division - Beach Bypass Checkpost
-    subdivision: South Division
-    police_station: South Port PS
-    latitude: 16.9808
-    longitude: 82.25
+    name: Kotipalli Bus Stand 2
+    location: 2 town - Kotipalli Bus Stand 2
+    subdivision: South Zone
+    police_station: 2 town Police Station
+    latitude: 16.9929025
+    longitude: 81.7764273
     resolution:
     - 1280
     - 720
@@ -1209,6 +1285,10 @@ cameras:
     - CAM-066
     - CAM-068
     - CAM-075
+    ip_address: 10.243.0.67
+    fromwords: Railway Station
+    towards: Syamala Center
+    camera_type: RLVD
   CAM-068:
     name: Ramakrishna Mission Ghat Sec-10
     location: Pushkaralu Ghats Zone - Ramakrishna Mission Ghat
@@ -1318,12 +1398,12 @@ cameras:
     - CAM-074
     - CAM-081
   CAM-074:
-    name: Pushkar Main Ghat Corridor Sec-11
-    location: Pushkaralu Ghats Zone - Pushkar Main Ghat Corridor
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.0104
-    longitude: 81.791
+    name: Syamala Centre-1
+    location: 2 town - Syamala Centre-1
+    subdivision: South Zone
+    police_station: 2 town Police Station
+    latitude: 16.9947089
+    longitude: 81.7752166
     resolution:
     - 1920
     - 1080
@@ -1335,6 +1415,10 @@ cameras:
     - CAM-073
     - CAM-075
     - CAM-082
+    ip_address: 10.243.0.74
+    fromwords: Kotipalli Bus Stand Center
+    towards: Deluxe center
+    camera_type: RLVD
   CAM-075:
     name: Railway Station East Gate Sec-11
     location: Anaparthi & Transit Circle - Railway Station East Gate
@@ -1372,12 +1456,12 @@ cameras:
     - CAM-077
     - CAM-084
   CAM-077:
-    name: Clock Tower Square Sec-12
-    location: Central Division - Clock Tower Square
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.0066
-    longitude: 82.257
+    name: Syamala Centre-2
+    location: 2 town - Syamala Centre-2
+    subdivision: South Zone
+    police_station: 2 town Police Station
+    latitude: 16.995167
+    longitude: 81.7752528
     resolution:
     - 1920
     - 1080
@@ -1389,6 +1473,10 @@ cameras:
     - CAM-076
     - CAM-078
     - CAM-085
+    ip_address: 10.243.0.77
+    fromwords: Stadium Road
+    towards: Godavari Bund Road
+    camera_type: RLVD
   CAM-078:
     name: Industrial Estate Road Sec-12
     location: North Division - Industrial Estate Road
@@ -1426,12 +1514,12 @@ cameras:
     - CAM-080
     - CAM-087
   CAM-080:
-    name: Riverfront Holding Area Sec-12
-    location: Pushkaralu Ghats Zone - Riverfront Holding Area
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.0116
-    longitude: 81.7925
+    name: Syamala Centre-3
+    location: 2 town - Syamala Centre-3
+    subdivision: South Zone
+    police_station: 2 town Police Station
+    latitude: 16.9952558
+    longitude: 81.7748038
     resolution:
     - 1920
     - 1080
@@ -1443,6 +1531,10 @@ cameras:
     - CAM-079
     - CAM-081
     - CAM-088
+    ip_address: 10.243.0.80
+    fromwords: Deluxe center
+    towards: Kotipalli bus stand
+    camera_type: RLVD
   CAM-081:
     name: Transit Avenue South Sec-12
     location: Anaparthi & Transit Circle - Transit Avenue South
@@ -1660,12 +1752,12 @@ cameras:
     - CAM-093
     - CAM-100
   CAM-093:
-    name: Railway Station East Gate Sec-14
-    location: Anaparthi & Transit Circle - Railway Station East Gate
-    subdivision: Anaparthi & Transit Circle
-    police_station: Anaparthi PS
-    latitude: 16.8844
-    longitude: 81.966
+    name: Quarry Centre-1
+    location: 3 town - Quarry Centre-1
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0318758
+    longitude: 81.7876268
     resolution:
     - 1920
     - 1080
@@ -1677,6 +1769,10 @@ cameras:
     - CAM-092
     - CAM-094
     - CAM-101
+    ip_address: 10.243.0.93
+    fromwords: Chiranjeevi Bus Stand
+    towards: Korukonda road
+    camera_type: RLVD
   CAM-094:
     name: Beach Road Promenade Sec-15
     location: East Zone - Beach Road Promenade
@@ -1714,12 +1810,12 @@ cameras:
     - CAM-096
     - CAM-103
   CAM-096:
-    name: Industrial Estate Road Sec-15
-    location: North Division - Industrial Estate Road
-    subdivision: North Division
-    police_station: North Sub-Station
-    latitude: 17.0206
-    longitude: 82.265
+    name: Quarry Centre-2
+    location: 3 town - Quarry Centre-2
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0319775
+    longitude: 81.788576
     resolution:
     - 1920
     - 1080
@@ -1731,6 +1827,10 @@ cameras:
     - CAM-095
     - CAM-097
     - CAM-104
+    ip_address: 10.243.0.96
+    fromwords: Y.S.R.Statue Centre (lalacheruvu)
+    towards: Anand nagar SBI ATM
+    camera_type: RLVD
   CAM-097:
     name: Kakinada Canal Lock Sec-15
     location: South Division - Kakinada Canal Lock
@@ -1768,12 +1868,12 @@ cameras:
     - CAM-099
     - CAM-106
   CAM-099:
-    name: Transit Avenue South Sec-15
-    location: Anaparthi & Transit Circle - Transit Avenue South
-    subdivision: Anaparthi & Transit Circle
-    police_station: Anaparthi PS
-    latitude: 16.8856
-    longitude: 81.9675
+    name: Quarry Centre-3
+    location: 3 town - Quarry Centre-3
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0325095
+    longitude: 81.788439
     resolution:
     - 1920
     - 1080
@@ -1785,6 +1885,10 @@ cameras:
     - CAM-098
     - CAM-100
     - CAM-107
+    ip_address: 10.243.0.99
+    fromwords: Korukonda road
+    towards: Brethren church, Chiranjeevi bus stand
+    camera_type: RLVD
   CAM-100:
     name: Government General Hospital Sec-16
     location: East Zone - Government General Hospital
@@ -2056,12 +2160,12 @@ cameras:
     - CAM-115
     - CAM-122
   CAM-115:
-    name: Kakinada Canal Lock Sec-18
-    location: South Division - Kakinada Canal Lock
-    subdivision: South Division
-    police_station: South Port PS
-    latitude: 16.9904
-    longitude: 82.262
+    name: Y.S.R.Statue Centre-1 (lalacheruvu)
+    location: 3 town - Y.S.R.Statue Centre-1 (lalacheruvu)
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0260073
+    longitude: 81.8046729
     resolution:
     - 1280
     - 720
@@ -2073,6 +2177,10 @@ cameras:
     - CAM-114
     - CAM-116
     - CAM-123
+    ip_address: 10.243.0.115
+    fromwords: Quarry Center
+    towards: Lalacheruvu service road (jagan Biriyani)
+    camera_type: RLVD
   CAM-116:
     name: Riverfront Holding Area Sec-18
     location: Pushkaralu Ghats Zone - Riverfront Holding Area
@@ -2110,12 +2218,12 @@ cameras:
     - CAM-118
     - CAM-125
   CAM-118:
-    name: Government General Hospital Sec-19
-    location: East Zone - Government General Hospital
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 17.0086
-    longitude: 82.2725
+    name: Y.S.R.Statue Centre-2 (lalacheruvu)
+    location: 3 town - Y.S.R.Statue Centre-2 (lalacheruvu)
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.025672
+    longitude: 81.8043241
     resolution:
     - 1280
     - 720
@@ -2127,6 +2235,10 @@ cameras:
     - CAM-117
     - CAM-119
     - CAM-126
+    ip_address: 10.243.0.118
+    fromwords: Central Jail Road
+    towards: Visakhapatnam National side
+    camera_type: RLVD
   CAM-119:
     name: Municipal Corporation HQ Sec-19
     location: Central Division - Municipal Corporation HQ
@@ -2164,12 +2276,12 @@ cameras:
     - CAM-121
     - CAM-128
   CAM-121:
-    name: Beach Bypass Checkpost Sec-19
-    location: South Division - Beach Bypass Checkpost
-    subdivision: South Division
-    police_station: South Port PS
-    latitude: 16.9916
-    longitude: 82.2635
+    name: Y.S.R.Statue Centre-3 (lalacheruvu)
+    location: 3 town - Y.S.R.Statue Centre-3 (lalacheruvu)
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0258436
+    longitude: 81.8051439
     resolution:
     - 1280
     - 720
@@ -2181,6 +2293,10 @@ cameras:
     - CAM-120
     - CAM-122
     - CAM-129
+    ip_address: 10.243.0.121
+    fromwords: Hiway To
+    towards: Central Jail Road
+    camera_type: RLVD
   CAM-122:
     name: Ramakrishna Mission Ghat Sec-19
     location: Pushkaralu Ghats Zone - Ramakrishna Mission Ghat
@@ -2218,12 +2334,12 @@ cameras:
     - CAM-124
     - CAM-131
   CAM-124:
-    name: Jagannaickpur Bridge Sec-20
-    location: East Zone - Jagannaickpur Bridge
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 17.0098
-    longitude: 82.274
+    name: Kambal Tank-1
+    location: 3 town - Kambal Tank-1
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0114212
+    longitude: 81.7786058
     resolution:
     - 1280
     - 720
@@ -2235,6 +2351,10 @@ cameras:
     - CAM-123
     - CAM-125
     - CAM-132
+    ip_address: 10.243.0.124
+    fromwords: Kambalacheruvu Hi tech bus stand
+    towards: Devi Chowk
+    camera_type: RLVD
   CAM-125:
     name: Feeder Road Plaza Sec-20
     location: Central Division - Feeder Road Plaza
@@ -2272,12 +2392,12 @@ cameras:
     - CAM-127
     - CAM-134
   CAM-127:
-    name: Deep Water Port Gate Sec-20
-    location: South Division - Deep Water Port Gate
-    subdivision: South Division
-    police_station: South Port PS
-    latitude: 16.9928
-    longitude: 82.265
+    name: Kambal Tank-2
+    location: 3 town - Kambal Tank-2
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0116835
+    longitude: 81.778576
     resolution:
     - 1280
     - 720
@@ -2289,6 +2409,10 @@ cameras:
     - CAM-126
     - CAM-128
     - CAM-135
+    ip_address: 10.243.0.127
+    fromwords: Chiranjeevi bus stand
+    towards: Nandamganiraju JN
+    camera_type: RLVD
   CAM-128:
     name: Pushkar Main Ghat Corridor Sec-20
     location: Pushkaralu Ghats Zone - Pushkar Main Ghat Corridor
@@ -2326,12 +2450,12 @@ cameras:
     - CAM-130
     - CAM-137
   CAM-130:
-    name: Beach Road Promenade Sec-21
-    location: East Zone - Beach Road Promenade
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 17.011
-    longitude: 82.2755
+    name: Kambal Tank-3
+    location: 3 town - Kambal Tank-3
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0111998
+    longitude: 81.7777169
     resolution:
     - 1280
     - 720
@@ -2343,6 +2467,10 @@ cameras:
     - CAM-129
     - CAM-131
     - CAM-138
+    ip_address: 10.243.0.130
+    fromwords: Devi chowk
+    towards: Kambalacheruvu Hi tech bus stand
+    camera_type: RLVD
   CAM-131:
     name: Clock Tower Square Sec-21
     location: Central Division - Clock Tower Square
@@ -2380,12 +2508,12 @@ cameras:
     - CAM-133
     - CAM-140
   CAM-133:
-    name: Kakinada Canal Lock Sec-21
-    location: South Division - Kakinada Canal Lock
-    subdivision: South Division
-    police_station: South Port PS
-    latitude: 16.994
-    longitude: 82.2665
+    name: Kambal Tank-4
+    location: 3 town - Kambal Tank-4
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0110117
+    longitude: 81.7784652
     resolution:
     - 1280
     - 720
@@ -2397,6 +2525,10 @@ cameras:
     - CAM-132
     - CAM-134
     - CAM-141
+    ip_address: 10.243.0.133
+    fromwords: Nandam gani raju JN
+    towards: Chiranjeevi bus stand
+    camera_type: RLVD
   CAM-134:
     name: Riverfront Holding Area Sec-21
     location: Pushkaralu Ghats Zone - Riverfront Holding Area
@@ -2434,12 +2566,12 @@ cameras:
     - CAM-136
     - CAM-143
   CAM-136:
-    name: Government General Hospital Sec-22
-    location: East Zone - Government General Hospital
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 17.0122
-    longitude: 82.277
+    name: Devi Chowk-1
+    location: 3 town - Devi Chowk-1
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0099485
+    longitude: 81.7753894
     resolution:
     - 1280
     - 720
@@ -2451,6 +2583,10 @@ cameras:
     - CAM-135
     - CAM-137
     - CAM-144
+    ip_address: 10.243.0.136
+    fromwords: ''
+    towards: Towards Azad chowk (rainbow colour lab )
+    camera_type: RLVD
   CAM-137:
     name: Municipal Corporation HQ Sec-22
     location: Central Division - Municipal Corporation HQ
@@ -2488,12 +2624,12 @@ cameras:
     - CAM-139
     - CAM-146
   CAM-139:
-    name: Beach Bypass Checkpost Sec-22
-    location: South Division - Beach Bypass Checkpost
-    subdivision: South Division
-    police_station: South Port PS
-    latitude: 16.9952
-    longitude: 82.268
+    name: Devi Chowk-2
+    location: 3 town - Devi Chowk-2
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.00942
+    longitude: 81.7751107
     resolution:
     - 1280
     - 720
@@ -2505,6 +2641,10 @@ cameras:
     - CAM-138
     - CAM-140
     - CAM-147
+    ip_address: 10.243.0.139
+    fromwords: ''
+    towards: Towards
+    camera_type: RLVD
   CAM-140:
     name: Ramakrishna Mission Ghat Sec-22
     location: Pushkaralu Ghats Zone - Ramakrishna Mission Ghat
@@ -2542,12 +2682,12 @@ cameras:
     - CAM-142
     - CAM-149
   CAM-142:
-    name: Jagannaickpur Bridge Sec-23
-    location: East Zone - Jagannaickpur Bridge
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 17.0134
-    longitude: 82.2785
+    name: Devi Chowk-3
+    location: 3 town - Devi Chowk-3
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0101798
+    longitude: 81.7757994
     resolution:
     - 1280
     - 720
@@ -2559,6 +2699,10 @@ cameras:
     - CAM-141
     - CAM-143
     - CAM-150
+    ip_address: 10.243.0.142
+    fromwords: ''
+    towards: Towards rainbow colour lab
+    camera_type: RLVD
   CAM-143:
     name: Feeder Road Plaza Sec-23
     location: Central Division - Feeder Road Plaza
@@ -2596,12 +2740,12 @@ cameras:
     - CAM-145
     - CAM-152
   CAM-145:
-    name: Deep Water Port Gate Sec-23
-    location: South Division - Deep Water Port Gate
-    subdivision: South Division
-    police_station: South Port PS
-    latitude: 16.9964
-    longitude: 82.2695
+    name: Devi Chowk-4
+    location: 3 town - Devi Chowk-4
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0099032
+    longitude: 81.7755765
     resolution:
     - 1280
     - 720
@@ -2613,6 +2757,10 @@ cameras:
     - CAM-144
     - CAM-146
     - CAM-153
+    ip_address: 10.243.0.145
+    fromwords: Gokavaram Bus Stand
+    towards: Kambala cheruvu
+    camera_type: RLVD
   CAM-146:
     name: Pushkar Main Ghat Corridor Sec-23
     location: Pushkaralu Ghats Zone - Pushkar Main Ghat Corridor
@@ -2668,12 +2816,12 @@ cameras:
     - CAM-149
     - CAM-156
   CAM-149:
-    name: Clock Tower Square Sec-24
-    location: Central Division - Clock Tower Square
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.021
-    longitude: 82.275
+    name: Opp.3 Town Police Station-1
+    location: 3 town - Opp.3 Town Police Station-1
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0096824
+    longitude: 81.770026
     resolution:
     - 1920
     - 1080
@@ -2685,13 +2833,17 @@ cameras:
     - CAM-148
     - CAM-150
     - CAM-157
+    ip_address: 10.243.0.149
+    fromwords: Ghandi Statue center, Aryapuram Road
+    towards: Towards 3 town PS, Pushkar Ghat
+    camera_type: RLVD
   CAM-150:
-    name: Industrial Estate Road Sec-24
-    location: North Division - Industrial Estate Road
-    subdivision: North Division
-    police_station: North Sub-Station
-    latitude: 17.0314
-    longitude: 82.2785
+    name: Opp.3 Town Police Station-2
+    location: 3 town - Opp.3 Town Police Station-2
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0094509
+    longitude: 81.7701661
     resolution:
     - 1920
     - 1080
@@ -2703,13 +2855,17 @@ cameras:
     - CAM-149
     - CAM-151
     - CAM-158
+    ip_address: 10.243.0.150
+    fromwords: Gokavaram Bus Stand
+    towards: Court, Pushkar Ghat
+    camera_type: RLVD
   CAM-151:
-    name: Kakinada Canal Lock Sec-24
-    location: South Division - Kakinada Canal Lock
-    subdivision: South Division
-    police_station: South Port PS
-    latitude: 16.9976
-    longitude: 82.271
+    name: Opp.3 Town Police Station-3
+    location: 3 town - Opp.3 Town Police Station-3
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0092361
+    longitude: 81.7695216
     resolution:
     - 1280
     - 720
@@ -2721,6 +2877,10 @@ cameras:
     - CAM-150
     - CAM-152
     - CAM-159
+    ip_address: 10.243.0.151
+    fromwords: Pushkara Ghat
+    towards: Aryapuram, Devi Chowk
+    camera_type: RLVD
   CAM-152:
     name: Riverfront Holding Area Sec-24
     location: Pushkaralu Ghats Zone - Riverfront Holding Area
@@ -2830,12 +2990,12 @@ cameras:
     - CAM-158
     - CAM-165
   CAM-158:
-    name: Ramakrishna Mission Ghat Sec-25
-    location: Pushkaralu Ghats Zone - Ramakrishna Mission Ghat
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.0272
-    longitude: 81.812
+    name: Vivekananda Statue-1
+    location: 3 town - Vivekananda Statue-1
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.013952
+    longitude: 81.776433
     resolution:
     - 1920
     - 1080
@@ -2847,6 +3007,10 @@ cameras:
     - CAM-157
     - CAM-159
     - CAM-166
+    ip_address: 10.243.0.158
+    fromwords: Kambala cheruvu Center
+    towards: Paper mill road
+    camera_type: RLVD
   CAM-159:
     name: Biccavolu Feeder Crossing Sec-25
     location: Anaparthi & Transit Circle - Biccavolu Feeder Crossing
@@ -2884,12 +3048,12 @@ cameras:
     - CAM-161
     - CAM-168
   CAM-161:
-    name: Feeder Road Plaza Sec-26
-    location: Central Division - Feeder Road Plaza
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.0234
-    longitude: 82.278
+    name: Vivekananda Statue-2
+    location: 3 town - Vivekananda Statue-2
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0143084
+    longitude: 81.7793595
     resolution:
     - 1920
     - 1080
@@ -2901,6 +3065,10 @@ cameras:
     - CAM-160
     - CAM-162
     - CAM-169
+    ip_address: 10.243.0.161
+    fromwords: Hi tech Bus Stand
+    towards: Kambala cheevu center
+    camera_type: RLVD
   CAM-162:
     name: Sarpavaram Junction Sec-26
     location: North Division - Sarpavaram Junction
@@ -2938,12 +3106,12 @@ cameras:
     - CAM-164
     - CAM-171
   CAM-164:
-    name: Pushkar Main Ghat Corridor Sec-26
-    location: Pushkaralu Ghats Zone - Pushkar Main Ghat Corridor
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.0284
-    longitude: 81.8135
+    name: Vivekananda Statue-3
+    location: 3 town - Vivekananda Statue-3
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.014867
+    longitude: 81.779383
     resolution:
     - 1920
     - 1080
@@ -2955,6 +3123,10 @@ cameras:
     - CAM-163
     - CAM-165
     - CAM-172
+    ip_address: 10.243.0.164
+    fromwords: Quarry Center
+    towards: Kambalacheruvu, Hi tech bus stand
+    camera_type: RLVD
   CAM-165:
     name: Railway Station East Gate Sec-26
     location: Anaparthi & Transit Circle - Railway Station East Gate
@@ -2992,12 +3164,12 @@ cameras:
     - CAM-167
     - CAM-174
   CAM-167:
-    name: Clock Tower Square Sec-27
-    location: Central Division - Clock Tower Square
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.0246
-    longitude: 82.2795
+    name: Vivekananda Statue-4
+    location: 3 town - Vivekananda Statue-4
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0149651
+    longitude: 81.7792557
     resolution:
     - 1920
     - 1080
@@ -3009,6 +3181,10 @@ cameras:
     - CAM-166
     - CAM-168
     - CAM-175
+    ip_address: 10.243.0.167
+    fromwords: Paper mill road
+    towards: Chiranjeevi Bus stand, Kambalacheruvu
+    camera_type: RLVD
   CAM-168:
     name: Industrial Estate Road Sec-27
     location: North Division - Industrial Estate Road
@@ -3262,12 +3438,12 @@ cameras:
     - CAM-182
     - CAM-189
   CAM-182:
-    name: Pushkar Main Ghat Corridor Sec-29
-    location: Pushkaralu Ghats Zone - Pushkar Main Ghat Corridor
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.032
-    longitude: 81.818
+    name: CTRI Junction-1
+    location: 3 town - CTRI Junction-1
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0201428
+    longitude: 81.7943355
     resolution:
     - 1920
     - 1080
@@ -3279,6 +3455,10 @@ cameras:
     - CAM-181
     - CAM-183
     - CAM-190
+    ip_address: 10.243.0.182
+    fromwords: Lalacheruvu Center
+    towards: Central Jail Road
+    camera_type: RLVD
   CAM-183:
     name: Railway Station East Gate Sec-29
     location: Anaparthi & Transit Circle - Railway Station East Gate
@@ -3316,12 +3496,12 @@ cameras:
     - CAM-185
     - CAM-192
   CAM-185:
-    name: Clock Tower Square Sec-30
-    location: Central Division - Clock Tower Square
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.0282
-    longitude: 82.284
+    name: CTRI Junction-2
+    location: 3 town - CTRI Junction-2
+    subdivision: Central Zone
+    police_station: 3 town Police Station
+    latitude: 17.0198069
+    longitude: 81.7936358
     resolution:
     - 1920
     - 1080
@@ -3333,6 +3513,10 @@ cameras:
     - CAM-184
     - CAM-186
     - CAM-193
+    ip_address: 10.243.0.185
+    fromwords: Y Junction
+    towards: Lalacheruvu center
+    camera_type: RLVD
   CAM-186:
     name: Industrial Estate Road Sec-30
     location: North Division - Industrial Estate Road
@@ -3550,12 +3734,12 @@ cameras:
     - CAM-198
     - CAM-205
   CAM-198:
-    name: Sarpavaram Junction Sec-32
-    location: North Division - Sarpavaram Junction
-    subdivision: North Division
-    police_station: North Sub-Station
-    latitude: 17.041
-    longitude: 82.2905
+    name: Bommuru Centre-1
+    location: Bommuru - Bommuru Centre-1
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 16.9696959
+    longitude: 81.7981421
     resolution:
     - 1920
     - 1080
@@ -3567,6 +3751,10 @@ cameras:
     - CAM-197
     - CAM-199
     - CAM-206
+    ip_address: 10.243.0.198
+    fromwords: Ravulapalem
+    towards: Visakhapatnam
+    camera_type: RLVD
   CAM-199:
     name: Deep Water Port Gate Sec-32
     location: South Division - Deep Water Port Gate
@@ -3604,12 +3792,12 @@ cameras:
     - CAM-201
     - CAM-208
   CAM-201:
-    name: Railway Station East Gate Sec-32
-    location: Anaparthi & Transit Circle - Railway Station East Gate
-    subdivision: Anaparthi & Transit Circle
-    police_station: Anaparthi PS
-    latitude: 16.906
-    longitude: 81.993
+    name: Bommuru Centre-2
+    location: Bommuru - Bommuru Centre-2
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 16.9704621
+    longitude: 81.7979407
     resolution:
     - 1920
     - 1080
@@ -3621,6 +3809,10 @@ cameras:
     - CAM-200
     - CAM-202
     - CAM-209
+    ip_address: 10.243.0.201
+    fromwords: Visakhapatnam
+    towards: Ravulapalem
+    camera_type: RLVD
   CAM-202:
     name: Beach Road Promenade Sec-33
     location: East Zone - Beach Road Promenade
@@ -3658,12 +3850,12 @@ cameras:
     - CAM-204
     - CAM-211
   CAM-204:
-    name: Industrial Estate Road Sec-33
-    location: North Division - Industrial Estate Road
-    subdivision: North Division
-    police_station: North Sub-Station
-    latitude: 17.0422
-    longitude: 82.292
+    name: Bommuru Centre-3
+    location: Bommuru - Bommuru Centre-3
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 16.970373
+    longitude: 81.79794
     resolution:
     - 1920
     - 1080
@@ -3675,6 +3867,10 @@ cameras:
     - CAM-203
     - CAM-205
     - CAM-212
+    ip_address: 10.243.0.204
+    fromwords: ''
+    towards: Bommuru Center Hiway
+    camera_type: RLVD
   CAM-205:
     name: Kakinada Canal Lock Sec-33
     location: South Division - Kakinada Canal Lock
@@ -3712,12 +3908,12 @@ cameras:
     - CAM-207
     - CAM-214
   CAM-207:
-    name: Transit Avenue South Sec-33
-    location: Anaparthi & Transit Circle - Transit Avenue South
-    subdivision: Anaparthi & Transit Circle
-    police_station: Anaparthi PS
-    latitude: 16.9072
-    longitude: 81.9945
+    name: Hukumpeta-1
+    location: Bommuru - Hukumpeta-1
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 16.985162
+    longitude: 81.797158
     resolution:
     - 1920
     - 1080
@@ -3729,6 +3925,10 @@ cameras:
     - CAM-206
     - CAM-208
     - CAM-215
+    ip_address: 10.243.1.1
+    fromwords: ''
+    towards: National Highway
+    camera_type: RLVD
   CAM-208:
     name: Government General Hospital Sec-34
     location: East Zone - Government General Hospital
@@ -3766,12 +3966,12 @@ cameras:
     - CAM-210
     - CAM-217
   CAM-210:
-    name: District Police Office Sec-34
-    location: North Division - District Police Office
-    subdivision: North Division
-    police_station: North Sub-Station
-    latitude: 17.0434
-    longitude: 82.2935
+    name: Morampudi Centre-1
+    location: Bommuru - Morampudi Centre-1
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 16.9864049
+    longitude: 81.8014055
     resolution:
     - 1920
     - 1080
@@ -3783,6 +3983,10 @@ cameras:
     - CAM-209
     - CAM-211
     - CAM-218
+    ip_address: 10.243.1.4
+    fromwords: RTC Complex
+    towards: Namavaram
+    camera_type: RLVD
   CAM-211:
     name: Beach Bypass Checkpost Sec-34
     location: South Division - Beach Bypass Checkpost
@@ -3856,12 +4060,12 @@ cameras:
     - CAM-215
     - CAM-222
   CAM-215:
-    name: Feeder Road Plaza Sec-35
-    location: Central Division - Feeder Road Plaza
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.0342
-    longitude: 82.2915
+    name: Zero point
+    location: Bommuru - Zero point
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 16.9939688
+    longitude: 81.8020736
     resolution:
     - 1920
     - 1080
@@ -3873,6 +4077,10 @@ cameras:
     - CAM-214
     - CAM-216
     - CAM-223
+    ip_address: 10.243.1.9
+    fromwords: ''
+    towards: ''
+    camera_type: RLVD
   CAM-216:
     name: Sarpavaram Junction Sec-35
     location: North Division - Sarpavaram Junction
@@ -3910,12 +4118,12 @@ cameras:
     - CAM-218
     - CAM-225
   CAM-218:
-    name: Pushkar Main Ghat Corridor Sec-35
-    location: Pushkaralu Ghats Zone - Pushkar Main Ghat Corridor
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.0392
-    longitude: 81.827
+    name: Lalacheruvu Centre-1
+    location: Bommuru - Lalacheruvu Centre-1
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 17.0263747
+    longitude: 81.8073832
     resolution:
     - 1920
     - 1080
@@ -3927,6 +4135,10 @@ cameras:
     - CAM-217
     - CAM-219
     - CAM-226
+    ip_address: 10.243.1.12
+    fromwords: Visakhapatnam
+    towards: Ravulapalem
+    camera_type: RLVD
   CAM-219:
     name: Railway Station East Gate Sec-35
     location: Anaparthi & Transit Circle - Railway Station East Gate
@@ -3964,12 +4176,12 @@ cameras:
     - CAM-221
     - CAM-228
   CAM-221:
-    name: Clock Tower Square Sec-36
-    location: Central Division - Clock Tower Square
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.0354
-    longitude: 82.293
+    name: Lalacheruvu Centre-2
+    location: Bommuru - Lalacheruvu Centre-2
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 17.0256082
+    longitude: 81.8059746
     resolution:
     - 1920
     - 1080
@@ -3981,6 +4193,10 @@ cameras:
     - CAM-220
     - CAM-222
     - CAM-229
+    ip_address: 10.243.1.15
+    fromwords: Ravulapalem
+    towards: Visakhapatnam
+    camera_type: RLVD
   CAM-222:
     name: Industrial Estate Road Sec-36
     location: North Division - Industrial Estate Road
@@ -4126,12 +4342,12 @@ cameras:
     - CAM-230
     - CAM-237
   CAM-230:
-    name: Ramakrishna Mission Ghat Sec-37
-    location: Pushkaralu Ghats Zone - Ramakrishna Mission Ghat
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.0416
-    longitude: 81.83
+    name: D.T.C.-1
+    location: Bommuru - D.T.C.-1
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 17.018683
+    longitude: 81.806255
     resolution:
     - 1920
     - 1080
@@ -4143,6 +4359,10 @@ cameras:
     - CAM-229
     - CAM-231
     - CAM-238
+    ip_address: 10.243.1.24
+    fromwords: ''
+    towards: ''
+    camera_type: RLVD
   CAM-231:
     name: Biccavolu Feeder Crossing Sec-37
     location: Anaparthi & Transit Circle - Biccavolu Feeder Crossing
@@ -4180,12 +4400,12 @@ cameras:
     - CAM-233
     - CAM-240
   CAM-233:
-    name: Feeder Road Plaza Sec-38
-    location: Central Division - Feeder Road Plaza
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.0378
-    longitude: 82.296
+    name: D.T.C.-2
+    location: Bommuru - D.T.C.-2
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 17.019158
+    longitude: 81.80651
     resolution:
     - 1920
     - 1080
@@ -4197,6 +4417,10 @@ cameras:
     - CAM-232
     - CAM-234
     - CAM-241
+    ip_address: 10.243.1.27
+    fromwords: Visakhapatnam
+    towards: Ravulapalem
+    camera_type: RLVD
   CAM-234:
     name: Sarpavaram Junction Sec-38
     location: North Division - Sarpavaram Junction
@@ -4234,12 +4458,12 @@ cameras:
     - CAM-236
     - CAM-243
   CAM-236:
-    name: Pushkar Main Ghat Corridor Sec-38
-    location: Pushkaralu Ghats Zone - Pushkar Main Ghat Corridor
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.0428
-    longitude: 81.8315
+    name: D.T.C.-3
+    location: Bommuru - D.T.C.-3
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 17.018545
+    longitude: 81.806633
     resolution:
     - 1920
     - 1080
@@ -4251,6 +4475,10 @@ cameras:
     - CAM-235
     - CAM-237
     - CAM-244
+    ip_address: 10.243.1.30
+    fromwords: ''
+    towards: ''
+    camera_type: RLVD
   CAM-237:
     name: Railway Station East Gate Sec-38
     location: Anaparthi & Transit Circle - Railway Station East Gate
@@ -4288,12 +4516,12 @@ cameras:
     - CAM-239
     - CAM-246
   CAM-239:
-    name: Clock Tower Square Sec-39
-    location: Central Division - Clock Tower Square
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.039
-    longitude: 82.2975
+    name: Electrical Sub Station PV narasimha Park
+    location: 2 town - Electrical Sub Station PV narasimha Park
+    subdivision: South Zone
+    police_station: 2 town Police Station
+    latitude: 16.997559
+    longitude: 81.769416
     resolution:
     - 1920
     - 1080
@@ -4305,6 +4533,10 @@ cameras:
     - CAM-238
     - CAM-240
     - CAM-247
+    ip_address: 10.243.1.33
+    fromwords: ''
+    towards: Towards Electrical Office
+    camera_type: RLVD
   CAM-240:
     name: Industrial Estate Road Sec-39
     location: North Division - Industrial Estate Road
@@ -4540,12 +4772,12 @@ cameras:
     - CAM-253
     - CAM-260
   CAM-253:
-    name: Deep Water Port Gate Sec-41
-    location: South Division - Deep Water Port Gate
-    subdivision: South Division
-    police_station: South Port PS
-    latitude: 17.018
-    longitude: 82.2965
+    name: Shelton Centre-1
+    location: Bommuru - Shelton Centre-1
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 16.9991717
+    longitude: 81.784907
     resolution:
     - 1280
     - 720
@@ -4557,6 +4789,10 @@ cameras:
     - CAM-252
     - CAM-254
     - CAM-261
+    ip_address: 10.243.1.47
+    fromwords: Shelton Hotel
+    towards: Towards KIMS Hospital
+    camera_type: RLVD
   CAM-254:
     name: Pushkar Main Ghat Corridor Sec-41
     location: Pushkaralu Ghats Zone - Pushkar Main Ghat Corridor
@@ -4594,12 +4830,12 @@ cameras:
     - CAM-256
     - CAM-263
   CAM-256:
-    name: Beach Road Promenade Sec-42
-    location: East Zone - Beach Road Promenade
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 17.0362
-    longitude: 82.307
+    name: Shelton Centre-2
+    location: Bommuru - Shelton Centre-2
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 16.9994082
+    longitude: 81.7851241
     resolution:
     - 1280
     - 720
@@ -4611,6 +4847,10 @@ cameras:
     - CAM-255
     - CAM-257
     - CAM-264
+    ip_address: 10.243.1.50
+    fromwords: RTC Complex
+    towards: Thadithota center
+    camera_type: RLVD
   CAM-257:
     name: Clock Tower Square Sec-42
     location: Central Division - Clock Tower Square
@@ -4648,12 +4888,12 @@ cameras:
     - CAM-259
     - CAM-266
   CAM-259:
-    name: Kakinada Canal Lock Sec-42
-    location: South Division - Kakinada Canal Lock
-    subdivision: South Division
-    police_station: South Port PS
-    latitude: 17.0192
-    longitude: 82.298
+    name: Shelton Centre-3
+    location: Bommuru - Shelton Centre-3
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 16.999811
+    longitude: 81.784997
     resolution:
     - 1280
     - 720
@@ -4665,6 +4905,10 @@ cameras:
     - CAM-258
     - CAM-260
     - CAM-267
+    ip_address: 10.243.1.53
+    fromwords: Seelamnookaraju Jn
+    towards: Towards shelton hotel
+    camera_type: RLVD
   CAM-260:
     name: Riverfront Holding Area Sec-42
     location: Pushkaralu Ghats Zone - Riverfront Holding Area
@@ -4702,12 +4946,12 @@ cameras:
     - CAM-262
     - CAM-269
   CAM-262:
-    name: Government General Hospital Sec-43
-    location: East Zone - Government General Hospital
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 17.0374
-    longitude: 82.3085
+    name: Shelton Centre-4
+    location: Bommuru - Shelton Centre-4
+    subdivision: South Zone
+    police_station: Bommuru Police Station
+    latitude: 16.999393
+    longitude: 81.784518
     resolution:
     - 1280
     - 720
@@ -4719,6 +4963,10 @@ cameras:
     - CAM-261
     - CAM-263
     - CAM-270
+    ip_address: 10.243.1.56
+    fromwords: Thadi thota Center
+    towards: Towards RTC Complex
+    camera_type: RLVD
   CAM-263:
     name: Municipal Corporation HQ Sec-43
     location: Central Division - Municipal Corporation HQ
@@ -5116,12 +5364,12 @@ cameras:
     - CAM-285
     - CAM-292
   CAM-285:
-    name: Biccavolu Feeder Crossing Sec-46
-    location: Anaparthi & Transit Circle - Biccavolu Feeder Crossing
-    subdivision: Anaparthi & Transit Circle
-    police_station: Anaparthi PS
-    latitude: 16.9228
-    longitude: 82.014
+    name: Vemagiri Junction-1
+    location: kadiyam - Vemagiri Junction-1
+    subdivision: South Zone
+    police_station: kadiyam Police Station
+    latitude: 16.929126
+    longitude: 81.792914
     resolution:
     - 1920
     - 1080
@@ -5133,6 +5381,10 @@ cameras:
     - CAM-284
     - CAM-286
     - CAM-293
+    ip_address: 10.243.1.79
+    fromwords: Dowlaiswaram
+    towards: Towards Kadiyam
+    camera_type: RLVD
   CAM-286:
     name: Jagannaickpur Bridge Sec-47
     location: East Zone - Jagannaickpur Bridge
@@ -5170,12 +5422,12 @@ cameras:
     - CAM-288
     - CAM-295
   CAM-288:
-    name: Sarpavaram Junction Sec-47
-    location: North Division - Sarpavaram Junction
-    subdivision: North Division
-    police_station: North Sub-Station
-    latitude: 17.059
-    longitude: 82.313
+    name: Vemagiri Junction-2
+    location: kadiyam - Vemagiri Junction-2
+    subdivision: South Zone
+    police_station: kadiyam Police Station
+    latitude: 16.928193
+    longitude: 81.793347
     resolution:
     - 1920
     - 1080
@@ -5187,6 +5439,10 @@ cameras:
     - CAM-287
     - CAM-289
     - CAM-296
+    ip_address: 10.243.1.82
+    fromwords: visakhapatnam
+    towards: Towards Ravulapalem
+    camera_type: RLVD
   CAM-289:
     name: Deep Water Port Gate Sec-47
     location: South Division - Deep Water Port Gate
@@ -5224,12 +5480,12 @@ cameras:
     - CAM-291
     - CAM-298
   CAM-291:
-    name: Railway Station East Gate Sec-47
-    location: Anaparthi & Transit Circle - Railway Station East Gate
-    subdivision: Anaparthi & Transit Circle
-    police_station: Anaparthi PS
-    latitude: 16.924
-    longitude: 82.0155
+    name: Vemagiri Junction-3
+    location: kadiyam - Vemagiri Junction-3
+    subdivision: South Zone
+    police_station: kadiyam Police Station
+    latitude: 16.927794
+    longitude: 81.793566
     resolution:
     - 1920
     - 1080
@@ -5241,6 +5497,10 @@ cameras:
     - CAM-290
     - CAM-292
     - CAM-299
+    ip_address: 10.243.1.85
+    fromwords: Kadiyam
+    towards: Towards Dowlaiswaram
+    camera_type: RLVD
   CAM-292:
     name: Beach Road Promenade Sec-48
     location: East Zone - Beach Road Promenade
@@ -5584,12 +5844,12 @@ cameras:
     - CAM-311
     - CAM-318
   CAM-311:
-    name: Clock Tower Square Sec-51
-    location: Central Division - Clock Tower Square
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.0534
-    longitude: 82.3155
+    name: J.N. Road Junction-1
+    location: Prakash nagar - J.N. Road Junction-1
+    subdivision: Central Zone
+    police_station: Prakash nagar Police Station
+    latitude: 17.0077986
+    longitude: 81.8095104
     resolution:
     - 1920
     - 1080
@@ -5601,6 +5861,10 @@ cameras:
     - CAM-310
     - CAM-312
     - CAM-319
+    ip_address: 10.243.1.105
+    fromwords: ''
+    towards: Towards JN Road Opp
+    camera_type: RLVD
   CAM-312:
     name: Industrial Estate Road Sec-51
     location: North Division - Industrial Estate Road
@@ -5638,12 +5902,12 @@ cameras:
     - CAM-314
     - CAM-321
   CAM-314:
-    name: Riverfront Holding Area Sec-51
-    location: Pushkaralu Ghats Zone - Riverfront Holding Area
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.0584
-    longitude: 81.851
+    name: J.N. Road Junction-2
+    location: Prakash nagar - J.N. Road Junction-2
+    subdivision: Central Zone
+    police_station: Prakash nagar Police Station
+    latitude: 17.007624
+    longitude: 81.8100297
     resolution:
     - 1920
     - 1080
@@ -5655,6 +5919,10 @@ cameras:
     - CAM-313
     - CAM-315
     - CAM-322
+    ip_address: 10.243.1.108
+    fromwords: Ravulapalem
+    towards: Towards Visakhapatnam
+    camera_type: RLVD
   CAM-315:
     name: Transit Avenue South Sec-51
     location: Anaparthi & Transit Circle - Transit Avenue South
@@ -5692,12 +5960,12 @@ cameras:
     - CAM-317
     - CAM-324
   CAM-317:
-    name: Municipal Corporation HQ Sec-52
-    location: Central Division - Municipal Corporation HQ
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.0546
-    longitude: 82.317
+    name: J.N. Road Junction-3
+    location: Prakash nagar - J.N. Road Junction-3
+    subdivision: Central Zone
+    police_station: Prakash nagar Police Station
+    latitude: 17.0083198
+    longitude: 81.8100038
     resolution:
     - 1920
     - 1080
@@ -5709,6 +5977,10 @@ cameras:
     - CAM-316
     - CAM-318
     - CAM-325
+    ip_address: 10.243.1.111
+    fromwords: Visakhapatnam
+    towards: Towards Ravulapalem
+    camera_type: RLVD
   CAM-318:
     name: District Police Office Sec-52
     location: North Division - District Police Office
@@ -5944,12 +6216,12 @@ cameras:
     - CAM-331
     - CAM-338
   CAM-331:
-    name: Kakinada Canal Lock Sec-54
-    location: South Division - Kakinada Canal Lock
-    subdivision: South Division
-    police_station: South Port PS
-    latitude: 17.0336
-    longitude: 82.316
+    name: Ramalayam Centre-1
+    location: Prakash nagar - Ramalayam Centre-1
+    subdivision: Central Zone
+    police_station: Prakash nagar Police Station
+    latitude: 17.0077186
+    longitude: 81.7918657
     resolution:
     - 1280
     - 720
@@ -5961,6 +6233,10 @@ cameras:
     - CAM-330
     - CAM-332
     - CAM-339
+    ip_address: 10.243.1.125
+    fromwords: Jagruthi Road
+    towards: Towards AVA Road @ JN Road
+    camera_type: RLVD
   CAM-332:
     name: Riverfront Holding Area Sec-54
     location: Pushkaralu Ghats Zone - Riverfront Holding Area
@@ -5998,12 +6274,12 @@ cameras:
     - CAM-334
     - CAM-341
   CAM-334:
-    name: Government General Hospital Sec-55
-    location: East Zone - Government General Hospital
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 17.0518
-    longitude: 82.3265
+    name: Ramalayam Centre-2
+    location: Prakash nagar - Ramalayam Centre-2
+    subdivision: Central Zone
+    police_station: Prakash nagar Police Station
+    latitude: 17.0075976
+    longitude: 81.7923634
     resolution:
     - 1280
     - 720
@@ -6015,6 +6291,10 @@ cameras:
     - CAM-333
     - CAM-335
     - CAM-342
+    ip_address: 10.243.1.128
+    fromwords: Old Somalamma Temple
+    towards: Towards Opp Relaince Trends TTD Road
+    camera_type: RLVD
   CAM-335:
     name: Municipal Corporation HQ Sec-55
     location: Central Division - Municipal Corporation HQ
@@ -6052,12 +6332,12 @@ cameras:
     - CAM-337
     - CAM-344
   CAM-337:
-    name: Beach Bypass Checkpost Sec-55
-    location: South Division - Beach Bypass Checkpost
-    subdivision: South Division
-    police_station: South Port PS
-    latitude: 17.0348
-    longitude: 82.3175
+    name: Ramalayam Centre-3
+    location: Prakash nagar - Ramalayam Centre-3
+    subdivision: Central Zone
+    police_station: Prakash nagar Police Station
+    latitude: 17.0077246
+    longitude: 81.7925503
     resolution:
     - 1280
     - 720
@@ -6069,6 +6349,10 @@ cameras:
     - CAM-336
     - CAM-338
     - CAM-345
+    ip_address: 10.243.1.131
+    fromwords: JN Road
+    towards: Towards Jagruthi Road, Mugdha Shoppingmall
+    camera_type: RLVD
   CAM-338:
     name: Ramakrishna Mission Ghat Sec-55
     location: Pushkaralu Ghats Zone - Ramakrishna Mission Ghat
@@ -6106,12 +6390,12 @@ cameras:
     - CAM-340
     - CAM-347
   CAM-340:
-    name: Jagannaickpur Bridge Sec-56
-    location: East Zone - Jagannaickpur Bridge
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 17.053
-    longitude: 82.328
+    name: Ramalayam Centre-4
+    location: Prakash nagar - Ramalayam Centre-4
+    subdivision: Central Zone
+    police_station: Prakash nagar Police Station
+    latitude: 17.0080553
+    longitude: 81.7925186
     resolution:
     - 1280
     - 720
@@ -6123,6 +6407,10 @@ cameras:
     - CAM-339
     - CAM-341
     - CAM-348
+    ip_address: 10.243.1.134
+    fromwords: AVA Road
+    towards: Towards Jagruthi Road, Keerthi Gift shop
+    camera_type: RLVD
   CAM-341:
     name: Feeder Road Plaza Sec-56
     location: Central Division - Feeder Road Plaza
@@ -6232,12 +6520,12 @@ cameras:
     - CAM-347
     - CAM-354
   CAM-347:
-    name: Clock Tower Square Sec-57
-    location: Central Division - Clock Tower Square
-    subdivision: Central Division
-    police_station: I Town Police Station
-    latitude: 17.0606
-    longitude: 82.3245
+    name: VL Puram Junction -1
+    location: Prakash nagar - VL Puram Junction -1
+    subdivision: Central Zone
+    police_station: Prakash nagar Police Station
+    latitude: 17.0065143
+    longitude: 81.7940664
     resolution:
     - 1920
     - 1080
@@ -6249,6 +6537,10 @@ cameras:
     - CAM-346
     - CAM-348
     - CAM-355
+    ip_address: 10.243.1.141
+    fromwords: RTC Complex
+    towards: Towards Morampudi center
+    camera_type: RLVD
   CAM-348:
     name: Industrial Estate Road Sec-57
     location: North Division - Industrial Estate Road
@@ -6286,12 +6578,12 @@ cameras:
     - CAM-350
     - CAM-357
   CAM-350:
-    name: Riverfront Holding Area Sec-57
-    location: Pushkaralu Ghats Zone - Riverfront Holding Area
-    subdivision: Pushkaralu Ghats Zone
-    police_station: Riverfront Police Post
-    latitude: 17.0656
-    longitude: 81.86
+    name: VL Puram Junction -2
+    location: Prakash nagar - VL Puram Junction -2
+    subdivision: Central Zone
+    police_station: Prakash nagar Police Station
+    latitude: 17.0062347
+    longitude: 81.7946798
     resolution:
     - 1920
     - 1080
@@ -6303,6 +6595,10 @@ cameras:
     - CAM-349
     - CAM-351
     - CAM-358
+    ip_address: 10.243.1.144
+    fromwords: Morampudi Center
+    towards: Towards RTC Complex
+    camera_type: RLVD
   CAM-351:
     name: Transit Avenue South Sec-57
     location: Anaparthi & Transit Circle - Transit Avenue South
@@ -7294,12 +7590,12 @@ cameras:
     - CAM-406
     - CAM-413
   CAM-406:
-    name: Government General Hospital Sec-67
-    location: East Zone - Government General Hospital
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 17.0662
-    longitude: 82.3445
+    name: Merakaveedhi Towards Godavarimata Statue-1
+    location: Kovvur Town - Merakaveedhi Towards Godavarimata Statue-1
+    subdivision: Kovvuru sub division
+    police_station: Kovvur Town
+    latitude: 17.0225282
+    longitude: 81.7286091
     resolution:
     - 1280
     - 720
@@ -7311,6 +7607,10 @@ cameras:
     - CAM-405
     - CAM-407
     - CAM-414
+    ip_address: 10.244.7.15
+    fromwords: Kovvuru
+    towards: Towards Dommeru road
+    camera_type: RLVD
   CAM-407:
     name: Municipal Corporation HQ Sec-67
     location: Central Division - Municipal Corporation HQ
@@ -7348,12 +7648,12 @@ cameras:
     - CAM-409
     - CAM-416
   CAM-409:
-    name: Beach Bypass Checkpost Sec-67
-    location: South Division - Beach Bypass Checkpost
-    subdivision: South Division
-    police_station: South Port PS
-    latitude: 17.0492
-    longitude: 82.3355
+    name: Merakaveedhi Towards Godavarimata Statue-2
+    location: Kovvur Town - Merakaveedhi Towards Godavarimata Statue-2
+    subdivision: Kovvuru sub division
+    police_station: Kovvur Town
+    latitude: 17.0223309
+    longitude: 81.7283371
     resolution:
     - 1280
     - 720
@@ -7365,6 +7665,10 @@ cameras:
     - CAM-408
     - CAM-410
     - CAM-417
+    ip_address: 10.244.7.16
+    fromwords: Kovvuru Bus Stand
+    towards: Towards Kovvuru main road
+    camera_type: RLVD
   CAM-410:
     name: Ramakrishna Mission Ghat Sec-67
     location: Pushkaralu Ghats Zone - Ramakrishna Mission Ghat
@@ -7402,12 +7706,12 @@ cameras:
     - CAM-412
     - CAM-419
   CAM-412:
-    name: Jagannaickpur Bridge Sec-68
-    location: East Zone - Jagannaickpur Bridge
-    subdivision: East Zone
-    police_station: II Town Police Station
-    latitude: 17.0674
-    longitude: 82.346
+    name: Merakaveedhi Towards Godavarimata Statue-3
+    location: Kovvur Town - Merakaveedhi Towards Godavarimata Statue-3
+    subdivision: Kovvuru sub division
+    police_station: Kovvur Town
+    latitude: 17.0224943
+    longitude: 81.7277394
     resolution:
     - 1280
     - 720
@@ -7419,6 +7723,10 @@ cameras:
     - CAM-411
     - CAM-413
     - CAM-420
+    ip_address: 10.244.7.17
+    fromwords: Dommeru
+    towards: Towards RCRB Rajamahendravaram
+    camera_type: RLVD
   CAM-413:
     name: Feeder Road Plaza Sec-68
     location: Central Division - Feeder Road Plaza
