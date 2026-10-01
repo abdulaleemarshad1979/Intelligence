@@ -92,11 +92,22 @@ class PersonDetector:
 
     def _init_fallback_detector(self):
         """Initialize OpenCV HOG and MOG2 fallback for offline/air-gapped systems."""
-        self.hog = cv2.HOGDescriptor()
-        self.hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
-        self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
-            history=300, varThreshold=32, detectShadows=True
-        )
+        if hasattr(cv2, "HOGDescriptor"):
+            try:
+                self.hog = cv2.HOGDescriptor()
+                if hasattr(cv2, "HOGDescriptor_getDefaultPeopleDetector"):
+                    self.hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+            except Exception:
+                self.hog = None
+        else:
+            self.hog = None
+
+        if hasattr(cv2, "createBackgroundSubtractorMOG2"):
+            self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
+                history=300, varThreshold=32, detectShadows=True
+            )
+        else:
+            self.bg_subtractor = None
 
     def detect(self, frame: np.ndarray) -> List[Dict[str, Any]]:
         """Detect persons in frame. Returns list of bounding boxes with confidence.

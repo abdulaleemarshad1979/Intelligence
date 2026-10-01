@@ -12,6 +12,11 @@ Architectural Guarantees:
 """
 
 import os
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 import sys
 import time
 import logging
@@ -185,51 +190,72 @@ class CameraStreamWorker:
 
     def _open_capture(self) -> bool:
         """Open VideoCapture with low-latency flags for RTSP/Matrix cameras."""
+        old_cap = None
         with self._lock:
-            if self.cap is not None:
-                try:
-                    self.cap.release()
-                except Exception:
-                    pass
-                self.cap = None
+            old_cap = self.cap
+            self.cap = None
 
-            if self.is_rtsp:
-                try:
-                    # Low-latency RTSP with zero buffering
-                    self.cap = cv2.VideoCapture(self.source, cv2.CAP_FFMPEG)
-                    if self.cap and self.cap.isOpened():
-                        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                        self.is_connected = True
-                        w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 1024)
-                        h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 576)
-                        self._resolution = (w, h)
-                        return True
-                except Exception as ex:
-                    logger.debug(f"[{self.camera_id}] Error opening RTSP: {ex}")
-                self.is_connected = False
-                return False
+        if old_cap is not None:
+            try:
+                old_cap.release()
+            except Exception:
+                pass
 
-            elif self.is_file:
-                try:
-                    self.cap = cv2.VideoCapture(self.source)
-                    if self.cap and self.cap.isOpened():
-                        self.is_connected = True
-                        w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 1024)
-                        h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 576)
-                        fps = self.cap.get(cv2.CAP_PROP_FPS)
-                        if fps and fps > 5:
-                            self.target_fps = min(25, int(round(fps)))
-                        self._resolution = (w, h)
-                        return True
-                except Exception as ex:
-                    logger.debug(f"[{self.camera_id}] Error opening file: {ex}")
-                self.is_connected = False
-                return False
+        new_cap = None
+        connected = False
+        res = (1024, 576)
+        fps_target = self.target_fps
 
-            else:
-                # Simulated pattern generator for offline slots
-                self.is_connected = True
-                return True
+        if self.is_rtsp:
+            try:
+                # Low-latency RTSP with zero buffering (socket connect occurs without holding mutex lock)
+                cap = cv2.VideoCapture(self.source, cv2.CAP_FFMPEG)
+                if cap and cap.isOpened():
+                    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                    connected = True
+                    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 1024)
+                    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 576)
+                    res = (w, h)
+                    new_cap = cap
+                elif cap:
+                    try:
+                        cap.release()
+                    except Exception:
+                        pass
+            except Exception as ex:
+                logger.debug(f"[{self.camera_id}] Error opening RTSP: {ex}")
+
+        elif self.is_file:
+            try:
+                cap = cv2.VideoCapture(self.source)
+                if cap and cap.isOpened():
+                    connected = True
+                    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 1024)
+                    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 576)
+                    fps = cap.get(cv2.CAP_PROP_FPS)
+                    if fps and fps > 5:
+                        fps_target = min(25, int(round(fps)))
+                    res = (w, h)
+                    new_cap = cap
+                elif cap:
+                    try:
+                        cap.release()
+                    except Exception:
+                        pass
+            except Exception as ex:
+                logger.debug(f"[{self.camera_id}] Error opening file: {ex}")
+
+        else:
+            # Simulated pattern generator for offline slots
+            connected = True
+
+        with self._lock:
+            self.cap = new_cap
+            self.is_connected = connected
+            self._resolution = res
+            self.target_fps = fps_target
+
+        return connected
 
     def _capture_loop(self):
         """High-frequency capture loop that strictly discards stale frames."""
@@ -310,19 +336,33 @@ class CameraStreamWorker:
                 time.sleep(0.002)
 
     def _generate_simulated_frame(self) -> np.ndarray:
-        """High-speed synthetic CCTV surveillance frame generator."""
+        """Clean CCTV standby frame generator with explicit no-signal banner."""
         w, h = 640, 360
-        frame = np.full((h, w, 3), 18, dtype=np.uint8)
+        frame = np.full((h, w, 3), 14, dtype=np.uint8)
 
-        # Subtle CCTV grid lines
-        cv2.line(frame, (0, int(h * 0.65)), (w, int(h * 0.65)), (35, 45, 55), 1)
-        cv2.line(frame, (int(w * 0.3), 0), (int(w * 0.2), h), (28, 38, 48), 1)
-        cv2.line(frame, (int(w * 0.7), 0), (int(w * 0.8), h), (28, 38, 48), 1)
+        # Subtle dark border
+        cv2.rectangle(frame, (10, 10), (w - 10, h - 10), (30, 38, 48), 1)
 
-        # Subtle clean timestamp / status watermark (no bounding boxes drawn)
+        # Standby crosshair in center
+        cx, cy = w // 2, h // 2
+        cv2.line(frame, (cx - 24, cy), (cx + 24, cy), (50, 65, 80), 1)
+        cv2.line(frame, (cx, cy - 24), (cx, cy + 24), (50, 65, 80), 1)
+        cv2.circle(frame, (cx, cy), 14, (50, 65, 80), 1)
+
+        # Standby text banner
         now_str = time.strftime("%Y-%m-%d %H:%M:%S")
-        cv2.putText(frame, f"{now_str} REC", (w - 180, 26),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.40, (80, 90, 100), 1)
+        cv2.putText(frame, f"{now_str} • STANDBY", (w - 190, 28),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.40, (100, 115, 130), 1)
+
+        title = f"{self.camera_id} • NO SIGNAL / STANDBY"
+        (tw, _), _ = cv2.getTextSize(title, cv2.FONT_HERSHEY_SIMPLEX, 0.50, 1)
+        cv2.putText(frame, title, (cx - tw // 2, cy - 40),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.50, (140, 160, 180), 1)
+
+        sub = "READY FOR RTSP STREAM - USE 'CONNECT IP' TO ATTACH"
+        (sw, _), _ = cv2.getTextSize(sub, cv2.FONT_HERSHEY_SIMPLEX, 0.36, 1)
+        cv2.putText(frame, sub, (cx - sw // 2, cy + 48),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.36, (70, 95, 120), 1)
 
         return frame
 
@@ -332,12 +372,20 @@ class CameraStreamWorker:
         from app.features.height import HeightEstimator
 
         height_estimator = HeightEstimator()
-        ai_interval = 0.12  # ~8 FPS for AI inference (sufficient for tracking without CPU choke)
+        ai_interval = 0.12  # ~8 FPS for AI inference
 
         while not self._stop_event.is_set():
             t0 = time.perf_counter()
 
-            # Snapshot latest frame for inference
+            # NEVER run inference or face watch on simulated/standby frames
+            is_hardware_live = False
+            with self._lock:
+                is_hardware_live = bool(self.cap is not None and self.cap.isOpened() and self.is_connected)
+            if not is_hardware_live:
+                time.sleep(0.25)
+                continue
+
+            # Snapshot latest real frame for inference
             frame_copy = None
             f_id = 0
             with self._lock:
@@ -372,28 +420,7 @@ class CameraStreamWorker:
                         except Exception as badge_err:
                             logger.debug(f"Badge gen error: {badge_err}")
 
-                    # For simulated feeds, provide synthetic background tracking telemetry without drawing on frame
-                    if getattr(self, "is_simulated", False) and not detections:
-                        from app.adapters.base import DetectionResult
-                        t_now = time.time()
-                        sim_x = int((t_now * 30) % (w - 100)) + 30
-                        sim_y = int(h * 0.50)
-                        track_num = int(t_now % 4) + 1
-                        sim_det = DetectionResult(
-                            track_id=track_num,
-                            bbox=(sim_x, sim_y, 45, 95),
-                            confidence=0.89,
-                            frame_id=f_id,
-                            class_name="person"
-                        )
-                        detections = [sim_det]
-                        badges = [{
-                            "bbox": (sim_x, sim_y, sim_x + 45, sim_y + 95),
-                            "text": f"TRACK-000{track_num} | H:173cm",
-                            "color": (0, 165, 255)
-                        }]
-
-                    # Live Face Watch: Detect and capture enrolled targets in real time
+                    # Live Face Watch: Detect and capture enrolled targets ONLY on real hardware frames
                     try:
                         from app.vision.face_watch import live_face_watcher
                         face_matches = live_face_watcher.process_frame(
@@ -459,9 +486,11 @@ class CameraStreamWorker:
         """Produce the latest enhanced display frame with cached AI HUD overlays."""
         with self._lock:
             if self._latest_frame is None:
-                return None
-            frame = self._latest_frame.copy()
-            badges = list(self._cached_badges)
+                frame = self._generate_simulated_frame()
+                badges = []
+            else:
+                frame = self._latest_frame.copy()
+                badges = list(self._cached_badges)
 
         # Fast Stream Enhancement (<2ms)
         if apply_enhancement:
@@ -733,6 +762,8 @@ class CameraStreamManager:
     def __init__(self, data_dir: str):
         self.data_dir = data_dir
         self.workers: Dict[str, CameraStreamWorker] = {}
+        self.camera_sources: Dict[str, str] = {}
+        self.camera_metadata: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.Lock()
 
     def get_or_create_worker(
@@ -745,27 +776,32 @@ class CameraStreamManager:
         with self._lock:
             if camera_id in self.workers:
                 worker = self.workers[camera_id]
-                # If a new source is provided and differs, update it
-                if source and worker.source != source:
+                # If a new source is provided and differs or disconnected, reconnect with proper enable_ai flag
+                if source and (worker.source != source or not worker.is_connected):
                     worker.stop()
-                    worker = CameraStreamWorker(camera_id=camera_id, source=source, name=name)
+                    is_real = "rtsp://" in str(source).lower() or (os.path.exists(str(source)) and os.path.isfile(str(source)))
+                    worker = CameraStreamWorker(camera_id=camera_id, source=source, name=name or worker.name, enable_ai=is_real)
                     worker.start()
                     self.workers[camera_id] = worker
+                    self.camera_sources[camera_id] = source
                 return worker
 
             # Determine default source for camera
             resolved_source = source
+            if not resolved_source and camera_id in self.camera_sources:
+                resolved_source = self.camera_sources[camera_id]
+
             if not resolved_source:
-                icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip()
-                icsee_target_cam = os.getenv("ICSEE_CAMERA_ID", "CAM-001").strip()
-                if icsee_ip and (camera_id == icsee_target_cam or camera_id == "CAM-001"):
-                    icsee_user = os.getenv("ICSEE_CAMERA_USER", "").strip()
-                    icsee_pw = os.getenv("ICSEE_CAMERA_PASSWORD", "").strip()
+                icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip().strip("'\"")
+                icsee_target_cam = os.getenv("ICSEE_CAMERA_ID", "CAM-001").strip().upper().strip("'\"")
+                if icsee_ip and (camera_id == icsee_target_cam):
+                    icsee_user = os.getenv("ICSEE_CAMERA_USER", "rtsp").strip().strip("'\"")
+                    icsee_pw = os.getenv("ICSEE_CAMERA_PASSWORD", "").strip().strip("'\"")
                     try:
                         icsee_port = int(os.getenv("ICSEE_CAMERA_PORT", "554"))
                     except Exception:
                         icsee_port = 554
-                    icsee_stream = os.getenv("ICSEE_STREAM", "stream0").strip()
+                    icsee_stream = os.getenv("ICSEE_STREAM", "stream0").strip().strip("'\"")
                     resolved_source = build_icsee_rtsp_url(
                         ip=icsee_ip,
                         port=icsee_port,
@@ -773,27 +809,22 @@ class CameraStreamManager:
                         password=icsee_pw,
                         stream_type=icsee_stream
                     )
+                    self.camera_sources[camera_id] = resolved_source
                     logger.info(f"Auto-configured live ICSee RTSP camera feed on [{camera_id}]: {resolved_source}")
-                elif camera_id == "CAM-001":
-                    raw_path = os.path.join(self.data_dir, "samples", "cctv_sample_raw.mp4")
-                    sample_path = os.path.join(self.data_dir, "samples", "cctv_sample.mp4")
-                    if os.path.exists(raw_path):
-                        resolved_source = raw_path
-                    elif os.path.exists(sample_path):
-                        resolved_source = sample_path
-                    else:
-                        resolved_source = f"simulated://{camera_id}"
                 else:
                     resolved_source = f"simulated://{camera_id}"
 
+            is_real_stream = "rtsp://" in str(resolved_source).lower() or (os.path.exists(str(resolved_source)) and os.path.isfile(str(resolved_source)))
             worker = CameraStreamWorker(
                 camera_id=camera_id,
                 source=resolved_source,
                 name=name or camera_id,
-                enable_ai=(camera_id == "CAM-001" or "rtsp://" in str(resolved_source))
+                enable_ai=is_real_stream
             )
             worker.start()
             self.workers[camera_id] = worker
+            if "rtsp://" in str(resolved_source):
+                self.camera_sources[camera_id] = resolved_source
             return worker
 
     def attach_matrix_camera(
@@ -815,6 +846,17 @@ class CameraStreamManager:
             stream_type=stream_type
         )
         logger.info(f"Connecting Matrix Camera [{camera_id}] via RTSP: {rtsp_url}")
+        self.camera_sources[camera_id] = rtsp_url
+        self.camera_metadata[camera_id] = {
+            "camera_id": camera_id,
+            "ip": ip,
+            "port": port,
+            "username": username,
+            "stream_type": stream_type,
+            "name": name or f"Matrix CCTV {ip}",
+            "type": "MATRIX",
+            "connected_at": time.time()
+        }
         return self.get_or_create_worker(camera_id=camera_id, source=rtsp_url, name=name or f"Matrix CCTV {ip}")
 
     def attach_icsee_camera(
@@ -836,7 +878,61 @@ class CameraStreamManager:
             stream_type=stream_type
         )
         logger.info(f"Connecting ICSee Camera [{camera_id}] via RTSP: {rtsp_url}")
+        self.camera_sources[camera_id] = rtsp_url
+        self.camera_metadata[camera_id] = {
+            "camera_id": camera_id,
+            "ip": ip,
+            "port": port,
+            "username": username,
+            "stream_type": stream_type,
+            "name": name or f"ICSee CCTV {ip}",
+            "type": "ICSEE",
+            "connected_at": time.time()
+        }
         return self.get_or_create_worker(camera_id=camera_id, source=rtsp_url, name=name or f"ICSee CCTV {ip}")
+
+    def batch_attach_icsee(
+        self,
+        cameras_list: List[Dict[str, Any]]
+    ) -> List[CameraStreamWorker]:
+        """Attach multiple ICSee IP cameras across fleet slots in a single operation."""
+        results = []
+        for spec in cameras_list:
+            cid = spec.get("camera_id") or "CAM-001"
+            ip = spec.get("ip", "").strip()
+            if not ip:
+                continue
+            port = int(spec.get("port", 554))
+            user = spec.get("username", "").strip()
+            pw = spec.get("password", "").strip()
+            st = spec.get("stream_type", "stream0").strip()
+            nm = spec.get("name", "").strip()
+            w = self.attach_icsee_camera(
+                camera_id=cid,
+                ip=ip,
+                port=port,
+                username=user,
+                password=pw,
+                stream_type=st,
+                name=nm
+            )
+            results.append(w)
+        return results
+
+    def get_fleet_stats(self) -> Dict[str, Any]:
+        """Fleet-wide telemetry across all 600 camera streams."""
+        with self._lock:
+            active_rtsp = sum(1 for w in self.workers.values() if w.is_rtsp and w.is_connected)
+            active_sim = sum(1 for w in self.workers.values() if getattr(w, "is_simulated", False))
+            total_active_viewers = sum(w.active_viewers for w in self.workers.values())
+        return {
+            "total_slots": 600,
+            "running_workers": len(self.workers),
+            "rtsp_live_connected": active_rtsp,
+            "simulated_active": active_sim,
+            "total_viewers": total_active_viewers,
+            "configured_rtsp_sources": len(self.camera_sources)
+        }
 
     def generate_mjpeg_stream(
         self,

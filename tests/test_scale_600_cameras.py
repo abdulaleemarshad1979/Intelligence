@@ -131,3 +131,64 @@ def test_cross_camera_tracker_600_topology():
     # Test travel window across distant cameras
     dist_far, min_far, max_far = tracker.compute_travel_window("CAM-001", "CAM-500")
     assert dist_far > 0
+
+
+def test_dynamic_icsee_camera_connection(client):
+    """Test connecting camera dynamically with user credentials without hardcoding."""
+    payload = {
+        "camera_id": "CAM-042",
+        "ip": "10.243.1.65",
+        "port": 554,
+        "username": "rtsp",
+        "password": "Test1234",
+        "stream_type": "stream0",
+        "name": "Pushkaralu Live Feed Cam 42",
+        "sector": "Pushkaralu"
+    }
+    res = client.post("/api/cameras/connect_icsee", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "SUCCESS"
+    assert data["camera_id"] == "CAM-042"
+    assert "rtsp://rtsp:******@10.243.1.65:554/stream0" == data["stream_url"]
+
+    # Verify frame endpoint serves JPEG for this connected camera
+    frame_res = client.get("/api/camera/CAM-042/frame")
+    assert frame_res.status_code == 200
+    assert frame_res.headers["content-type"] == "image/jpeg"
+    assert len(frame_res.content) > 100
+
+
+def test_batch_icsee_fleet_connection(client):
+    """Test batch connecting multiple sequential ICSee cameras across fleet slots."""
+    payload = {
+        "start_camera_id": "CAM-010",
+        "start_ip": "10.243.1.70",
+        "count": 5,
+        "port": 554,
+        "username": "rtsp",
+        "password": "Test1234",
+        "stream_type": "stream0",
+        "name_prefix": "Ghat Surveillance Cam"
+    }
+    res = client.post("/api/cameras/batch_connect_icsee", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "SUCCESS"
+    assert data["connected_count"] == 5
+    assert len(data["cameras"]) == 5
+    assert data["cameras"][0]["camera_id"] == "CAM-010"
+    assert data["cameras"][0]["ip"] == "10.243.1.70"
+    assert data["cameras"][4]["camera_id"] == "CAM-014"
+    assert data["cameras"][4]["ip"] == "10.243.1.74"
+
+
+def test_fleet_status_telemetry(client):
+    """Verify /api/cameras/fleet_status reports 600 total cameras capacity."""
+    res = client.get("/api/cameras/fleet_status")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total_slots"] == 600
+    assert data["total_registered"] >= 600
+    assert "running_workers" in data
+

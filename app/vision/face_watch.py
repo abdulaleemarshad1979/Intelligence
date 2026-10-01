@@ -33,10 +33,10 @@ class LiveFaceWatcher:
     def __init__(
         self,
         storage_dir: Optional[str] = None,
-        cooldown_sec: float = 2.5,
-        default_threshold: float = 0.20,
-        min_resolution: int = 12,
-        min_laplacian_var: float = 20.0,
+        cooldown_sec: float = 5.0,
+        default_threshold: float = 0.65,
+        min_resolution: int = 40,
+        min_laplacian_var: float = 30.0,
         vector_index: Optional[FaceVectorIndex] = None,
         sync_db: bool = True
     ):
@@ -76,23 +76,26 @@ class LiveFaceWatcher:
                 tid = t.get("target_id")
                 if not tid:
                     continue
+                emb = t.get("embedding")
+                # Do NOT load target into active face watch if no biometric embedding exists
+                if not emb or len(emb) == 0:
+                    continue
                 raw_thresh = float(t.get("threshold", self.default_threshold))
-                calibrated_thresh = min(raw_thresh, 0.22)
+                calibrated_thresh = max(raw_thresh, 0.60)
                 t["threshold"] = calibrated_thresh
                 self.targets[tid] = t
-                if t.get("embedding"):
-                    self.vector_index.add_target(
-                        target_id=tid,
-                        embedding=t["embedding"],
-                        metadata={
-                            "name": t.get("name", "Suspect"),
-                            "threshold": calibrated_thresh,
-                            "notes": t.get("notes", ""),
-                            "reference_url": t.get("reference_url", "")
-                        }
-                    )
-            if db_targets:
-                logger.info(f"Loaded {len(db_targets)} suspects from PostgreSQL into live watchlist.")
+                self.vector_index.add_target(
+                    target_id=tid,
+                    embedding=emb,
+                    metadata={
+                        "name": t.get("name", "Suspect"),
+                        "threshold": calibrated_thresh,
+                        "notes": t.get("notes", ""),
+                        "reference_url": t.get("reference_url", "")
+                    }
+                )
+            if self.targets:
+                logger.info(f"Loaded {len(self.targets)} active biometric targets from database into live watchlist.")
         except Exception as ex:
             logger.debug(f"Database hydration note: {ex}")
 
@@ -224,7 +227,9 @@ class LiveFaceWatcher:
         include_cooldown: bool = False
     ) -> List[Dict[str, Any]]:
         """Scan a live video frame against enrolled targets and capture snapshots upon match."""
-        if not self.targets or frame is None or frame.size == 0:
+        # Strict monitoring guard: NEVER process faces or capture frames unless at least one valid watchlist target is enrolled
+        active_targets = [t for t in self.targets.values() if t.get("embedding") and len(t.get("embedding", [])) > 0]
+        if not active_targets or frame is None or frame.size == 0:
             return []
 
         h, w = frame.shape[:2]
@@ -293,6 +298,11 @@ class LiveFaceWatcher:
                 face_crop = frame[by1:by2, bx1:bx2]
 
             if min(face_crop.shape[:2]) < self.min_resolution:
+                continue
+
+            # Reject blank, pitch black, or low-contrast crops (prevents phantom captures on standby frames)
+            gray_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY) if face_crop.ndim == 3 else face_crop
+            if float(np.mean(gray_crop)) < 25.0 or float(np.std(gray_crop)) < 10.0:
                 continue
 
             # Associate with YOLO person detection if available
@@ -715,16 +725,26 @@ class LiveFaceWatcher:
         return list(self.targets.values())
 
     def remove_target(self, target_id: str) -> bool:
-        if target_id in self.targets:
-            del self.targets[target_id]
-            self.vector_index.remove_target(target_id)
+        with self._lock:
+            removed = False
+            clean_tid = str(target_id).strip()
+            if clean_tid in self.targets:
+                del self.targets[clean_tid]
+                removed = True
+            for k in list(self.targets.keys()):
+                if k.lower() == clean_tid.lower():
+                    del self.targets[k]
+                    removed = True
+
+            self.vector_index.remove_target(clean_tid)
+            self._last_capture_times = {k: v for k, v in self._last_capture_times.items() if k[0] != clean_tid}
+
             if self.sync_db:
                 try:
-                    postgres_db.delete_suspect(target_id)
+                    postgres_db.delete_suspect(clean_tid)
                 except Exception as p_ex:
                     logger.debug(f"PostgreSQL target delete note: {p_ex}")
-            return True
-        return False
+            return removed
 
     def get_captures(self, limit: int = 50) -> List[Dict[str, Any]]:
         return self.captures[:limit]

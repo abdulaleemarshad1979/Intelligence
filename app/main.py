@@ -10,16 +10,24 @@ Integrates:
 """
 
 import os
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 import cv2
 import time
 import json
 import yaml
+import logging
 from typing import Optional, List, Dict, Any, Union
 from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+logger = logging.getLogger("cctv_main")
 
 import base64
 import uuid
@@ -187,11 +195,14 @@ def load_camera_config() -> Dict[str, Any]:
         with open(target_path, "r") as f:
             cams = yaml.safe_load(f).get("cameras", {})
 
-    # Augment CAM-001 if ICSEE_CAMERA_IP is configured
-    icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip()
-    if icsee_ip and "CAM-001" in cams:
-        cams["CAM-001"]["name"] = f"District Hospital North Wing (ICSee {icsee_ip})"
-        cams["CAM-001"]["location"] = f"ICSee IP Camera ({icsee_ip})"
+    # Augment camera if ICSEE_CAMERA_IP is configured
+    icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip().strip("'\"")
+    icsee_target_cam = os.getenv("ICSEE_CAMERA_ID", "CAM-001").strip().upper().strip("'\"")
+    if icsee_ip:
+        slot = icsee_target_cam if icsee_target_cam in cams else "CAM-001"
+        if slot in cams:
+            cams[slot]["name"] = f"Live ICSee Camera ({icsee_ip})"
+            cams[slot]["location"] = f"ICSee IP Camera ({icsee_ip})"
     return cams
 
 camera_configs = load_camera_config()
@@ -1262,10 +1273,41 @@ def build_600_cctv_registry() -> List[Dict[str, Any]]:
     ]
 
     # Check ICSee Camera Environment Variable
-    icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip()
+    icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip().strip("'\"")
+    icsee_target_cam = os.getenv("ICSEE_CAMERA_ID", "CAM-001").strip().upper().strip("'\"")
     if icsee_ip:
-        base_16[0]["name"] = f"CAM 1 (ICSee Live {icsee_ip})"
-        base_16[0]["location"] = f"ICSee IP Camera ({icsee_ip})"
+        icsee_user = os.getenv("ICSEE_CAMERA_USER", "rtsp").strip().strip("'\"")
+        icsee_pass = os.getenv("ICSEE_CAMERA_PASSWORD", "").strip().strip("'\"")
+        try:
+            icsee_port = int(os.getenv("ICSEE_CAMERA_PORT", "554"))
+        except Exception:
+            icsee_port = 554
+        icsee_stream = os.getenv("ICSEE_STREAM", "stream0").strip().strip("'\"")
+        from app.ingestion.stream_manager import build_icsee_rtsp_url
+        rtsp_url = build_icsee_rtsp_url(
+            ip=icsee_ip,
+            port=icsee_port,
+            username=icsee_user,
+            password=icsee_pass,
+            stream_type=icsee_stream
+        )
+        matched = False
+        for c in base_16:
+            if c["camera_id"] == icsee_target_cam:
+                num_str = icsee_target_cam.replace("CAM-", "").lstrip("0") or "1"
+                c["name"] = f"CAM {num_str} (ICSee Live {icsee_ip})"
+                c["location"] = f"ICSee IP Camera ({icsee_ip})"
+                c["rtmp"] = rtsp_url
+                c["status"] = "ACTIVE"
+                c["ip_address"] = icsee_ip
+                matched = True
+                break
+        if not matched and len(base_16) > 0:
+            base_16[0]["name"] = f"CAM 1 (ICSee Live {icsee_ip})"
+            base_16[0]["location"] = f"ICSee IP Camera ({icsee_ip})"
+            base_16[0]["rtmp"] = rtsp_url
+            base_16[0]["status"] = "ACTIVE"
+            base_16[0]["ip_address"] = icsee_ip
 
     registry = list(base_16)
 
@@ -1308,12 +1350,38 @@ class ICSeeCameraConnectPayload(BaseModel):
     password: Optional[str] = ""
     stream_type: Optional[str] = "stream0"
     name: Optional[str] = None
+    sector: Optional[str] = None
+    location: Optional[str] = None
+
+class ICSeeBatchConnectPayload(BaseModel):
+    start_camera_id: Optional[str] = "CAM-001"
+    start_ip: Optional[str] = "10.243.1.65"
+    count: Optional[int] = 1
+    port: Optional[int] = 554
+    username: Optional[str] = "rtsp"
+    password: Optional[str] = "Test1234"
+    stream_type: Optional[str] = "stream0"
+    name_prefix: Optional[str] = "ICSee IP Camera"
+    sector: Optional[str] = None
+    ips: Optional[List[str]] = None
+    raw_config: Optional[str] = None
+    save_to_env: Optional[bool] = True
 
 @app.post("/api/cameras/connect_icsee")
 async def connect_icsee_camera(payload: ICSeeCameraConnectPayload):
-    """Connect live ICSee IP camera via low-latency RTSP."""
+    """Connect live ICSee IP camera via low-latency RTSP with dynamic fleet registry synchronization."""
     try:
-        cid = payload.camera_id or "CAM-001"
+        raw_cid = (payload.camera_id or "CAM-001").strip().upper()
+        if raw_cid.isdigit():
+            cid = f"CAM-{int(raw_cid):03d}"
+        elif not raw_cid.startswith("CAM-"):
+            cid = f"CAM-{raw_cid}"
+        else:
+            cid = raw_cid
+
+        cam_name = payload.name or f"ICSee IP Camera ({payload.ip})"
+        cam_loc = payload.location or f"ICSee Live Feed ({payload.ip})"
+
         worker = stream_mgr.attach_icsee_camera(
             camera_id=cid,
             ip=payload.ip,
@@ -1321,17 +1389,288 @@ async def connect_icsee_camera(payload: ICSeeCameraConnectPayload):
             username=payload.username or "",
             password=payload.password or "",
             stream_type=payload.stream_type or "stream0",
-            name=payload.name or f"ICSee IP Camera ({payload.ip})"
+            name=cam_name
         )
+        rtsp_url = worker.source
+
+        # Update CCTV_CAMERAS_REGISTRY
+        found = False
+        for c in CCTV_CAMERAS_REGISTRY:
+            if c["camera_id"] == cid:
+                c["name"] = cam_name
+                c["location"] = cam_loc
+                c["rtmp"] = rtsp_url
+                c["status"] = "ACTIVE"
+                c["ip_address"] = payload.ip
+                if payload.sector:
+                    c["sector"] = payload.sector
+                found = True
+                break
+
+        if not found:
+            CCTV_CAMERAS_REGISTRY.append({
+                "camera_id": cid,
+                "name": cam_name,
+                "location": cam_loc,
+                "sector": payload.sector or "Pushkaralu",
+                "subdivision": "Live Ingress",
+                "rtmp": rtsp_url,
+                "status": "ACTIVE",
+                "fps": 25,
+                "is_main": (cid == "CAM-001"),
+                "ip_address": payload.ip
+            })
+
+        # Update camera_configs in-memory map
+        if cid in camera_configs:
+            camera_configs[cid]["name"] = cam_name
+            camera_configs[cid]["location"] = cam_loc
+            camera_configs[cid]["rtsp_url"] = rtsp_url
+        else:
+            camera_configs[cid] = {
+                "name": cam_name,
+                "location": cam_loc,
+                "subdivision": payload.sector or "East Zone",
+                "police_station": "II Town Police Station",
+                "latitude": 16.9890,
+                "longitude": 82.2475,
+                "resolution": [1920, 1080],
+                "mounting_height_m": 4.5,
+                "tilt_angle_deg": 35.0,
+                "focal_length_px": 1100.0,
+                "ground_plane_y": 960,
+                "adjacent_cameras": ["CAM-001", "CAM-002"],
+                "rtsp_url": rtsp_url
+            }
+
+        # Persist in camera database repo
+        existing = repo.get_camera_by_id(cid)
+        if existing:
+            existing.rtsp_url = rtsp_url
+            existing.name = cam_name
+            existing.ip_address = payload.ip
+            existing.manufacturer = "ICSee"
+            existing.is_active = True
+            repo.save_camera(existing)
+        else:
+            new_entity = CameraEntity(
+                camera_id=cid,
+                name=cam_name,
+                latitude=16.9890,
+                longitude=82.2475,
+                zone=payload.sector or "East Zone",
+                view_direction="NORTH",
+                connected_topology=[],
+                is_active=True,
+                ip_address=payload.ip,
+                rtsp_url=rtsp_url,
+                manufacturer="ICSee",
+                model_name=payload.stream_type or "stream0",
+                discovery_status="CONNECTED"
+            )
+            repo.save_camera(new_entity)
+
         return {
             "status": "SUCCESS",
             "camera_id": cid,
+            "name": cam_name,
             "ip": payload.ip,
-            "stream_url": worker.source.replace(payload.password, "******") if payload.password else worker.source,
-            "is_connected": worker.is_connected
+            "stream_url": rtsp_url.replace(payload.password, "******") if payload.password else rtsp_url,
+            "is_connected": worker.is_connected,
+            "fps": worker.target_fps
         }
     except Exception as ex:
+        logger.error(f"Error connecting ICSee camera: {ex}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(ex))
+
+@app.post("/api/cameras/batch_connect_icsee")
+async def batch_connect_icsee_cameras(payload: ICSeeBatchConnectPayload):
+    """Batch connect sequential or custom list of ICSee IP cameras across fleet slots."""
+    import ipaddress
+    import re
+
+    raw_cfg = (payload.raw_config or "").strip()
+    target_ips = []
+    cfg_port = payload.port or 554
+    cfg_user = payload.username or "rtsp"
+    cfg_pass = payload.password or "Test1234"
+    cfg_stream = payload.stream_type or "stream0"
+    start_cid = (payload.start_camera_id or "CAM-001").strip().upper()
+
+    if raw_cfg:
+        lines = [line.strip() for line in raw_cfg.splitlines() if line.strip() and not line.strip().startswith("#")]
+        parsed_vars = {}
+        plain_ips = []
+
+        for line in lines:
+            if "=" in line:
+                k, v = line.split("=", 1)
+                k = k.strip().upper()
+                v = v.strip().strip("'\"")
+                parsed_vars[k] = v
+            else:
+                tokens = re.split(r"[\s,;]+", line)
+                for token in tokens:
+                    token = token.strip()
+                    if token:
+                        try:
+                            ipaddress.ip_address(token)
+                            plain_ips.append(token)
+                        except Exception:
+                            pass
+
+        if "ICSEE_CAMERA_USER" in parsed_vars:
+            cfg_user = parsed_vars["ICSEE_CAMERA_USER"]
+        if "ICSEE_CAMERA_PASSWORD" in parsed_vars:
+            cfg_pass = parsed_vars["ICSEE_CAMERA_PASSWORD"]
+        if "ICSEE_CAMERA_PORT" in parsed_vars:
+            try:
+                cfg_port = int(parsed_vars["ICSEE_CAMERA_PORT"])
+            except Exception:
+                pass
+        if "ICSEE_STREAM" in parsed_vars or "ICSEE_STREAM_TYPE" in parsed_vars:
+            cfg_stream = parsed_vars.get("ICSEE_STREAM") or parsed_vars.get("ICSEE_STREAM_TYPE", "stream0")
+        if "ICSEE_CAMERA_ID" in parsed_vars:
+            start_cid = parsed_vars["ICSEE_CAMERA_ID"].strip().upper()
+
+        if "ICSEE_CAMERA_IPS" in parsed_vars:
+            for ip_tok in re.split(r"[\s,;]+", parsed_vars["ICSEE_CAMERA_IPS"]):
+                ip_tok = ip_tok.strip()
+                if ip_tok:
+                    try:
+                        ipaddress.ip_address(ip_tok)
+                        target_ips.append(ip_tok)
+                    except Exception:
+                        pass
+        elif plain_ips:
+            target_ips.extend(plain_ips)
+        elif "ICSEE_CAMERA_IP" in parsed_vars:
+            base_ip = parsed_vars["ICSEE_CAMERA_IP"]
+            count = int(parsed_vars.get("ICSEE_CAMERA_COUNT", "1"))
+            try:
+                base_obj = ipaddress.ip_address(base_ip)
+                for i in range(count):
+                    target_ips.append(str(base_obj + i))
+            except Exception:
+                target_ips.append(base_ip)
+
+    if not target_ips and payload.ips:
+        for ip in payload.ips:
+            ip = str(ip).strip()
+            if ip:
+                target_ips.append(ip)
+
+    if not target_ips and payload.start_ip:
+        try:
+            base_ip_obj = ipaddress.ip_address(payload.start_ip.strip())
+            count = max(1, min(600, payload.count or 1))
+            for i in range(count):
+                target_ips.append(str(base_ip_obj + i))
+        except Exception as ip_err:
+            raise HTTPException(status_code=400, detail=f"Invalid start IP address: {ip_err}")
+
+    if not target_ips:
+        target_ips = ["10.243.1.65"]
+
+    seen = set()
+    unique_ips = []
+    for ip in target_ips:
+        if ip not in seen:
+            seen.add(ip)
+            unique_ips.append(ip)
+
+    try:
+        start_num = int(start_cid.replace("CAM-", "")) if "CAM-" in start_cid else int(start_cid)
+    except Exception:
+        start_num = 1
+
+    connected = []
+    for i, curr_ip in enumerate(unique_ips):
+        curr_num = start_num + i
+        curr_cid = f"CAM-{curr_num:03d}"
+        curr_name = f"{payload.name_prefix or 'ICSee IP Camera'} {curr_num} ({curr_ip})"
+
+        worker = stream_mgr.attach_icsee_camera(
+            camera_id=curr_cid,
+            ip=curr_ip,
+            port=cfg_port,
+            username=cfg_user or "",
+            password=cfg_pass or "",
+            stream_type=cfg_stream or "stream0",
+            name=curr_name
+        )
+        rtsp_url = worker.source
+
+        for c in CCTV_CAMERAS_REGISTRY:
+            if c["camera_id"] == curr_cid:
+                c["name"] = curr_name
+                c["rtmp"] = rtsp_url
+                c["status"] = "ACTIVE"
+                c["ip_address"] = curr_ip
+                if payload.sector:
+                    c["sector"] = payload.sector
+                break
+
+        if curr_cid in camera_configs:
+            camera_configs[curr_cid]["name"] = curr_name
+            camera_configs[curr_cid]["rtsp_url"] = rtsp_url
+
+        connected.append({
+            "camera_id": curr_cid,
+            "ip": curr_ip,
+            "name": curr_name,
+            "stream_url": rtsp_url.replace(cfg_pass, "******") if cfg_pass else rtsp_url,
+            "is_connected": worker.is_connected
+        })
+
+    if payload.save_to_env:
+        try:
+            root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            env_file = os.path.join(root_dir, ".env")
+            ips_str = ",".join(unique_ips)
+            env_content = (
+                f"# ICSee Camera Configuration\n"
+                f"ICSEE_CAMERA_IP={unique_ips[0]}\n"
+                f"ICSEE_CAMERA_USER={cfg_user}\n"
+                f"ICSEE_CAMERA_PASSWORD={cfg_pass}\n"
+                f"ICSEE_CAMERA_PORT={cfg_port}\n"
+                f"ICSEE_STREAM={cfg_stream}\n"
+            )
+            if len(unique_ips) > 1:
+                env_content += f"ICSEE_CAMERA_IPS=\"{ips_str}\"\n"
+                env_content += f"ICSEE_CAMERA_COUNT={len(unique_ips)}\n"
+            with open(env_file, "w") as f:
+                f.write(env_content)
+        except Exception as e_env:
+            logger.warning(f"Could not persist to .env: {e_env}")
+
+    return {
+        "status": "SUCCESS",
+        "requested_count": len(unique_ips),
+        "connected_count": len(connected),
+        "cameras": connected
+    }
+
+@app.get("/api/cameras/icsee_config")
+async def get_icsee_config():
+    """Return active ICSee camera configuration from environment or .env."""
+    return {
+        "ip": os.getenv("ICSEE_CAMERA_IP", "10.243.1.65").strip().strip("'\""),
+        "user": os.getenv("ICSEE_CAMERA_USER", "rtsp").strip().strip("'\""),
+        "password": os.getenv("ICSEE_CAMERA_PASSWORD", "Test1234").strip().strip("'\""),
+        "port": int(os.getenv("ICSEE_CAMERA_PORT", "554")),
+        "stream": os.getenv("ICSEE_STREAM", "stream0").strip().strip("'\""),
+        "count": int(os.getenv("ICSEE_CAMERA_COUNT", "1")),
+        "ips": [ip.strip() for ip in os.getenv("ICSEE_CAMERA_IPS", "").split(",") if ip.strip()]
+    }
+
+@app.get("/api/cameras/fleet_status")
+async def get_fleet_status():
+    """Return fleet-wide statistics for 600 cameras and RTSP streams."""
+    stats = stream_mgr.get_fleet_stats()
+    stats["total_registered"] = len(CCTV_CAMERAS_REGISTRY)
+    stats["icsee_env_ip"] = os.getenv("ICSEE_CAMERA_IP", "")
+    return stats
 
 @app.get("/api/cctv/cameras")
 async def list_cctv_cameras(
@@ -1467,7 +1806,7 @@ async def get_notifications():
             "probe_photo": alert.get("probe_photo", "/frontend/assets/placeholder.jpg"),
             "scores": alert.get("scores", {}),
             "biometric_comparison": alert.get("biometric_comparison", {}),
-            "is_target_match": True
+            "is_target_match": bool(alert.get("is_target_match", False))
         })
     if not notifs:
         notifs.append({
@@ -2011,14 +2350,27 @@ async def list_target_faces_api():
 
 @app.delete("/api/watchlist/target-faces/{target_id}")
 async def delete_target_face_api(target_id: str):
-    """Remove a target face from live CCTV monitoring."""
+    """Remove a target face from live CCTV monitoring and databases."""
     from app.vision.face_watch import live_face_watcher
-    removed = live_face_watcher.remove_target(target_id)
-    if not removed:
-        raise HTTPException(status_code=404, detail=f"Target {target_id} not found.")
+    clean_id = target_id.strip()
+    removed = live_face_watcher.remove_target(clean_id)
+
+    # Also directly wipe from PostgreSQL & SQLite database
+    try:
+        from app.database.postgres import postgres_db
+        postgres_db.delete_suspect(clean_id)
+    except Exception:
+        pass
+
+    # Also clean up from criminal records repository if ID matches
+    try:
+        repo.delete_criminal_record(clean_id)
+    except Exception:
+        pass
+
     return {
         "status": "SUCCESS",
-        "message": f"Target {target_id} removed from live surveillance."
+        "message": f"Target {clean_id} removed from live surveillance."
     }
 
 
@@ -2036,12 +2388,24 @@ async def list_face_captures_api(limit: int = 50):
 
 @app.post("/api/watchlist/clear")
 async def clear_watchlist_api():
-    """Clear all enrolled target faces."""
+    """Clear all enrolled target faces and captures."""
     from app.vision.face_watch import live_face_watcher
     live_face_watcher.clear_targets()
+    live_face_watcher.captures.clear()
     return {
         "status": "SUCCESS",
-        "message": "Watchlist cleared."
+        "message": "Watchlist and captures cleared."
+    }
+
+
+@app.post("/api/watchlist/captures/clear")
+async def clear_captures_api():
+    """Clear captured alerts history."""
+    from app.vision.face_watch import live_face_watcher
+    live_face_watcher.captures.clear()
+    return {
+        "status": "SUCCESS",
+        "message": "All capture alerts cleared."
     }
 
 

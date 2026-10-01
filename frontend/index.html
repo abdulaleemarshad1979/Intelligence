@@ -1575,8 +1575,8 @@
         </button>
 
         <!-- Connect ICSee IP Camera Button -->
-        <button onclick="openICSeeCamModal()" class="csv-btn" style="background:#059669; color:#ffffff; border-color:#10b981; cursor:pointer;" title="Connect Real ICSee / Xiongmai / ONVIF IP Camera">
-          <span>📹 Connect ICSee Cam</span>
+        <button onclick="openICSeeCamModal()" class="csv-btn" style="background:#059669; color:#ffffff; border-color:#10b981; cursor:pointer;" title="Connect Real ICSee / RTSP IP Cameras across the 600-Camera Fleet">
+          <span>📹 Add / Connect IP Cam</span>
         </button>
 
         <!-- Connect Matrix CCTV Camera Button -->
@@ -1902,7 +1902,8 @@
         </div>
         <footer class="tile__footer" style="padding:6px 12px; background:#f8fafc; border-top:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; font-size:11px;">
           <span style="font-family:monospace; color:var(--text-muted); font-size:10px;">${cam.id} • 25.0 FPS AI PROBE</span>
-          <div style="display:flex; gap:5px;">
+          <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
+            <button class="tile__expand-btn" style="background:#059669; color:#ffffff; border:1px solid #10b981; font-size:10px; padding:2px 8px; cursor:pointer; font-weight:700;" onclick="openICSeeCamModal('${cam.id}')" title="Configure & Connect Live IP Camera for ${cam.id}">📹 Connect IP</button>
             <button class="tile__expand-btn" id="btn-zoom-${cam.id}" style="background:#b91c1c; color:#ffffff; border:1px solid #ef4444; font-size:10px; padding:2px 8px; cursor:pointer; font-weight:700;" onclick="toggleAutoZoom('${cam.id}')" title="Toggle 2.5x digital zoom focused on wanted suspect">🎯 Auto-Zoom [ACTIVE]</button>
             <button class="tile__expand-btn" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-size:10px; padding:2px 8px; cursor:pointer; font-weight:700;" onclick="triggerManualSnapshot('${cam.id}')" title="Capture high-resolution evidence picture">📸 Snap Photo</button>
             <button class="tile__expand-btn" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:10px; padding:2px 8px; cursor:pointer;" onclick="triggerLiveCrossCameraSearch()">Scan Target</button>
@@ -2779,16 +2780,8 @@
         }
       }
       if (!alertData) {
-        alertData = {
-          alert_id: `ALT-SNAPSHOT-${camId}-${Date.now().toString().slice(-4)}`,
-          camera_id: camId,
-          suspect_name: "John",
-          confidence: 0.88,
-          similarity_pct: 88.0,
-          raw_detection_crop: `/api/camera/${encodeURIComponent(camId)}/person_crop?quality=98&_t=${Date.now()}`,
-          enhanced_detection_crop: `/api/camera/${encodeURIComponent(camId)}/person_crop?quality=98&_t=${Date.now()}`,
-          body_crop_url: `/api/camera/${encodeURIComponent(camId)}/person_crop?quality=98&_t=${Date.now()}`
-        };
+        alert("Camera " + camId + " is running normally in live surveillance mode. No suspect alerts active on this camera.");
+        return;
       }
       openOfficerConfirmModal(alertData);
     };
@@ -3322,9 +3315,12 @@
         updateNotifBadge(notifications.length);
 
         let hasNew = false;
+        const hasWatchlistTargets = Boolean(window._currentWatchlistCount && window._currentWatchlistCount > 0);
+
         notifications.forEach(n => {
           const camId = n.camera_id || 'CAM-001';
-          const isTarget = n.is_target_match || (n.message && n.message.includes("John")) || n.severity === "CRITICAL";
+          // STRICT RULE: Only target match if watchlist has enrolled targets AND notification is an actual verified face match
+          const isTarget = hasWatchlistTargets && Boolean(n.is_target_match);
 
           // Update Target Zoom PIP on the camera tile
           const pipEl = document.getElementById(`target-zoom-${camId}`);
@@ -3351,19 +3347,25 @@
               window._autoZoomOriginMap[camId] = `${cx}% ${cy}%`;
             }
 
-            // AUTOMATICALLY ZOOM CAMERA AND CAPTURE EVIDENCE PICTURE
-            const lastCap = window._lastAutoCaptureTime[camId] || 0;
-            const now = Date.now();
-            if (!knownNotifIds.has(n.id) || (now - lastCap > 2400)) {
+            // AUTOMATICALLY ZOOM CAMERA AND CAPTURE EVIDENCE PICTURE ONCE PER GENUINE TARGET ALERT
+            if (!knownNotifIds.has(n.id)) {
               window.performAutoSnapshotCapture(camId, n);
             }
-          }
 
-          if (pipEl && pipImg && isTarget) {
-            pipEl.classList.remove("hidden");
-            const picSrc = n.face_crop_url || n.zoomed_cam_url || n.body_crop_url || n.raw_detection_crop || `/api/camera/${camId}/zoomed_frame?t=${Date.now()}`;
-            if (pipImg.src !== picSrc) {
-              pipImg.src = picSrc;
+            if (pipEl && pipImg) {
+              pipEl.classList.remove("hidden");
+              const picSrc = n.face_crop_url || n.zoomed_cam_url || n.body_crop_url || n.raw_detection_crop || `/api/camera/${camId}/zoomed_frame?t=${Date.now()}`;
+              if (pipImg.src !== picSrc) {
+                pipImg.src = picSrc;
+              }
+            }
+          } else {
+            // Normal monitoring mode: clear any suspect borders and hide zoom PIP
+            if (cardEl && cardEl.style.boxShadow && cardEl.style.boxShadow.includes("239, 68, 68")) {
+              cardEl.style.boxShadow = "";
+            }
+            if (pipEl) {
+              pipEl.classList.add("hidden");
             }
           }
 
@@ -3801,16 +3803,36 @@
       if (m) m.classList.add("hidden");
     };
 
+    window._currentWatchlistCount = 0;
+
     window.refreshWatchlistCount = async function() {
       try {
         const res = await fetch("/api/watchlist/target-faces");
         if (res.ok) {
           const data = await res.json();
           const count = data.total || (data.targets ? data.targets.length : 0);
+          window._currentWatchlistCount = count;
           const badge = document.getElementById("watchlistCountBadge");
           if (badge) badge.textContent = count;
           const modalCount = document.getElementById("watchlistModalCount");
           if (modalCount) modalCount.textContent = count;
+
+          // If no watchlist targets are enrolled, deactivate any auto-zoom on camera tiles
+          if (count === 0) {
+            for (const camId in (window._autoZoomMap || {})) {
+              window._autoZoomMap[camId] = false;
+              const container = document.getElementById(`player-container-${camId}`);
+              const img = container?.querySelector("img");
+              if (img) {
+                img.style.transform = "scale(1)";
+                img.style.transformOrigin = "center center";
+              }
+              const banner = document.getElementById(`autozoom-banner-${camId}`);
+              if (banner) banner.classList.add("hidden");
+              const pipEl = document.getElementById(`target-zoom-${camId}`);
+              if (pipEl) pipEl.classList.add("hidden");
+            }
+          }
         }
       } catch (e) {
         console.debug("Watchlist count fetch:", e);
@@ -3827,6 +3849,7 @@
         const data = await res.json();
         const targets = data.targets || [];
         const count = targets.length;
+        window._currentWatchlistCount = count;
         const badge = document.getElementById("watchlistCountBadge");
         if (badge) badge.textContent = count;
         const modalCount = document.getElementById("watchlistModalCount");
@@ -3837,7 +3860,7 @@
             <div style="text-align: center; color: #64748b; padding: 40px 10px; font-size: 13.5px; background: #ffffff; border-radius: 12px; border: 1px dashed #cbd5e1;">
               <div style="font-size: 32px; margin-bottom: 8px;">🎯</div>
               <strong>No Suspects Currently Enrolled in Watchlist</strong>
-              <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Click "Enroll New Suspect" to upload reference photos for live CCTV face monitoring.</div>
+              <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Live surveillance is operating in normal monitoring mode without capturing images.</div>
             </div>
           `;
           return;
@@ -3851,12 +3874,16 @@
           const qScore = t.quality ? Math.round((t.quality.quality_score || 0.85) * 100) : 85;
           const threshPct = Math.round((t.threshold || 0.50) * 100);
 
+          const safeId = encodeURIComponent(t.target_id || '');
+          const safeName = encodeURIComponent(t.name || t.target_id || 'Suspect');
+          const displayName = (t.name || 'Suspect').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
           card.innerHTML = `
             <div style="display: flex; align-items: center; gap: 14px;">
-              <img src="${imgSrc}" alt="${t.name}" style="width: 58px; height: 58px; border-radius: 8px; object-fit: cover; border: 2px solid #0d9488; background: #0f172a;" onerror="this.src='/frontend/assets/placeholder.jpg'">
+              <img src="${imgSrc}" alt="${displayName}" style="width: 58px; height: 58px; border-radius: 8px; object-fit: cover; border: 2px solid #0d9488; background: #0f172a;" onerror="this.src='/frontend/assets/placeholder.jpg'">
               <div>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <strong style="font-size: 14.5px; color: #0f172a;">${t.name}</strong>
+                  <strong style="font-size: 14.5px; color: #0f172a;">${displayName}</strong>
                   <span style="font-size: 10.5px; font-family: monospace; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 6px; font-weight: 700;">${t.target_id}</span>
                   <span style="font-size: 10.5px; background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 6px; font-weight: 700;">ACTIVE WATCH</span>
                 </div>
@@ -3865,15 +3892,15 @@
                 </div>
                 <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">
                   ${t.last_seen_camera ? `Last seen on <strong>${t.last_seen_camera}</strong>` : 'Monitoring all 16 live CCTV streams'}
-                  ${t.notes ? ` • <em>${t.notes}</em>` : ''}
+                  ${t.notes ? ` • <em>${t.notes.replace(/</g, '&lt;')}</em>` : ''}
                 </div>
               </div>
             </div>
             <div style="display: flex; gap: 8px;">
-              <button onclick="scanForSuspect('${t.target_id}')" class="btn btn--primary" style="padding: 6px 12px; font-size: 11.5px; background: #0284c7; border-color: #0284c7;">
+              <button onclick="scanForSuspect('${safeId}')" class="btn btn--primary" style="padding: 6px 12px; font-size: 11.5px; background: #0284c7; border-color: #0284c7;">
                 🔍 Live Scan
               </button>
-              <button onclick="deleteWatchlistTarget('${t.target_id}', '${t.name}')" class="btn btn--sample" style="padding: 6px 12px; font-size: 11.5px; color: #e11d48; border-color: #fecdd3;">
+              <button onclick="deleteWatchlistTarget('${safeId}', '${safeName}')" class="btn btn--sample" style="padding: 6px 12px; font-size: 11.5px; color: #e11d48; border-color: #fecdd3;">
                 🗑️ Remove
               </button>
             </div>
@@ -3886,26 +3913,45 @@
       }
     };
 
-    window.scanForSuspect = function(targetId) {
-      registeredSuspectId = targetId;
+    window.scanForSuspect = function(safeTargetId) {
+      registeredSuspectId = decodeURIComponent(safeTargetId);
       closeWatchlistModal();
       triggerLiveCrossCameraSearch();
     };
 
-    window.deleteWatchlistTarget = async function(targetId, targetName) {
+    window.deleteWatchlistTarget = async function(safeTargetId, safeTargetName) {
+      const targetId = decodeURIComponent(safeTargetId);
+      const targetName = safeTargetName ? decodeURIComponent(safeTargetName) : targetId;
       if (!confirm(`Are you sure you want to remove suspect '${targetName}' (${targetId}) from live surveillance?`)) {
         return;
       }
       try {
-        const res = await fetch(`/api/watchlist/target-faces/${targetId}`, { method: 'DELETE' });
+        const res = await fetch(`/api/watchlist/target-faces/${encodeURIComponent(targetId)}`, { method: 'DELETE' });
         if (res.ok) {
-          renderWatchlistTargets();
-          refreshWatchlistCount();
+          await renderWatchlistTargets();
+          await refreshWatchlistCount();
         } else {
           alert("Failed to delete suspect.");
         }
       } catch (e) {
         alert("Network error deleting suspect.");
+      }
+    };
+
+    window.clearAllWatchlist = async function() {
+      if (!confirm("Are you sure you want to remove ALL suspects from live surveillance? The system will operate in pure CCTV monitoring mode without capturing images.")) {
+        return;
+      }
+      try {
+        const res = await fetch("/api/watchlist/clear", { method: 'POST' });
+        if (res.ok) {
+          await renderWatchlistTargets();
+          await refreshWatchlistCount();
+        } else {
+          alert("Failed to clear watchlist.");
+        }
+      } catch (e) {
+        alert("Network error clearing watchlist.");
       }
     };
 
@@ -4326,15 +4372,177 @@
       }
     };
 
-    window.openICSeeCamModal = function(camId) {
+    window.switchICSeeTab = function(tab) {
+      const formSingle = document.getElementById("formICSeeCam");
+      const formBatch = document.getElementById("formBatchICSeeCam");
+      const formPaste = document.getElementById("formPasteICSeeCam");
+      const tabSingle = document.getElementById("tabBtnSingleCam");
+      const tabBatch = document.getElementById("tabBtnBatchCam");
+      const tabPaste = document.getElementById("tabBtnPasteCam");
+
+      if (formSingle) formSingle.style.display = "none";
+      if (formBatch) formBatch.style.display = "none";
+      if (formPaste) formPaste.style.display = "none";
+
+      if (tabSingle) { tabSingle.style.borderBottomColor = "transparent"; tabSingle.style.color = "#64748b"; }
+      if (tabBatch) { tabBatch.style.borderBottomColor = "transparent"; tabBatch.style.color = "#64748b"; }
+      if (tabPaste) { tabPaste.style.borderBottomColor = "transparent"; tabPaste.style.color = "#64748b"; }
+
+      if (tab === "batch") {
+        if (formBatch) formBatch.style.display = "block";
+        if (tabBatch) { tabBatch.style.borderBottomColor = "#059669"; tabBatch.style.color = "#065f46"; }
+      } else if (tab === "paste") {
+        if (formPaste) formPaste.style.display = "block";
+        if (tabPaste) { tabPaste.style.borderBottomColor = "#059669"; tabPaste.style.color = "#065f46"; }
+        const pasteCfg = document.getElementById("pasteCamConfig");
+        if (pasteCfg && !pasteCfg.value.trim()) {
+          loadEnvConfigTemplate();
+        }
+      } else {
+        if (formSingle) formSingle.style.display = "block";
+        if (tabSingle) { tabSingle.style.borderBottomColor = "#059669"; tabSingle.style.color = "#065f46"; }
+      }
+    };
+
+    window.togglePassVisibility = function(inputId, btn) {
+      const el = document.getElementById(inputId);
+      if (!el) return;
+      if (el.type === "password") {
+        el.type = "text";
+        if (btn) btn.textContent = "🙈";
+      } else {
+        el.type = "password";
+        if (btn) btn.textContent = "👁️";
+      }
+    };
+
+    window.updateRTSPPreview = function() {
+      const ip = (document.getElementById("icseeCamIp")?.value || "").trim() || "10.243.1.65";
+      const port = document.getElementById("icseeCamPort")?.value || "554";
+      const user = (document.getElementById("icseeCamUser")?.value || "").trim();
+      const pass = document.getElementById("icseeCamPass")?.value || "";
+      const st = document.getElementById("icseeStreamType")?.value || "stream0";
+
+      let cred = "";
+      if (user && pass) {
+        cred = `${user}:******@`;
+      } else if (user) {
+        cred = `${user}@`;
+      }
+
+      const previewUrl = `rtsp://${cred}${ip}:${port}/${st}`;
+      const previewEl = document.getElementById("icseeRtspPreviewText");
+      if (previewEl) previewEl.textContent = previewUrl;
+    };
+
+    window.onICSeeSlotChange = function(val) {
+      const customWrapper = document.getElementById("customSlotWrapper");
+      const nameInput = document.getElementById("icseeCamName");
+      const sectorSelect = document.getElementById("icseeCamSector");
+
+      if (val === "__custom__") {
+        if (customWrapper) customWrapper.style.display = "block";
+      } else {
+        if (customWrapper) customWrapper.style.display = "none";
+        const cam = cameras.find(c => c.id === val);
+        if (cam) {
+          if (nameInput) nameInput.value = cam.name || "";
+          if (sectorSelect && cam.sector) sectorSelect.value = cam.sector;
+        }
+      }
+      updateRTSPPreview();
+    };
+
+    window.populateICSeeCamSlots = function(selectedId) {
+      const sel = document.getElementById("icseeCamSlot");
+      if (!sel) return;
+
+      const currentVal = selectedId || sel.value || "CAM-001";
+      sel.innerHTML = "";
+
+      // Populate from loaded cameras
+      const list = (cameras && cameras.length > 0) ? cameras : [
+        { id: "CAM-001", name: "District Hospital North Wing", sector: "Hospital" },
+        { id: "CAM-002", name: "Hospital Main Gate & Ambulance Bay", sector: "Pushkaralu" }
+      ];
+
+      list.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        const secTag = c.sector ? `[${c.sector}] ` : "";
+        opt.textContent = `${c.id} — ${secTag}${c.name}`;
+        if (c.id === currentVal) opt.selected = true;
+        sel.appendChild(opt);
+      });
+
+      const customOpt = document.createElement("option");
+      customOpt.value = "__custom__";
+      customOpt.textContent = "+ Enter Custom Camera Slot...";
+      sel.appendChild(customOpt);
+
+      if (currentVal === "__custom__") customOpt.selected = true;
+      onICSeeSlotChange(currentVal);
+    };
+
+    window.openICSeeCamModal = async function(camId) {
       const m = document.getElementById("icseeCamModal");
       if (!m) return;
-      if (camId) {
-        const sel = document.getElementById("icseeCamSlot");
-        if (sel) sel.value = camId;
+
+      populateICSeeCamSlots(camId || "CAM-001");
+
+      try {
+        const res = await fetch("/api/cameras/icsee_config");
+        if (res.ok) {
+          const cfg = await res.json();
+          if (cfg.ip) {
+            const ipInput = document.getElementById("icseeCamIp");
+            if (ipInput) ipInput.value = cfg.ip;
+            const bStartIp = document.getElementById("batchStartIp");
+            if (bStartIp && !bStartIp.value) bStartIp.value = cfg.ip;
+          }
+          if (cfg.user) {
+            const userInput = document.getElementById("icseeCamUser");
+            if (userInput) userInput.value = cfg.user;
+            const bUser = document.getElementById("batchUser");
+            if (bUser) bUser.value = cfg.user;
+            const pUser = document.getElementById("pasteCamUser");
+            if (pUser) pUser.value = cfg.user;
+          }
+          if (cfg.password) {
+            const passInput = document.getElementById("icseeCamPass");
+            if (passInput) passInput.value = cfg.password;
+            const bPass = document.getElementById("batchPass");
+            if (bPass) bPass.value = cfg.password;
+            const pPass = document.getElementById("pasteCamPass");
+            if (pPass) pPass.value = cfg.password;
+          }
+          if (cfg.port) {
+            const portInput = document.getElementById("icseeCamPort");
+            if (portInput) portInput.value = cfg.port;
+            const bPort = document.getElementById("batchPort");
+            if (bPort) bPort.value = cfg.port;
+          }
+          if (cfg.stream) {
+            const streamInput = document.getElementById("icseeStreamType");
+            if (streamInput) streamInput.value = cfg.stream;
+          }
+        }
+      } catch (e) {
+        console.warn("Could not fetch icsee_config:", e);
       }
+
       const statusEl = document.getElementById("icseeConnectStatus");
       if (statusEl) statusEl.style.display = "none";
+      const batchStatus = document.getElementById("batchConnectStatus");
+      if (batchStatus) batchStatus.style.display = "none";
+      const pasteStatus = document.getElementById("pasteConnectStatus");
+      if (pasteStatus) pasteStatus.style.display = "none";
+
+      const fleetBadge = document.getElementById("icseeFleetBadge");
+      if (fleetBadge) fleetBadge.textContent = `${cameras.length || 600} Cameras Ready`;
+
+      switchICSeeTab("single");
+      updateRTSPPreview();
       m.classList.remove("hidden");
     };
 
@@ -4347,23 +4555,32 @@
       e.preventDefault();
       const btn = document.getElementById("btnConnectICSee");
       const statusEl = document.getElementById("icseeConnectStatus");
+
       if (btn) {
         btn.disabled = true;
         btn.textContent = "Connecting ICSee Stream...";
       }
       if (statusEl) {
         statusEl.className = "matrix-status-msg info";
-        statusEl.textContent = "Establishing low-latency TCP RTSP pipeline to ICSee camera (<40ms latency)...";
+        statusEl.style.background = "#eff6ff";
+        statusEl.style.color = "#1e40af";
+        statusEl.style.border = "1px solid #bfdbfe";
+        statusEl.textContent = "Establishing low-latency TCP RTSP pipeline to IP camera (<40ms latency)...";
         statusEl.style.display = "block";
       }
 
-      const camId = document.getElementById("icseeCamSlot").value || "CAM-001";
+      let camId = document.getElementById("icseeCamSlot").value;
+      if (camId === "__custom__") {
+        camId = (document.getElementById("customCamSlotInput").value || "CAM-001").trim();
+      }
+
       const ip = document.getElementById("icseeCamIp").value.trim();
       const port = parseInt(document.getElementById("icseeCamPort").value) || 554;
       const user = document.getElementById("icseeCamUser").value.trim();
       const pass = document.getElementById("icseeCamPass").value;
       const streamType = document.getElementById("icseeStreamType").value;
       const name = document.getElementById("icseeCamName").value.trim();
+      const sector = document.getElementById("icseeCamSector").value;
 
       try {
         const res = await fetch("/api/cameras/connect_icsee", {
@@ -4376,15 +4593,30 @@
             username: user,
             password: pass,
             stream_type: streamType,
-            name: name
+            name: name,
+            sector: sector
           })
         });
+
         const data = await res.json();
         if (data.status === "SUCCESS") {
           if (statusEl) {
             statusEl.className = "matrix-status-msg success";
-            statusEl.textContent = `✓ ICSee Cam Connected! RTSP: ${data.stream_url}`;
+            statusEl.style.background = "#ecfdf5";
+            statusEl.style.color = "#065f46";
+            statusEl.style.border = "1px solid #a7f3d0";
+            statusEl.textContent = `✓ Stream Online! RTSP: ${data.stream_url}`;
           }
+
+          // Update local camera model immediately
+          const existing = cameras.find(c => c.id === camId);
+          if (existing) {
+            existing.name = data.name || existing.name;
+            existing.status = "online";
+            existing.publish_url = data.stream_url;
+            updateCameraConnectionState(existing);
+          }
+
           setTimeout(() => {
             const container = document.getElementById(`player-container-${camId}`);
             if (container) {
@@ -4393,26 +4625,210 @@
                 img.src = `/api/camera/${encodeURIComponent(camId)}/frame?quality=${currentStreamQuality}&_t=${Date.now()}`;
               }
             }
-            alert(`✓ ICSEE IP CAMERA ONLINE!\nSlot: ${camId}\nIP: ${ip}:${port}\nStream: /${streamType}\nRTSP URL: ${data.stream_url}\nStatus: Active Zero-Lag Stream`);
             closeICSeeCamModal();
             loadCamerasFromBackend();
-          }, 800);
+          }, 700);
         } else {
           if (statusEl) {
             statusEl.className = "matrix-status-msg error";
-            statusEl.textContent = "Connection Error: " + (data.detail || "Unable to reach ICSee camera RTSP endpoint");
+            statusEl.style.background = "#fef2f2";
+            statusEl.style.color = "#991b1b";
+            statusEl.style.border = "1px solid #fecaca";
+            statusEl.textContent = "Connection Error: " + (data.detail || "Unable to reach camera RTSP stream");
           }
         }
       } catch (err) {
         console.error("ICSee connect error:", err);
         if (statusEl) {
           statusEl.className = "matrix-status-msg error";
+          statusEl.style.background = "#fef2f2";
+          statusEl.style.color = "#991b1b";
+          statusEl.style.border = "1px solid #fecaca";
           statusEl.textContent = "Network error communicating with CCTV server.";
         }
       } finally {
         if (btn) {
           btn.disabled = false;
-          btn.textContent = "Connect & Activate ICSee Stream";
+          btn.textContent = "Connect & Activate Stream";
+        }
+      }
+    };
+
+    window.handleBatchICSeeSubmit = async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById("btnBatchConnect");
+      const statusEl = document.getElementById("batchConnectStatus");
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Connecting Fleet Range...";
+      }
+      if (statusEl) {
+        statusEl.className = "matrix-status-msg info";
+        statusEl.style.background = "#eff6ff";
+        statusEl.style.color = "#1e40af";
+        statusEl.style.border = "1px solid #bfdbfe";
+        statusEl.textContent = "Batch configuring sequential IP cameras across fleet slots...";
+        statusEl.style.display = "block";
+      }
+
+      const startSlot = document.getElementById("batchStartSlot").value.trim() || "CAM-001";
+      const startIp = document.getElementById("batchStartIp").value.trim();
+      const count = parseInt(document.getElementById("batchCount").value) || 10;
+      const port = parseInt(document.getElementById("batchPort").value) || 554;
+      const user = document.getElementById("batchUser").value.trim();
+      const pass = document.getElementById("batchPass").value;
+      const streamType = document.getElementById("batchStreamType").value;
+      const namePrefix = document.getElementById("batchNamePrefix").value.trim() || "ICSee IP Camera";
+
+      try {
+        const res = await fetch("/api/cameras/batch_connect_icsee", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            start_camera_id: startSlot,
+            start_ip: startIp,
+            count: count,
+            port: port,
+            username: user,
+            password: pass,
+            stream_type: streamType,
+            name_prefix: namePrefix
+          })
+        });
+
+        const data = await res.json();
+        if (data.status === "SUCCESS") {
+          if (statusEl) {
+            statusEl.className = "matrix-status-msg success";
+            statusEl.style.background = "#ecfdf5";
+            statusEl.style.color = "#065f46";
+            statusEl.style.border = "1px solid #a7f3d0";
+            statusEl.textContent = `✓ Successfully activated ${data.connected_count} IP cameras across fleet slots!`;
+          }
+
+          setTimeout(() => {
+            closeICSeeCamModal();
+            loadCamerasFromBackend();
+          }, 900);
+        } else {
+          if (statusEl) {
+            statusEl.className = "matrix-status-msg error";
+            statusEl.style.background = "#fef2f2";
+            statusEl.style.color = "#991b1b";
+            statusEl.style.border = "1px solid #fecaca";
+            statusEl.textContent = "Batch error: " + (data.detail || "Failed to configure camera range");
+          }
+        }
+      } catch (err) {
+        console.error("Batch connect error:", err);
+        if (statusEl) {
+          statusEl.className = "matrix-status-msg error";
+          statusEl.style.background = "#fef2f2";
+          statusEl.style.color = "#991b1b";
+          statusEl.style.border = "1px solid #fecaca";
+          statusEl.textContent = "Network error communicating with CCTV server.";
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "🚀 Batch Connect Cameras";
+        }
+      }
+    window.loadEnvConfigTemplate = function() {
+      const el = document.getElementById("pasteCamConfig");
+      if (!el) return;
+      const ip = document.getElementById("icseeCamIp")?.value || "10.243.1.65";
+      const user = document.getElementById("icseeCamUser")?.value || "rtsp";
+      const pass = document.getElementById("icseeCamPass")?.value || "Test1234";
+      const port = document.getElementById("icseeCamPort")?.value || "554";
+      const stream = document.getElementById("icseeStreamType")?.value || "stream0";
+
+      el.value = `# ICSee Camera Configuration\nICSEE_CAMERA_IP=${ip}\nICSEE_CAMERA_USER=${user}\nICSEE_CAMERA_PASSWORD=${pass}\nICSEE_CAMERA_PORT=${port}\nICSEE_STREAM=${stream}`;
+    };
+
+    window.loadSampleMultiIp = function() {
+      const el = document.getElementById("pasteCamConfig");
+      if (!el) return;
+      el.value = `# Pushkaralu Ghat Multiple Camera IP Feeds\n10.243.1.65\n10.243.1.66\n10.243.1.67\n10.243.1.68\n10.243.1.69`;
+    };
+
+    window.handlePasteICSeeSubmit = async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById("btnPasteConnect");
+      const statusEl = document.getElementById("pasteConnectStatus");
+      const configText = (document.getElementById("pasteCamConfig")?.value || "").trim();
+      const user = (document.getElementById("pasteCamUser")?.value || "rtsp").trim();
+      const pass = document.getElementById("pasteCamPass")?.value || "Test1234";
+      const saveToEnv = document.getElementById("chkSaveToEnv")?.checked !== false;
+
+      if (!configText) {
+        alert("Please enter or paste your camera IP address or configuration.");
+        return;
+      }
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Connecting All Cameras...";
+      }
+      if (statusEl) {
+        statusEl.className = "matrix-status-msg info";
+        statusEl.style.background = "#eff6ff";
+        statusEl.style.color = "#1e40af";
+        statusEl.style.border = "1px solid #bfdbfe";
+        statusEl.textContent = "Parsing configuration and initiating ultra-low-latency RTSP streams...";
+        statusEl.style.display = "block";
+      }
+
+      try {
+        const res = await fetch("/api/cameras/batch_connect_icsee", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            raw_config: configText,
+            username: user,
+            password: pass,
+            save_to_env: saveToEnv
+          })
+        });
+
+        const data = await res.json();
+        if (data.status === "SUCCESS") {
+          const camSlots = (data.cameras || []).map(c => `${c.camera_id} (${c.ip})`).join(", ");
+          if (statusEl) {
+            statusEl.className = "matrix-status-msg success";
+            statusEl.style.background = "#ecfdf5";
+            statusEl.style.color = "#065f46";
+            statusEl.style.border = "1px solid #a7f3d0";
+            statusEl.textContent = `✓ Successfully activated ${data.connected_count} camera(s) across slots: ${camSlots}`;
+          }
+
+          setTimeout(() => {
+            closeICSeeCamModal();
+            loadCamerasFromBackend();
+          }, 1200);
+        } else {
+          if (statusEl) {
+            statusEl.className = "matrix-status-msg error";
+            statusEl.style.background = "#fef2f2";
+            statusEl.style.color = "#991b1b";
+            statusEl.style.border = "1px solid #fecaca";
+            statusEl.textContent = "Error: " + (data.detail || "Failed to configure cameras");
+          }
+        }
+      } catch (err) {
+        console.error("Paste connect error:", err);
+        if (statusEl) {
+          statusEl.className = "matrix-status-msg error";
+          statusEl.style.background = "#fef2f2";
+          statusEl.style.color = "#991b1b";
+          statusEl.style.border = "1px solid #fecaca";
+          statusEl.textContent = "Network error communicating with CCTV server.";
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "🚀 Connect All Cameras";
         }
       }
     };
@@ -4487,6 +4903,9 @@
             </select>
           </div>
           <span style="font-family:monospace; font-size:11px; color:#22c55e; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.25); padding:4px 8px; border-radius:4px; font-weight:700;">PURE CAMERA FEED</span>
+          <button class="full-view-btn" style="background:#059669; color:#fff; border:1px solid #10b981; cursor:pointer;" onclick="openICSeeCamModal(activeFullViewCamId)" title="Configure Live RTSP / IP Feed for this Camera">
+            <span>📹 Connect IP Stream</span>
+          </button>
           <button class="full-view-btn" onclick="toggleNativeFullscreen()">
             <svg style="width: 16px; height: 16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
@@ -4517,9 +4936,14 @@
         <div style="font-size: 13px; color: #334155; font-weight: 600;">
           Enrolled Targets: <strong id="watchlistModalCount" style="color: #0f766e; font-size: 15px;">0</strong> Suspects Actively Monitored
         </div>
-        <button onclick="closeWatchlistModal(); openSuspectIntakeModal();" class="btn btn--primary" style="padding: 6px 14px; font-size: 12px; background: #0284c7; border-color: #0284c7; display: flex; align-items: center; gap: 6px;">
-          <span>🎯 + Enroll New Suspect</span>
-        </button>
+        <div style="display: flex; gap: 8px;">
+          <button onclick="clearAllWatchlist()" class="btn btn--danger" style="padding: 6px 12px; font-size: 12px; background: #e11d48; border-color: #be123c; color: white; display: flex; align-items: center; gap: 5px; border-radius: 6px; cursor: pointer;">
+            <span>🗑️ Clear All</span>
+          </button>
+          <button onclick="closeWatchlistModal(); openSuspectIntakeModal();" class="btn btn--primary" style="padding: 6px 14px; font-size: 12px; background: #0284c7; border-color: #0284c7; display: flex; align-items: center; gap: 6px; border-radius: 6px;">
+            <span>🎯 + Enroll New Suspect</span>
+          </button>
+        </div>
       </div>
 
       <div id="watchlistTargetsContainer" style="padding: 20px; max-height: 480px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #f1f5f9;">
@@ -5000,75 +5424,230 @@
     </div>
   </div>
 
-  <!-- ==================== ICSEE / XIONGMAI CCTV CAMERA CONNECTION MODAL ==================== -->
+  <!-- ==================== ICSEE / RTSP CCTV CAMERA FLEET INTEGRATION MODAL ==================== -->
   <div id="icseeCamModal" class="police-modal-overlay hidden">
-    <div class="police-modal-card" style="max-width: 680px;">
-      <div class="police-modal-header" style="background:#064e3b; border-bottom: 2px solid #10b981;">
-        <div class="police-modal-title">
-          <span>📹 ICSee / Xiongmai / ONVIF IP Camera Integration</span>
+    <div class="police-modal-card" style="max-width: 720px; box-shadow: 0 25px 60px -10px rgba(6, 78, 59, 0.45);">
+      <div class="police-modal-header" style="background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); border-bottom: 2px solid #10b981; padding: 14px 20px;">
+        <div class="police-modal-title" style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size: 20px;">📹</span>
+          <div>
+            <div style="font-weight: 800; font-size: 15px; color:#ffffff; letter-spacing:0.3px;">ICSee &amp; RTSP IP Camera Fleet Integration</div>
+            <div style="font-size: 11px; color:#a7f3d0; font-weight:400;">Ready for all 600 cameras &bull; Ultra-low-latency RTSP &bull; Dynamic Web Setup</div>
+          </div>
         </div>
         <button onclick="closeICSeeCamModal()" class="full-view-close-btn" style="width: 28px; height: 28px; font-size: 14px;">✕</button>
       </div>
-      <form id="formICSeeCam" onsubmit="handleICSeeCamSubmit(event)" class="police-modal-body">
-        <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 12px; font-size: 12px; color: #065f46;">
-          <strong>ICSee Hardware RTSP Pipeline:</strong> Connects real ICSee/XM IP cameras directly with low-latency TCP transport (<40ms latency) and AI facial recognition. Configured for <code>192.168.1.111</code> user <code>hmpw</code>.
+
+      <!-- Mode Tabs -->
+      <div style="display:flex; border-bottom:1px solid #e2e8f0; background:#f8fafc; padding:0 16px; gap:4px;">
+        <button type="button" id="tabBtnSingleCam" onclick="switchICSeeTab('single')" style="padding:10px 18px; font-size:12px; font-weight:700; border:none; background:transparent; border-bottom:3px solid #059669; color:#065f46; cursor:pointer;">
+          📹 Single Camera Setup
+        </button>
+        <button type="button" id="tabBtnBatchCam" onclick="switchICSeeTab('batch')" style="padding:10px 18px; font-size:12px; font-weight:700; border:none; background:transparent; border-bottom:3px solid transparent; color:#64748b; cursor:pointer;">
+          🚀 Sequential Range (IP Range)
+        </button>
+        <button type="button" id="tabBtnPasteCam" onclick="switchICSeeTab('paste')" style="padding:10px 18px; font-size:12px; font-weight:700; border:none; background:transparent; border-bottom:3px solid transparent; color:#64748b; cursor:pointer;">
+          📋 Multi-Camera Paste / .env Config
+        </button>
+      </div>
+
+      <!-- TAB 1: Single Camera Setup Form -->
+      <form id="formICSeeCam" onsubmit="handleICSeeCamSubmit(event)" class="police-modal-body" style="padding:16px 20px;">
+        <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #065f46; margin-bottom: 14px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <strong>Direct Low-Latency RTSP Pipeline:</strong> Dynamic stream mapping for any camera slot across the 600-camera fleet matrix.
+          </div>
+          <span id="icseeFleetBadge" style="background:#065f46; color:#ecfdf5; font-size:10px; font-weight:700; padding:2px 8px; border-radius:12px; white-space:nowrap;">600 Cameras Online</span>
         </div>
 
         <div class="form-grid-2">
           <div class="form-group">
-            <label class="form-label">Target Camera Slot *</label>
-            <select id="icseeCamSlot" class="form-input" style="background:#ffffff;" required>
-              <option value="CAM-001" selected>CAM 1 — District Hospital North Wing (Primary Live Slot)</option>
-              <option value="CAM-002">CAM 2 — Hospital Main Gate &amp; Ambulance Bay</option>
-              <option value="CAM-003">CAM 3 — Pushkaralu Ghat Main Entrance</option>
-              <option value="CAM-004">CAM 4 — Godavari River Promenade West</option>
-              <option value="CAM-005">CAM 5 — Kotilingala Ghat North Pier</option>
-              <option value="CAM-006">CAM 6 — Rajahmundry Main Railway Station Exit</option>
+            <label class="form-label" style="font-weight:700;">Target Camera Slot *</label>
+            <select id="icseeCamSlot" class="form-input" style="background:#ffffff; font-weight:600;" required onchange="onICSeeSlotChange(this.value)">
+              <!-- Dynamically populated from all 600 cameras -->
+              <option value="CAM-001" selected>CAM-001 — District Hospital North Wing (East Zone)</option>
+            </select>
+          </div>
+          <div class="form-group" id="customSlotWrapper" style="display:none;">
+            <label class="form-label" style="font-weight:700;">Custom Slot Identifier *</label>
+            <input type="text" id="customCamSlotInput" class="form-input" placeholder="e.g. CAM-601" maxlength="12">
+          </div>
+          <div class="form-group" id="camNameWrapper">
+            <label class="form-label" style="font-weight:700;">Camera Friendly Name</label>
+            <input type="text" id="icseeCamName" class="form-input" placeholder="e.g. Pushkaralu Main Ghat Gate 1">
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">Camera IP Address *</label>
+            <input type="text" id="icseeCamIp" class="form-input" required value="10.243.1.65" placeholder="e.g. 10.243.1.65" oninput="updateRTSPPreview()">
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">RTSP Port *</label>
+            <input type="number" id="icseeCamPort" class="form-input" value="554" required oninput="updateRTSPPreview()">
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">ICSee Username</label>
+            <input type="text" id="icseeCamUser" class="form-input" placeholder="e.g. rtsp or admin" value="rtsp" oninput="updateRTSPPreview()">
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">ICSee Password</label>
+            <div style="position:relative;">
+              <input type="password" id="icseeCamPass" class="form-input" value="Test1234" placeholder="e.g. Test1234" style="padding-right:38px;" oninput="updateRTSPPreview()">
+              <button type="button" onclick="togglePassVisibility('icseeCamPass', this)" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:14px;" title="Show/Hide Password">👁️</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">Stream Profile / Path *</label>
+            <select id="icseeStreamType" class="form-input" style="background:#ffffff;" required onchange="updateRTSPPreview()">
+              <option value="stream0" selected>Primary Main Stream (Full HD 1080p / 4MP) — /stream0</option>
+              <option value="stream1">Secondary Sub-Stream (Low Latency / Bandwidth Friendly) — /stream1</option>
+              <option value="onvif1">ONVIF Profile 1 Stream — /onvif1</option>
+              <option value="live/ch0">Alternative Xiongmai Channel 0 — /live/ch0</option>
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Camera Friendly Name</label>
-            <input type="text" id="icseeCamName" class="form-input" placeholder="e.g. ICSee North Gate PTZ" value="ICSee Live IP Cam">
+            <label class="form-label" style="font-weight:700;">Zone / Sector Assignment</label>
+            <select id="icseeCamSector" class="form-input" style="background:#ffffff;">
+              <option value="Pushkaralu">Pushkaralu Ghats Zone</option>
+              <option value="Hospital">East Zone (Hospital)</option>
+              <option value="Rjy">Central Division (Rajahmundry)</option>
+              <option value="Port">South Port Zone</option>
+              <option value="Sector4">North Division (Sector 4)</option>
+            </select>
           </div>
         </div>
 
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">ICSee IP Address *</label>
-            <input type="text" id="icseeCamIp" class="form-input" required placeholder="e.g. 192.168.1.111" value="192.168.1.111">
-          </div>
-          <div class="form-group">
-            <label class="form-label">RTSP Port *</label>
-            <input type="number" id="icseeCamPort" class="form-input" value="554" required>
+        <!-- Live RTSP URL Preview -->
+        <div style="margin-top:4px; margin-bottom:12px;">
+          <div style="font-size:10px; font-weight:700; color:#64748b; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Live Stream Connection Preview</div>
+          <div id="icseeRtspPreview" style="background:#0f172a; color:#38bdf8; font-family:ui-monospace, monospace; padding:8px 12px; border-radius:6px; font-size:11.5px; word-break:break-all; border:1px solid #334155; display:flex; align-items:center; gap:8px;">
+            <span style="color:#10b981;">▶</span>
+            <span id="icseeRtspPreviewText">rtsp://rtsp:******@10.243.1.65:554/stream0</span>
           </div>
         </div>
 
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">ICSee Username *</label>
-            <input type="text" id="icseeCamUser" class="form-input" placeholder="e.g. hmpw" value="hmpw" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label">ICSee Password *</label>
-            <input type="password" id="icseeCamPass" class="form-input" placeholder="Enter camera password" value="r7h3m2">
-          </div>
-        </div>
+        <div id="icseeConnectStatus" style="display:none; padding:10px 14px; border-radius:6px; font-size:12px; font-weight:600; margin-bottom:12px;"></div>
 
-        <div class="form-group">
-          <label class="form-label">ICSee Stream Profile / Path *</label>
-          <select id="icseeStreamType" class="form-input" style="background:#ffffff;" required>
-            <option value="stream0" selected>Primary Main Stream (High Resolution 1080p / 4MP) — /stream0</option>
-            <option value="stream1">Secondary Sub-Stream (Low Latency / Smooth Mobile) — /stream1</option>
-            <option value="onvif1">ONVIF Profile 1 Stream — /onvif1</option>
-            <option value="live/ch0">Alternative Xiongmai Channel 0 — /live/ch0</option>
-          </select>
-        </div>
-
-        <div id="icseeConnectStatus" style="display:none; padding:10px 14px; border-radius:6px; font-size:12px; font-weight:600;"></div>
-
-        <div class="police-modal-footer" style="padding-top:10px; padding-bottom:0; padding-right:0; padding-left:0; background:transparent; border-top:none;">
+        <div class="police-modal-footer" style="padding-top:10px; padding-bottom:0; padding-right:0; padding-left:0; background:transparent; border-top:none; display:flex; justify-content:flex-end; gap:8px;">
           <button type="button" onclick="closeICSeeCamModal()" class="btn btn--secondary">Cancel</button>
-          <button type="submit" id="btnConnectICSee" class="btn" style="background:#059669; color:#ffffff; font-weight:700;">Connect &amp; Activate ICSee Stream</button>
+          <button type="submit" id="btnConnectICSee" class="btn" style="background:#059669; color:#ffffff; font-weight:700; padding:8px 18px;">Connect &amp; Activate Stream</button>
+        </div>
+      </form>
+
+      <!-- TAB 2: Fleet Batch Connect Form -->
+      <form id="formBatchICSeeCam" onsubmit="handleBatchICSeeSubmit(event)" class="police-modal-body" style="padding:16px 20px; display:none;">
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #166534; margin-bottom: 14px;">
+          <strong>Fleet Batch Ingestion:</strong> Connect multiple sequential ICSee cameras across your local IP subnet in one operation (e.g. 10.243.1.65 through 10.243.1.75).
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">Starting Camera Slot *</label>
+            <input type="text" id="batchStartSlot" class="form-input" value="CAM-001" placeholder="e.g. CAM-001" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">Starting IP Address *</label>
+            <input type="text" id="batchStartIp" class="form-input" value="10.243.1.65" placeholder="e.g. 10.243.1.65" required>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">Number of Sequential Cameras *</label>
+            <input type="number" id="batchCount" class="form-input" min="1" max="600" value="10" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">RTSP Port *</label>
+            <input type="number" id="batchPort" class="form-input" value="554" required>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">Common Username</label>
+            <input type="text" id="batchUser" class="form-input" placeholder="e.g. rtsp or admin" value="rtsp">
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">Common Password</label>
+            <input type="password" id="batchPass" class="form-input" value="Test1234" placeholder="e.g. Test1234">
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">Stream Profile</label>
+            <select id="batchStreamType" class="form-input" style="background:#ffffff;" required>
+              <option value="stream0" selected>Primary Main Stream (/stream0)</option>
+              <option value="stream1">Secondary Sub-Stream (/stream1)</option>
+              <option value="onvif1">ONVIF Profile 1 (/onvif1)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">Camera Name Prefix</label>
+            <input type="text" id="batchNamePrefix" class="form-input" placeholder="e.g. Pushkaralu Ghat Camera" value="ICSee IP Camera">
+          </div>
+        </div>
+
+        <div id="batchConnectStatus" style="display:none; padding:10px 14px; border-radius:6px; font-size:12px; font-weight:600; margin-bottom:12px;"></div>
+
+        <div class="police-modal-footer" style="padding-top:10px; padding-bottom:0; padding-right:0; padding-left:0; background:transparent; border-top:none; display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" onclick="closeICSeeCamModal()" class="btn btn--secondary">Cancel</button>
+          <button type="submit" id="btnBatchConnect" class="btn" style="background:#059669; color:#ffffff; font-weight:700; padding:8px 18px;">🚀 Batch Connect Cameras</button>
+        </div>
+      </form>
+
+      <!-- TAB 3: Multi-Camera Paste / .env Config Form -->
+      <form id="formPasteICSeeCam" onsubmit="handlePasteICSeeSubmit(event)" class="police-modal-body" style="padding:16px 20px; display:none;">
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px; font-size: 11.5px; color: #166534; margin-bottom: 14px;">
+          <div style="font-weight: 700; margin-bottom: 4px;">📋 Direct Environment Config &amp; Multi-IP Mass Ingestion:</div>
+          <div>Paste your camera environment block, comma-separated IPs, or a list of camera IP addresses below. All cameras will be registered and brought online immediately.</div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <label class="form-label" style="font-weight:700; margin:0;">Configuration / IP Address List *</label>
+          <div style="display:flex; gap:6px;">
+            <button type="button" onclick="loadEnvConfigTemplate()" class="btn btn--sample" style="padding:3px 8px; font-size:11px; background:#e0f2fe; color:#0369a1; border-color:#bae6fd; cursor:pointer;">
+              📋 Load .env Template
+            </button>
+            <button type="button" onclick="loadSampleMultiIp()" class="btn btn--sample" style="padding:3px 8px; font-size:11px; background:#f3e8ff; color:#7e22ce; border-color:#e9d5ff; cursor:pointer;">
+              🌐 Sample Multi-IP List
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <textarea id="pasteCamConfig" class="form-input" style="font-family:ui-monospace, monospace; font-size:12px; height:150px; line-height:1.5; background:#0f172a; color:#38bdf8; border:1px solid #334155; border-radius:8px; padding:10px;" placeholder="# ICSee Camera Configuration&#10;ICSEE_CAMERA_IP=10.243.1.65&#10;ICSEE_CAMERA_USER=rtsp&#10;ICSEE_CAMERA_PASSWORD=Test1234&#10;ICSEE_CAMERA_PORT=554&#10;ICSEE_STREAM=stream0" required></textarea>
+        </div>
+
+        <div class="form-grid-2" style="margin-bottom:12px;">
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">Default Fallback Username</label>
+            <input type="text" id="pasteCamUser" class="form-input" value="rtsp" placeholder="e.g. rtsp">
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">Default Fallback Password</label>
+            <input type="password" id="pasteCamPass" class="form-input" value="Test1234" placeholder="e.g. Test1234">
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; font-size:12px; color:#334155;">
+          <input type="checkbox" id="chkSaveToEnv" checked style="width:16px; height:16px; accent-color:#059669;">
+          <label for="chkSaveToEnv" style="cursor:pointer; font-weight:600;">Save &amp; persist this configuration to local <code>.env</code> file</label>
+        </div>
+
+        <div id="pasteConnectStatus" style="display:none; padding:10px 14px; border-radius:6px; font-size:12px; font-weight:600; margin-bottom:12px;"></div>
+
+        <div class="police-modal-footer" style="padding-top:10px; padding-bottom:0; padding-right:0; padding-left:0; background:transparent; border-top:none; display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" onclick="closeICSeeCamModal()" class="btn btn--secondary">Cancel</button>
+          <button type="submit" id="btnPasteConnect" class="btn" style="background:#059669; color:#ffffff; font-weight:700; padding:8px 18px;">🚀 Connect All Cameras</button>
         </div>
       </form>
     </div>
