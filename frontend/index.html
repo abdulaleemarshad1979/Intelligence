@@ -4735,6 +4735,8 @@
           btn.textContent = "🚀 Batch Connect Cameras";
         }
       }
+    };
+
     window.loadEnvConfigTemplate = function() {
       const el = document.getElementById("pasteCamConfig");
       if (!el) return;
@@ -5508,6 +5510,8 @@
             <label class="form-label" style="font-weight:700;">Stream Profile / Path *</label>
             <select id="icseeStreamType" class="form-input" style="background:#ffffff;" required onchange="updateRTSPPreview()">
               <option value="stream0" selected>Primary Main Stream (Full HD 1080p / 4MP) — /stream0</option>
+              <option value="Streaming/Channels/101">Standard / Hik / ONVIF Main Stream — /Streaming/Channels/101</option>
+              <option value="Streaming/Channels/102">Standard / Hik / ONVIF Sub Stream — /Streaming/Channels/102</option>
               <option value="stream1">Secondary Sub-Stream (Low Latency / Bandwidth Friendly) — /stream1</option>
               <option value="onvif1">ONVIF Profile 1 Stream — /onvif1</option>
               <option value="live/ch0">Alternative Xiongmai Channel 0 — /live/ch0</option>
@@ -5586,6 +5590,8 @@
             <label class="form-label" style="font-weight:700;">Stream Profile</label>
             <select id="batchStreamType" class="form-input" style="background:#ffffff;" required>
               <option value="stream0" selected>Primary Main Stream (/stream0)</option>
+              <option value="Streaming/Channels/101">Standard / Hik / ONVIF Main Stream (/Streaming/Channels/101)</option>
+              <option value="Streaming/Channels/102">Standard / Hik / ONVIF Sub Stream (/Streaming/Channels/102)</option>
               <option value="stream1">Secondary Sub-Stream (/stream1)</option>
               <option value="onvif1">ONVIF Profile 1 (/onvif1)</option>
             </select>
