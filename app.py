@@ -58,7 +58,7 @@ def setup_icsee_camera():
     icsee_user = os.getenv("ICSEE_CAMERA_USER", "rtsp").strip().strip("'\"")
     icsee_pass = os.getenv("ICSEE_CAMERA_PASSWORD", "").strip().strip("'\"")
     icsee_port = int(os.getenv("ICSEE_CAMERA_PORT", "554"))
-    icsee_stream = os.getenv("ICSEE_STREAM", "stream0").strip().strip("'\"")
+    icsee_stream = os.getenv("ICSEE_STREAM", "stream1").strip().strip("'\"")
     base_cam_id = os.getenv("ICSEE_CAMERA_ID", "CAM-001").strip().upper().strip("'\"")
     try:
         count = int(os.getenv("ICSEE_CAMERA_COUNT", "1"))

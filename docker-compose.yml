@@ -21,6 +21,22 @@ services:
       retries: 5
 
   # ============================================================================
+  # MediaMTX 600-Stream High-Capacity Video Routing Layer (WebRTC / HLS / RTSP)
+  # ============================================================================
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: cctv-mediamtx
+    restart: unless-stopped
+    ports:
+      - "8554:8554"  # RTSP
+      - "1935:1935"  # RTMP
+      - "8888:8888"  # HLS / LL-HLS
+      - "8889:8889"  # WebRTC / WHEP
+      - "9997:9997"  # REST API
+    volumes:
+      - ./config/mediamtx.yml:/mediamtx.yml:ro
+
+  # ============================================================================
   # CCTV Intelligence & Multi-Modal Video Structuring Web Application
   # ============================================================================
   cctv-app:
@@ -34,12 +50,15 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cctv_intelligence
       - POSTGRES_URL=postgresql://postgres:postgres@postgres:5432/cctv_intelligence
+      - MEDIAMTX_API_URL=http://mediamtx:9997
       - PYTHONUNBUFFERED=1
       - PORT=8000
       - HOST=0.0.0.0
     depends_on:
       postgres:
         condition: service_healthy
+      mediamtx:
+        condition: service_started
     volumes:
       - cctv_data:/workspace/data
       - ./config:/workspace/config:ro
@@ -57,3 +76,4 @@ volumes:
     driver: local
   cctv_data:
     driver: local
+

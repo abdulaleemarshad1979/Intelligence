@@ -53,6 +53,7 @@ from app.features.height import HeightEstimator
 from app.features.enhancement import stream_enhancer, candidate_enhancer
 from app.discovery.onvif_scanner import onvif_scanner
 from app.ingestion.stream_manager import get_stream_manager, CameraStreamManager, build_matrix_rtsp_url
+from app.ingestion.mediamtx_manager import mediamtx_mgr
 
 # Gotham Investigation Modules
 from app.search.person_search import PersonSearchCoordinator
@@ -939,6 +940,24 @@ async def get_camera_stream_info(camera_id: str):
     return {
         "status": "SUCCESS",
         "stream_info": worker.get_stats()
+    }
+
+@app.get("/api/cameras/{camera_id}/stream_urls")
+async def get_camera_stream_urls(camera_id: str, request: Request):
+    """Generate WebRTC (WHEP), HLS, and RTSP stream URLs for direct browser/client playback."""
+    client_host = request.headers.get("host", "localhost").split(":")[0]
+    return {
+        "status": "SUCCESS",
+        "camera_id": camera_id,
+        "urls": mediamtx_mgr.get_stream_urls(camera_id=camera_id, client_host=client_host)
+    }
+
+@app.get("/api/mediamtx/status")
+async def get_mediamtx_status():
+    """Return live MediaMTX streaming layer health and path metrics."""
+    return {
+        "status": "SUCCESS",
+        "mediamtx": mediamtx_mgr.get_stats()
     }
 
 @app.get("/api/stream/overlay")

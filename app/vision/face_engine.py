@@ -248,22 +248,21 @@ class FaceBiometricEngine:
     def _heuristic_face_detection(self, frame: np.ndarray) -> List[Dict[str, Any]]:
         h, w = frame.shape[:2]
 
-        # 1. Fallback only applies when input is a cropped person/face avatar (not an entire surveillance frame)
-        if max(w, h) <= 200:
-            try:
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
-                if float(np.mean(gray)) > 30.0 and float(np.std(gray)) > 15.0:
-                    edges = cv2.Canny(gray, 40, 120)
-                    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                    candidate_boxes = []
-                    for c in contours:
-                        cx, cy, cw, ch = cv2.boundingRect(c)
-                        if cw >= self.MIN_FACE_RESOLUTION and ch >= self.MIN_FACE_RESOLUTION:
-                            if cw < w * 0.95 or ch < h * 0.95:
-                                candidate_boxes.append((cx, cy, cw, ch))
-                    if candidate_boxes:
-                        candidate_boxes.sort(key=lambda b: b[2] * b[3], reverse=True)
-                        bx, by, bw, bh = candidate_boxes[0]
+        try:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
+            if float(np.mean(gray)) > 20.0 and float(np.std(gray)) > 10.0:
+                edges = cv2.Canny(gray, 40, 120)
+                contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                candidate_boxes = []
+                for c in contours:
+                    cx, cy, cw, ch = cv2.boundingRect(c)
+                    if cw >= self.MIN_FACE_RESOLUTION and ch >= self.MIN_FACE_RESOLUTION:
+                        if cw < w * 0.95 or ch < h * 0.95:
+                            candidate_boxes.append((cx, cy, cw, ch))
+                if candidate_boxes:
+                    candidate_boxes.sort(key=lambda b: b[2] * b[3], reverse=True)
+                    results = []
+                    for bx, by, bw, bh in candidate_boxes[:4]:
                         q_assessment = self.assess_face_quality(frame[by:by + bh, bx:bx + bw])
                         if q_assessment["is_viable"]:
                             re = [bx + bw * 0.35, by + bh * 0.35]
@@ -271,16 +270,18 @@ class FaceBiometricEngine:
                             nt = [bx + bw * 0.50, by + bh * 0.55]
                             rm = [bx + bw * 0.40, by + bh * 0.75]
                             lm = [bx + bw * 0.60, by + bh * 0.75]
-                            return [{
+                            results.append({
                                 "bbox": [float(bx), float(by), float(bw), float(bh)],
                                 "score": 0.80,
                                 "landmarks": [re, le, nt, rm, lm],
                                 "raw_detection": None,
                                 "quality": q_assessment,
                                 "is_viable": True
-                            }]
-            except Exception:
-                pass
+                            })
+                    if results:
+                        return results
+        except Exception:
+            pass
 
         # 2. Geometric fallback: only applies when input is a cropped person body ROI (tall aspect ratio h >= 1.6 * w) or avatar crop
         if max(w, h) < 150 or (h >= 1.6 * w and min(w, h) >= self.MIN_FACE_RESOLUTION):

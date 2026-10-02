@@ -2799,6 +2799,22 @@
       }
     };
 
+    // Shared IntersectionObserver for 600-camera zero-overhead lazy loading
+    if (!window._cctvIntersectionObserver && typeof IntersectionObserver !== "undefined") {
+      window._cctvIntersectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          const target = entry.target;
+          if (entry.isIntersecting) {
+            target._isVisible = true;
+            if (target._resumeFeed) target._resumeFeed();
+          } else {
+            target._isVisible = false;
+            if (target._pauseFeed) target._pauseFeed();
+          }
+        });
+      }, { rootMargin: "100px", threshold: 0.05 });
+    }
+
     function setupVideoFeed(cam) {
       const container = document.getElementById(`player-container-${cam.id}`);
       if (!container) return;
@@ -2825,7 +2841,28 @@
 
       let running = true;
       let inFlight = false;
-      img._stopFeed = () => { running = false; };
+      let isVisible = true;
+      let pauseUntil = 0;
+
+      container._isVisible = true;
+      container._resumeFeed = () => {
+        isVisible = true;
+        if (running && !inFlight) scheduleNext(10);
+      };
+      container._pauseFeed = () => {
+        isVisible = false;
+      };
+
+      if (window._cctvIntersectionObserver) {
+        window._cctvIntersectionObserver.observe(container);
+      }
+
+      img._stopFeed = () => {
+        running = false;
+        if (window._cctvIntersectionObserver) {
+          try { window._cctvIntersectionObserver.unobserve(container); } catch(e){}
+        }
+      };
 
       const scheduleNext = (delayMs) => {
         if (!running) return;
@@ -2834,9 +2871,14 @@
 
       const pullFrame = () => {
         if (!running || !img.parentElement) return;
+        if (!isVisible && activeFullViewCamId !== cam.id) {
+          // Off-screen tile: sleep 1000ms before checking visibility again
+          scheduleNext(1000);
+          return;
+        }
         if (inFlight) return;
 
-        // If suspect intake modal is open, throttle background fetching to give 100% network priority to biometrics
+        // If suspect intake modal is open, throttle background fetching
         const intakeModal = document.getElementById("suspectIntakeModal");
         if (intakeModal && !intakeModal.classList.contains("hidden")) {
           scheduleNext(1500);
@@ -2864,8 +2906,9 @@
               img.style.transformOrigin = "center center";
             }
           }
-          // Smooth 16-20 FPS refresh per tile: 55ms for silky high-quality surveillance playback
-          scheduleNext(55);
+          // Paced 10-15 FPS refresh per visible tile (~90ms) or 50ms for active full-view camera
+          const pacing = (activeFullViewCamId === cam.id) ? 50 : 90;
+          scheduleNext(pacing);
         };
 
         nextImg.onerror = () => {

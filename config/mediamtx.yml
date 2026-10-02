@@ -1,0 +1,40 @@
+# MediaMTX Configuration for 600-Camera CCTV Intelligence Platform
+# Zero-Copy Streaming Layer: RTSP -> WebRTC (WHEP) / LL-HLS
+
+# Global settings
+logLevel: info
+logDestinations: [stdout]
+
+# REST API (for dynamic camera registration from Python FastAPI backend)
+api: yes
+apiAddress: :9997
+
+# RTSP Server (port 8554)
+rtsp: yes
+rtspDisable: no
+protocols: [tcp]
+encryption: "no"
+rtspAddress: :8554
+
+# RTMP Server (port 1935)
+rtmp: yes
+rtmpDisable: no
+rtmpAddress: :1935
+
+# HLS / LL-HLS Server (port 8888)
+hls: yes
+hlsDisable: no
+hlsAddress: :8888
+hlsVariant: lowLatency
+hlsSegmentCount: 3
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+
+# WebRTC / WHEP Server (port 8889)
+webrtc: yes
+webrtcDisable: no
+webrtcAddress: :8889
+
+# Default path settings
+paths:
+  all_others:

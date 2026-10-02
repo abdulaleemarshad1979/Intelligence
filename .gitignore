@@ -11,6 +11,7 @@ models/*
 *.pth
 *.onnx
 *.bin
+scripts/mediamtx
 
 # Tracks, captures and video evidence
 data/tracks/*
