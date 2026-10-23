@@ -8,6 +8,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from app.casework import cameras as cam_inv
+from app.casework import imaging, video_tools
 from app.casework import media_store as ms
 from app.casework.schema import connect, init_casework_db
 from app.compliance.audit import AuditLogger
@@ -116,14 +117,16 @@ class CaseService:
         return pid
 
     def add_derived(self, officer: OfficerIdentity, parent_id: str, result_path: str, *,
-                    operation: str, parameters: Optional[Dict[str, Any]] = None, tool: str = "") -> str:
+                    operation: str, parameters: Optional[Dict[str, Any]] = None, tool: str = "",
+                    result_kind: Optional[str] = None) -> str:
         """Register an edited/enhanced copy. The parent is untouched; the step is logged and labelled."""
         parent = self.get_media(parent_id)
         if parent["role"] == "PROXY":
             raise ValueError("Derive from the original or another derived copy, not a proxy")
         self.verify_media(parent_id)
         stored = self.store.put(result_path, "derived", os.path.basename(result_path))
-        facts = ms.probe_video(stored.path) if parent["kind"] == "VIDEO" else ms.probe_image(stored.path)
+        kind = result_kind or parent["kind"]
+        facts = ms.probe_video(stored.path) if kind == "VIDEO" else ms.probe_image(stored.path)
         mid = _id("MED")
         with self._conn() as c:
             chain = self._chain_len(c, parent_id) + 1
@@ -131,7 +134,7 @@ class CaseService:
                 "INSERT INTO cw_media (media_id, case_id, kind, role, parent_media_id, sha256, size_bytes, "
                 "storage_path, original_filename, mime_type, width, height, duration_s, nominal_fps, is_vfr, "
                 "label, source_description, added_by, added_at) VALUES (?,?,?,'DERIVED',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (mid, parent["case_id"], parent["kind"], parent_id, stored.sha256, stored.size_bytes,
+                (mid, parent["case_id"], kind, parent_id, stored.sha256, stored.size_bytes,
                  stored.path, os.path.basename(result_path), stored.mime_type, facts.get("width"),
                  facts.get("height"), facts.get("duration_s"), facts.get("nominal_fps"),
                  int(facts["is_vfr"]) if "is_vfr" in facts else None,
@@ -142,7 +145,7 @@ class CaseService:
                 "step_index, operation, parameters, tool, performed_by, performed_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
                 (_id("DER"), parent["case_id"], parent_id, mid, chain, operation,
                  json.dumps(parameters or {}, sort_keys=True), tool, officer.badge_number, time.time()))
-            if parent["kind"] == "VIDEO":
+            if kind == "VIDEO":
                 c.execute("INSERT INTO cw_frame_times (media_id, pts_seconds) VALUES (?,?)",
                           (mid, json.dumps(facts["pts_seconds"])))
         self._log(officer, "MEDIA_DERIVED_ADDED", mid,
@@ -326,3 +329,123 @@ class CaseService:
         with self._conn() as c:
             return [dict(r) for r in c.execute(
                 "SELECT * FROM cw_review_decisions WHERE candidate_id=? ORDER BY decided_at, rowid", (candidate_id,))]
+
+    # ------------------------------------------------------------ derived-copy tools
+    def _derive(self, officer, parent_id, operation, suffix, make, result_kind=None, parameters=None, tool=""):
+        """Run make(src_path, dst_path) -> params on the verified parent and register the result."""
+        parent = self.get_media(parent_id)
+        self.verify_media(parent_id)
+        tmp = self.store.reserve("derived", suffix)
+        try:
+            params = make(parent["storage_path"], tmp) or {}
+            params.update(parameters or {})
+            return self.add_derived(officer, parent_id, tmp, operation=operation, parameters=params,
+                                    tool=tool, result_kind=result_kind)
+        finally:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+
+    def _suffix(self, media_id: str) -> str:
+        return os.path.splitext(self.get_media(media_id)["original_filename"])[1] or ".png"
+
+    def crop_image(self, officer, media_id: str, x: int, y: int, w: int, h: int) -> str:
+        if self.get_media(media_id)["kind"] != "IMAGE":
+            raise ValueError("Crop applies to images; extract a frame first")
+        return self._derive(officer, media_id, "CROP", ".png",
+                            lambda s, d: imaging.crop(s, d, x, y, w, h), tool="opencv")
+
+    def enhance_image(self, officer, media_id: str, operation: str, **params) -> str:
+        if self.get_media(media_id)["kind"] != "IMAGE":
+            raise ValueError("Enhancement applies to images; extract a frame first")
+        return self._derive(officer, media_id, operation, ".png",
+                            lambda s, d: imaging.enhance(s, d, operation, **params), tool="opencv")
+
+    def extract_frame(self, officer, video_id: str, frame_no: int) -> str:
+        m = self.get_media(video_id)
+        if m["kind"] != "VIDEO" or m["role"] == "PROXY":
+            raise ValueError("Extract frames from an original or derived video, not a proxy")
+        pts = self.frame_times(video_id)
+        return self._derive(officer, video_id, "FRAME_EXTRACT", ".png",
+                            lambda s, d: video_tools.extract_frame(s, d, frame_no, pts),
+                            result_kind="IMAGE", tool="opencv")
+
+    def contact_sheet(self, officer, video_id: str, start_s: float, end_s: float, **kw) -> str:
+        pts = self.frame_times(video_id)
+        return self._derive(officer, video_id, "CONTACT_SHEET", ".png",
+                            lambda s, d: video_tools.contact_sheet(s, d, pts, start_s, end_s, **kw),
+                            result_kind="IMAGE", tool="opencv")
+
+    def slow_motion(self, officer, video_id: str, start_s: float, end_s: float, speed: float = 0.25) -> str:
+        m = self.get_media(video_id)
+        if m["role"] == "PROXY":
+            raise ValueError("Use the original or a derived video")
+        return self._derive(officer, video_id, "SLOW_MOTION", ".mp4",
+                            lambda s, d: video_tools.slow_motion(s, d, start_s, end_s, speed), tool="ffmpeg")
+
+    def compare_images(self, officer, media_a: str, media_b: str, label_a: str = "", label_b: str = "") -> str:
+        """Side-by-side sheet for manual comparison; recorded as a derived copy of A that names B."""
+        a, b = self.get_media(media_a), self.get_media(media_b)
+        if a["case_id"] != b["case_id"] or "IMAGE" not in (a["kind"], b["kind"]) or a["kind"] != b["kind"]:
+            raise ValueError("Compare two images from the same case")
+        self.verify_media(media_b)
+        return self._derive(
+            officer, media_a, "SIDE_BY_SIDE", ".png",
+            lambda s, d: imaging.side_by_side(s, b["storage_path"], d, label_a or a["label"], label_b or b["label"]),
+            parameters={"other_media_id": media_b, "other_sha256": b["sha256"]}, tool="opencv")
+
+    def compare_frames(self, officer, video_a: str, frame_a: int, video_b: str, frame_b: int) -> str:
+        a, b = self.get_media(video_a), self.get_media(video_b)
+        if a["case_id"] != b["case_id"] or a["kind"] != "VIDEO" or b["kind"] != "VIDEO":
+            raise ValueError("Compare frames of two videos from the same case")
+        self.verify_media(video_b)
+        la = f"#{frame_a} @{self.frame_time(video_a, frame_a):.2f}s {a['original_filename']}"
+        lb = f"#{frame_b} @{self.frame_time(video_b, frame_b):.2f}s {b['original_filename']}"
+        return self._derive(
+            officer, video_a, "FRAME_COMPARISON", ".png",
+            lambda s, d: video_tools.paired_frames(s, frame_a, b["storage_path"], frame_b, d, la, lb),
+            result_kind="IMAGE", parameters={"other_media_id": video_b, "other_sha256": b["sha256"],
+                                            "frame_b": frame_b}, tool="opencv")
+
+    def compare_videos(self, officer, video_a: str, video_b: str, speed: float = 1.0) -> str:
+        a, b = self.get_media(video_a), self.get_media(video_b)
+        if a["case_id"] != b["case_id"] or a["kind"] != "VIDEO" or b["kind"] != "VIDEO":
+            raise ValueError("Compare two videos from the same case")
+        self.verify_media(video_b)
+        return self._derive(
+            officer, video_a, "PAIRED_PLAYBACK", ".mp4",
+            lambda s, d: video_tools.paired_playback(s, b["storage_path"], d, speed),
+            parameters={"other_media_id": video_b, "other_sha256": b["sha256"]}, tool="ffmpeg")
+
+    # ------------------------------------------------------------ descriptors
+    def add_descriptor(self, officer, case_id: str, subject_label: str, category: str, value: str, *,
+                       basis: str = "OBSERVED", confidence: str = "MEDIUM", media_id: Optional[str] = None,
+                       at_time_s: Optional[float] = None, note: str = "") -> str:
+        """A human-recorded characteristic. Height needs a stated measurement reference."""
+        self.get_case(case_id)
+        if not value.strip():
+            raise ValueError("A descriptor needs a value")
+        if category == "HEIGHT_ESTIMATE" and not note.strip():
+            raise ValueError("Height estimates must state their reference in note (e.g. 'door frame 2.1 m')")
+        did = _id("DSC")
+        with self._conn() as c:
+            c.execute("INSERT INTO cw_descriptors (descriptor_id, case_id, subject_label, media_id, category, "
+                      "value, basis, confidence, at_time_s, note, author, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (did, case_id, subject_label, media_id, category, value.strip(), basis, confidence,
+                       at_time_s, note, officer.badge_number, time.time()))
+        self._log(officer, "DESCRIPTOR_ADDED", did, {"case_id": case_id, "category": category})
+        return did
+
+    def retract_descriptor(self, officer, descriptor_id: str) -> None:
+        with self._conn() as c:
+            c.execute("UPDATE cw_descriptors SET status='RETRACTED' WHERE descriptor_id=?", (descriptor_id,))
+        self._log(officer, "DESCRIPTOR_RETRACTED", descriptor_id, {})
+
+    def descriptors(self, case_id: str, subject_label: Optional[str] = None,
+                    include_retracted: bool = False) -> List[Dict[str, Any]]:
+        q, a = "SELECT * FROM cw_descriptors WHERE case_id=?", [case_id]
+        if subject_label:
+            q, a = q + " AND subject_label=?", a + [subject_label]
+        if not include_retracted:
+            q += " AND status='ACTIVE'"
+        with self._conn() as c:
+            return [dict(r) for r in c.execute(q + " ORDER BY subject_label, category, created_at", a)]

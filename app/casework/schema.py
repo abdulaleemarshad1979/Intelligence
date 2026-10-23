@@ -145,6 +145,34 @@ CREATE TABLE IF NOT EXISTS cw_review_decisions (
 );
 CREATE INDEX IF NOT EXISTS idx_cw_review_cand ON cw_review_decisions (candidate_id, decided_at);
 
+CREATE TABLE IF NOT EXISTS cw_descriptors (
+    descriptor_id TEXT PRIMARY KEY,
+    case_id TEXT NOT NULL REFERENCES cw_cases (case_id),
+    subject_label TEXT NOT NULL,
+    media_id TEXT REFERENCES cw_media (media_id),
+    category TEXT NOT NULL CHECK (category IN ('HAIR', 'FACIAL_HAIR', 'EYEWEAR', 'HEADWEAR',
+        'CLOTHING_UPPER', 'CLOTHING_LOWER', 'FOOTWEAR', 'BUILD', 'HEIGHT_ESTIMATE', 'CARRIED_ITEM',
+        'DISTINGUISHING_MARK', 'GAIT_NOTE', 'OTHER')),
+    value TEXT NOT NULL,
+    basis TEXT NOT NULL CHECK (basis IN ('OBSERVED', 'REPORTED')),
+    confidence TEXT NOT NULL CHECK (confidence IN ('LOW', 'MEDIUM', 'HIGH')),
+    at_time_s REAL,
+    note TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'RETRACTED')),
+    author TEXT NOT NULL,
+    created_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cw_desc_case ON cw_descriptors (case_id, subject_label);
+
+CREATE TRIGGER IF NOT EXISTS trg_cw_desc_edit
+BEFORE UPDATE OF descriptor_id, case_id, subject_label, media_id, category, value, basis, confidence,
+    at_time_s, note, author, created_at ON cw_descriptors
+BEGIN SELECT RAISE(ABORT, 'descriptors can only be retracted, not edited'); END;
+
+CREATE TRIGGER IF NOT EXISTS trg_cw_desc_no_delete
+BEFORE DELETE ON cw_descriptors
+BEGIN SELECT RAISE(ABORT, 'descriptors cannot be deleted'); END;
+
 -- Custody: originals and the history of what was done to them cannot be edited or removed.
 CREATE TRIGGER IF NOT EXISTS trg_cw_media_immutable
 BEFORE UPDATE OF case_id, kind, role, parent_media_id, sha256, size_bytes, storage_path,

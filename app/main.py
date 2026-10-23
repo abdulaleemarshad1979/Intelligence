@@ -147,10 +147,12 @@ app.add_middleware(
 from app.api.routes_tracking import router as tracking_router
 from app.api.routes_alerts import router as alerts_router
 from app.api.routes_target_search import router as target_search_router
+from app.api.routes_casework import router as casework_router
 
 app.include_router(tracking_router)
 app.include_router(alerts_router)
 app.include_router(target_search_router)
+app.include_router(casework_router)
 
 try:
     from app.missing_person.lost_found import build_router as build_lost_found_router, get_lost_found_engine
