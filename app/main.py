@@ -25,7 +25,7 @@ from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File,
 from fastapi.responses import StreamingResponse, FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger("cctv_main")
 
@@ -147,10 +147,12 @@ app.add_middleware(
 from app.api.routes_tracking import router as tracking_router
 from app.api.routes_alerts import router as alerts_router
 from app.api.routes_target_search import router as target_search_router
+from app.api.routes_casework import router as casework_router
 
 app.include_router(tracking_router)
 app.include_router(alerts_router)
 app.include_router(target_search_router)
+app.include_router(casework_router)
 
 try:
     from app.missing_person.lost_found import build_router as build_lost_found_router, get_lost_found_engine
@@ -167,6 +169,7 @@ matcher = CandidateMatcher(gallery, repo)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
+DB_DIR = os.environ.get("CCTV_DB_DIR") or DATA_DIR   # tests point this at a temp dir so they never touch real records
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
 # Mount static directories
@@ -227,14 +230,14 @@ cross_camera_tracker = CrossCameraTracker(camera_configs)
 behavior_analyzer = CCTVBehaviorAnalyzer()
 
 # Initialize Police Compliance Suite
-audit_logger = AuditLogger(os.path.join(DATA_DIR, "police_records.db"))
+audit_logger = AuditLogger(os.path.join(DB_DIR, "police_records.db"))
 retention_engine = BiometricRetentionEngine(
-    db_path=os.path.join(DATA_DIR, "police_records.db"),
+    db_path=os.path.join(DB_DIR, "police_records.db"),
     tracks_dir=os.path.join(DATA_DIR, "tracks"),
     audit_logger=audit_logger
 )
 human_review_gate = HumanReviewGate(
-    db_path=os.path.join(DATA_DIR, "police_records.db"),
+    db_path=os.path.join(DB_DIR, "police_records.db"),
     audit_logger=audit_logger
 )
 
@@ -1249,8 +1252,19 @@ async def seed_investigation_demo_endpoint():
 from app.api.routes_alerts import ACTIVE_ALERTS
 from app.integrations.bsa_evidence import bsa_ledger
 
+def _subject_name(v: Optional[str]) -> str:
+    """Names are optional; unnamed subjects get a short placeholder so records stay distinguishable."""
+    v = (v or "").strip()
+    return v or f"Unnamed subject {uuid.uuid4().hex[:6].upper()}"
+
+
 class SuspectIntakePayload(BaseModel):
-    name: str
+    name: Optional[str] = Field(default="", validate_default=True)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def _fill_name(cls, v):
+        return _subject_name(v)
     alias: Optional[str] = ""
     fir_no: str
     police_station: Optional[str] = "PS-KAKINADA-CENTRAL"
@@ -1283,148 +1297,41 @@ class OfficerConfirmPayload(BaseModel):
     officer_badge: str
     notes: Optional[str] = ""
 
-# Connected CCTV Master Registry Table (77 Cameras)
-MASTER_CONNECTED_CAMERAS: Dict[int, Dict[str, Any]] = {
-    1: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Thadithota-1", "lat": 16.9984582, "lon": 81.7795421, "ip": "10.243.0.1", "from": "Stadium Road", "towards": "Towards shelton hotel side"},
-    4: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Thadithota-2", "lat": 16.9985399, "lon": 81.7801136, "ip": "10.243.0.4", "from": "Shelton Center", "towards": "Towards stadium road"},
-    7: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Thadithota-3", "lat": 16.9989963, "lon": 81.7798519, "ip": "10.243.0.7", "from": "Muggupeta", "towards": "Towards thadithota center (T Junction )"},
-    11: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Muggupeta Centre-1", "lat": 17.0050299, "lon": 81.7798762, "ip": "10.243.0.11", "from": "Azad chowk", "towards": "Seelamnookaraju JN, Gorakshana peta"},
-    14: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Muggupeta Centre-2", "lat": 17.0051656, "lon": 81.7802129, "ip": "10.243.0.14", "from": "Nandamganiraju JN", "towards": "Towards Thadithota center"},
-    17: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Muggupeta Centre-3", "lat": 17.004609, "lon": 81.7805149, "ip": "10.243.0.17", "from": "Seelamnookaraju JN, Gorakshana peta", "towards": "Azad Chowk"},
-    20: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Muggupeta Centre-4", "lat": 17.0046617, "lon": 81.7801916, "ip": "10.243.0.20", "from": "Thadithota center", "towards": "Nandamganiraju JN"},
-    23: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Azad Chowk-1", "lat": 17.0067927, "lon": 81.7755929, "ip": "10.243.0.23", "from": "Nandamganiraju JN", "towards": "Jandapanja Road"},
-    26: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Azad Chowk-2", "lat": 17.0070435, "lon": 81.7761807, "ip": "10.243.0.26", "from": "Devi Chowk", "towards": "Muggupeta center"},
-    29: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Azad Chowk-3", "lat": 17.0065256, "lon": 81.7756155, "ip": "10.243.0.29", "from": "Jandapanja Road", "towards": "Jampeta Gandhi bomma center, Nandamganiraju JN"},
-    32: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Azad Chowk-4", "lat": 17.0063626, "lon": 81.7756158, "ip": "10.243.0.32", "from": "Muggupeta Center", "towards": "Devi Chowk"},
-    35: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Nandam Ganiraju Junction-1", "lat": 17.0076458, "lon": 81.7793395, "ip": "10.243.0.35", "from": "Y Junction", "towards": "Azad Chowk"},
-    38: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Nandam Ganiraju Junction-2", "lat": 17.0098123, "lon": 81.7792678, "ip": "10.243.0.38", "from": "Kambala cheruvu Center", "towards": "TTD Road ,Muggupeta center"},
-    41: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Nandam Ganiraju Junction-3", "lat": 17.0092333, "lon": 81.779275, "ip": "10.243.0.41", "from": "Azad Chowk", "towards": "Y Junction"},
-    44: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Nandam Ganiraju Junction-4", "lat": 17.0093167, "lon": 81.779927, "ip": "10.243.0.44", "from": "Muggupeta Center", "towards": "Kambala tank"},
-    47: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Y-Junction-1", "lat": 17.0130646, "lon": 81.7831149, "ip": "10.243.0.47", "from": "Central Jail Road", "towards": "Nandamganiraju JN ( L ), Kambalatank ( R )"},
-    50: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Y-Junction-2", "lat": 17.0124141, "lon": 81.7833041, "ip": "10.243.0.50", "from": "Nandamganiraju JN", "towards": "Central Central jail Road, Lalacheruvu"},
-    53: {"ps": "1 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Y-Junction-3", "lat": 17.0127364, "lon": 81.7829764, "ip": "10.243.0.53", "from": "Kambalacheruvu", "towards": "Central Jail road, Ats college Lalacheruvu"},
-    64: {"ps": "2 town", "subdiv": "South Zone", "type": "RLVD", "location": "Kotipalli Bus Stand 1", "lat": 16.9936706, "lon": 81.7760878, "ip": "10.243.0.64", "from": "Syamala center", "towards": "Railway Station"},
-    67: {"ps": "2 town", "subdiv": "South Zone", "type": "RLVD", "location": "Kotipalli Bus Stand 2", "lat": 16.9929025, "lon": 81.7764273, "ip": "10.243.0.67", "from": "Railway Station", "towards": "Syamala Center"},
-    74: {"ps": "2 town", "subdiv": "South Zone", "type": "RLVD", "location": "Syamala Centre-1", "lat": 16.9947089, "lon": 81.7752166, "ip": "10.243.0.74", "from": "Kotipalli Bus Stand Center", "towards": "Deluxe center"},
-    77: {"ps": "2 town", "subdiv": "South Zone", "type": "RLVD", "location": "Syamala Centre-2", "lat": 16.995167, "lon": 81.7752528, "ip": "10.243.0.77", "from": "Stadium Road", "towards": "Godavari Bund Road"},
-    80: {"ps": "2 town", "subdiv": "South Zone", "type": "RLVD", "location": "Syamala Centre-3", "lat": 16.9952558, "lon": 81.7748038, "ip": "10.243.0.80", "from": "Deluxe center", "towards": "Kotipalli bus stand"},
-    93: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Quarry Centre-1", "lat": 17.0318758, "lon": 81.7876268, "ip": "10.243.0.93", "from": "Chiranjeevi Bus Stand", "towards": "Korukonda road"},
-    96: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Quarry Centre-2", "lat": 17.0319775, "lon": 81.788576, "ip": "10.243.0.96", "from": "Y.S.R.Statue Centre (lalacheruvu)", "towards": "Anand nagar SBI ATM"},
-    99: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Quarry Centre-3", "lat": 17.0325095, "lon": 81.788439, "ip": "10.243.0.99", "from": "Korukonda road", "towards": "Brethren church, Chiranjeevi bus stand"},
-    115: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Y.S.R.Statue Centre-1 (lalacheruvu)", "lat": 17.0260073, "lon": 81.8046729, "ip": "10.243.0.115", "from": "Quarry Center", "towards": "Lalacheruvu service road (jagan Biriyani)"},
-    118: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Y.S.R.Statue Centre-2 (lalacheruvu)", "lat": 17.025672, "lon": 81.8043241, "ip": "10.243.0.118", "from": "Central Jail Road", "towards": "Visakhapatnam National side"},
-    121: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Y.S.R.Statue Centre-3 (lalacheruvu)", "lat": 17.0258436, "lon": 81.8051439, "ip": "10.243.0.121", "from": "Hiway To", "towards": "Central Jail Road"},
-    124: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Kambal Tank-1", "lat": 17.0114212, "lon": 81.7786058, "ip": "10.243.0.124", "from": "Kambalacheruvu Hi tech bus stand", "towards": "Devi Chowk"},
-    127: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Kambal Tank-2", "lat": 17.0116835, "lon": 81.778576, "ip": "10.243.0.127", "from": "Chiranjeevi bus stand", "towards": "Nandamganiraju JN"},
-    130: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Kambal Tank-3", "lat": 17.0111998, "lon": 81.7777169, "ip": "10.243.0.130", "from": "Devi chowk", "towards": "Kambalacheruvu Hi tech bus stand"},
-    133: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Kambal Tank-4", "lat": 17.0110117, "lon": 81.7784652, "ip": "10.243.0.133", "from": "Nandam gani raju JN", "towards": "Chiranjeevi bus stand"},
-    136: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Devi Chowk-1", "lat": 17.0099485, "lon": 81.7753894, "ip": "10.243.0.136", "from": "", "towards": "Towards Azad chowk (rainbow colour lab )"},
-    139: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Devi Chowk-2", "lat": 17.00942, "lon": 81.7751107, "ip": "10.243.0.139", "from": "", "towards": "Towards"},
-    142: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Devi Chowk-3", "lat": 17.0101798, "lon": 81.7757994, "ip": "10.243.0.142", "from": "", "towards": "Towards rainbow colour lab"},
-    145: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Devi Chowk-4", "lat": 17.0099032, "lon": 81.7755765, "ip": "10.243.0.145", "from": "Gokavaram Bus Stand", "towards": "Kambala cheruvu"},
-    149: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Opp.3 Town Police Station-1", "lat": 17.0096824, "lon": 81.770026, "ip": "10.243.0.149", "from": "Ghandi Statue center, Aryapuram Road", "towards": "Towards 3 town PS, Pushkar Ghat"},
-    150: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Opp.3 Town Police Station-2", "lat": 17.0094509, "lon": 81.7701661, "ip": "10.243.0.150", "from": "Gokavaram Bus Stand", "towards": "Court, Pushkar Ghat"},
-    151: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Opp.3 Town Police Station-3", "lat": 17.0092361, "lon": 81.7695216, "ip": "10.243.0.151", "from": "Pushkara Ghat", "towards": "Aryapuram, Devi Chowk"},
-    158: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Vivekananda Statue-1", "lat": 17.013952, "lon": 81.776433, "ip": "10.243.0.158", "from": "Kambala cheruvu Center", "towards": "Paper mill road"},
-    161: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Vivekananda Statue-2", "lat": 17.0143084, "lon": 81.7793595, "ip": "10.243.0.161", "from": "Hi tech Bus Stand", "towards": "Kambala cheevu center"},
-    164: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Vivekananda Statue-3", "lat": 17.014867, "lon": 81.779383, "ip": "10.243.0.164", "from": "Quarry Center", "towards": "Kambalacheruvu, Hi tech bus stand"},
-    167: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "Vivekananda Statue-4", "lat": 17.0149651, "lon": 81.7792557, "ip": "10.243.0.167", "from": "Paper mill road", "towards": "Chiranjeevi Bus stand, Kambalacheruvu"},
-    182: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "CTRI Junction-1", "lat": 17.0201428, "lon": 81.7943355, "ip": "10.243.0.182", "from": "Lalacheruvu Center", "towards": "Central Jail Road"},
-    185: {"ps": "3 town", "subdiv": "Central Zone", "type": "RLVD", "location": "CTRI Junction-2", "lat": 17.0198069, "lon": 81.7936358, "ip": "10.243.0.185", "from": "Y Junction", "towards": "Lalacheruvu center"},
-    198: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Bommuru Centre-1", "lat": 16.9696959, "lon": 81.7981421, "ip": "10.243.0.198", "from": "Ravulapalem", "towards": "Visakhapatnam"},
-    201: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Bommuru Centre-2", "lat": 16.9704621, "lon": 81.7979407, "ip": "10.243.0.201", "from": "Visakhapatnam", "towards": "Ravulapalem"},
-    204: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Bommuru Centre-3", "lat": 16.970373, "lon": 81.79794, "ip": "10.243.0.204", "from": "", "towards": "Bommuru Center Hiway"},
-    207: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Hukumpeta-1", "lat": 16.985162, "lon": 81.797158, "ip": "10.243.1.1", "from": "", "towards": "National Highway"},
-    210: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Morampudi Centre-1", "lat": 16.9864049, "lon": 81.8014055, "ip": "10.243.1.4", "from": "RTC Complex", "towards": "Namavaram"},
-    215: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Zero point", "lat": 16.9939688, "lon": 81.8020736, "ip": "10.243.1.9", "from": "", "towards": ""},
-    218: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Lalacheruvu Centre-1", "lat": 17.0263747, "lon": 81.8073832, "ip": "10.243.1.12", "from": "Visakhapatnam", "towards": "Ravulapalem"},
-    221: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Lalacheruvu Centre-2", "lat": 17.0256082, "lon": 81.8059746, "ip": "10.243.1.15", "from": "Ravulapalem", "towards": "Visakhapatnam"},
-    230: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "D.T.C.-1", "lat": 17.018683, "lon": 81.806255, "ip": "10.243.1.24", "from": "", "towards": ""},
-    233: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "D.T.C.-2", "lat": 17.019158, "lon": 81.80651, "ip": "10.243.1.27", "from": "Visakhapatnam", "towards": "Ravulapalem"},
-    236: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "D.T.C.-3", "lat": 17.018545, "lon": 81.806633, "ip": "10.243.1.30", "from": "", "towards": ""},
-    239: {"ps": "2 town", "subdiv": "South Zone", "type": "RLVD", "location": "Electrical Sub Station PV narasimha Park", "lat": 16.997559, "lon": 81.769416, "ip": "10.243.1.33", "from": "", "towards": "Towards Electrical Office"},
-    253: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Shelton Centre-1", "lat": 16.9991717, "lon": 81.784907, "ip": "10.243.1.47", "from": "Shelton Hotel", "towards": "Towards KIMS Hospital"},
-    256: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Shelton Centre-2", "lat": 16.9994082, "lon": 81.7851241, "ip": "10.243.1.50", "from": "RTC Complex", "towards": "Thadithota center"},
-    259: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Shelton Centre-3", "lat": 16.999811, "lon": 81.784997, "ip": "10.243.1.53", "from": "Seelamnookaraju Jn", "towards": "Towards shelton hotel"},
-    262: {"ps": "Bommuru", "subdiv": "South Zone", "type": "RLVD", "location": "Shelton Centre-4", "lat": 16.999393, "lon": 81.784518, "ip": "10.243.1.56", "from": "Thadi thota Center", "towards": "Towards RTC Complex"},
-    285: {"ps": "kadiyam", "subdiv": "South Zone", "type": "RLVD", "location": "Vemagiri Junction-1", "lat": 16.929126, "lon": 81.792914, "ip": "10.243.1.79", "from": "Dowlaiswaram", "towards": "Towards Kadiyam"},
-    288: {"ps": "kadiyam", "subdiv": "South Zone", "type": "RLVD", "location": "Vemagiri Junction-2", "lat": 16.928193, "lon": 81.793347, "ip": "10.243.1.82", "from": "visakhapatnam", "towards": "Towards Ravulapalem"},
-    291: {"ps": "kadiyam", "subdiv": "South Zone", "type": "RLVD", "location": "Vemagiri Junction-3", "lat": 16.927794, "lon": 81.793566, "ip": "10.243.1.85", "from": "Kadiyam", "towards": "Towards Dowlaiswaram"},
-    311: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "J.N. Road Junction-1", "lat": 17.0077986, "lon": 81.8095104, "ip": "10.243.1.105", "from": "", "towards": "Towards JN Road Opp"},
-    314: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "J.N. Road Junction-2", "lat": 17.007624, "lon": 81.8100297, "ip": "10.243.1.108", "from": "Ravulapalem", "towards": "Towards Visakhapatnam"},
-    317: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "J.N. Road Junction-3", "lat": 17.0083198, "lon": 81.8100038, "ip": "10.243.1.111", "from": "Visakhapatnam", "towards": "Towards Ravulapalem"},
-    331: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "Ramalayam Centre-1", "lat": 17.0077186, "lon": 81.7918657, "ip": "10.243.1.125", "from": "Jagruthi Road", "towards": "Towards AVA Road @ JN Road"},
-    334: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "Ramalayam Centre-2", "lat": 17.0075976, "lon": 81.7923634, "ip": "10.243.1.128", "from": "Old Somalamma Temple", "towards": "Towards Opp Relaince Trends TTD Road"},
-    337: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "Ramalayam Centre-3", "lat": 17.0077246, "lon": 81.7925503, "ip": "10.243.1.131", "from": "JN Road", "towards": "Towards Jagruthi Road, Mugdha Shoppingmall"},
-    340: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "Ramalayam Centre-4", "lat": 17.0080553, "lon": 81.7925186, "ip": "10.243.1.134", "from": "AVA Road", "towards": "Towards Jagruthi Road, Keerthi Gift shop"},
-    347: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "VL Puram Junction -1", "lat": 17.0065143, "lon": 81.7940664, "ip": "10.243.1.141", "from": "RTC Complex", "towards": "Towards Morampudi center"},
-    350: {"ps": "Prakash nagar", "subdiv": "Central Zone", "type": "RLVD", "location": "VL Puram Junction -2", "lat": 17.0062347, "lon": 81.7946798, "ip": "10.243.1.144", "from": "Morampudi Center", "towards": "Towards RTC Complex"},
-    406: {"ps": "Kovvur Town", "subdiv": "Kovvuru sub division", "type": "RLVD", "location": "Merakaveedhi Towards Godavarimata Statue-1", "lat": 17.0225282, "lon": 81.7286091, "ip": "10.244.7.15", "from": "Kovvuru", "towards": "Towards Dommeru road"},
-    409: {"ps": "Kovvur Town", "subdiv": "Kovvuru sub division", "type": "RLVD", "location": "Merakaveedhi Towards Godavarimata Statue-2", "lat": 17.0223309, "lon": 81.7283371, "ip": "10.244.7.16", "from": "Kovvuru Bus Stand", "towards": "Towards Kovvuru main road"},
-    412: {"ps": "Kovvur Town", "subdiv": "Kovvuru sub division", "type": "RLVD", "location": "Merakaveedhi Towards Godavarimata Statue-3", "lat": 17.0224943, "lon": 81.7277394, "ip": "10.244.7.17", "from": "Dommeru", "towards": "Towards RCRB Rajamahendravaram"}
-}
+# District CCTV registry: the 544 cameras of the police camera matrix sheet, named from the sheet
+# (location, with type and IP appended where several cameras share a location).
+CAMERA_INVENTORY_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                     "config", "camera_inventory.json")
 
-# 600-Camera District CCTV Grid Registry Builder
-def build_600_cctv_registry() -> List[Dict[str, Any]]:
-    """Build full 600-camera district CCTV matrix for Command Center grid."""
-    sectors_pool = [
-        ("Hospital", "East Zone", ["Government Hospital South Wing", "Medical College Campus", "Sub-Jail Road", "Suryaraopeta Junction", "Jagannaickpur Bridge", "Daba Gardens Corridor", "Trauma Care Ingress"]),
-        ("Pushkaralu", "Pushkaralu Ghats Zone", ["Pushkar Main Ghat", "Saraswati Ghat Stairs", "VIP Ghat Corridor", "Kotilingala Temple Point", "Ramakrishna Ghat Pier", "Feeder Line Ingress", "Riverfront Promenade", "Ghat Holding Bay"]),
-        ("Rjy", "Central Division", ["District Collectorate", "Municipal Corporation Plaza", "RTC Central Complex", "Main Market Bazaar", "Clock Tower Square", "Cinema Road Junction", "Bhanugudi Square"]),
-        ("Port", "South Port Zone", ["Deep Water Port Berth", "Fertilizer City Gate", "Coromandel Junction", "Beach Bypass Checkpost", "Fisheries Harbor Gate", "Naval Coastal Corridor", "Canal Lock Checkpoint"]),
-        ("Sector4", "North Division", ["Sector 4 Outer Gate", "Ring Road North Terminal", "Smart City Command Hub", "JNTU Engineering Perimeter", "Nagaram Checkpoint", "Atchampeta Overpass", "Sarpavaram Corridor"]),
-    ]
 
+def build_cctv_registry() -> List[Dict[str, Any]]:
+    """Camera list for the Command Center grid, one entry per sheet row, IDs CAM-<serial>."""
+    with open(CAMERA_INVENTORY_PATH, encoding="utf-8") as f:
+        rows = json.load(f)
+    from collections import Counter
+    counts = Counter(r["location"] for r in rows)
     registry: List[Dict[str, Any]] = []
-
-    for i in range(1, 601):
-        cid = f"CAM-{i:03d}"
-        if i in MASTER_CONNECTED_CAMERAS:
-            info = MASTER_CONNECTED_CAMERAS[i]
-            ps_label = info["ps"]
-            ps_station = f"{ps_label} Police Station" if not ps_label.endswith("Station") and not ps_label.endswith("PS") and not ps_label.endswith("Town") else ps_label
-            cam_dict = {
-                "camera_id": cid,
-                "name": info["location"],
-                "location": f"{ps_label} - {info['location']}",
-                "sector": info["subdiv"],
-                "subdivision": info["subdiv"],
-                "police_station": ps_station,
-                "latitude": info["lat"],
-                "longitude": info["lon"],
-                "ip_address": info["ip"],
-                "fromwords": info["from"],
-                "towards": info["towards"],
-                "camera_type": info["type"],
-                "rtmp": f"rtsp://{info['ip']}:554/stream0",
-                "status": "ACTIVE",
-                "fps": 25,
-                "is_main": (i == 1)
-            }
-        else:
-            s_idx = (i - 1) % len(sectors_pool)
-            sector_name, subdiv, locations = sectors_pool[s_idx]
-            loc_name = locations[(i - 1) % len(locations)]
-            sector_num = ((i - 1) // len(sectors_pool)) + 1
-            cam_dict = {
-                "camera_id": cid,
-                "name": f"CAM {i}",
-                "location": f"{loc_name} Sec-{sector_num}",
-                "sector": sector_name,
-                "subdivision": subdiv,
-                "police_station": f"{subdiv} Station",
-                "latitude": round(16.9900 + (i * 0.0005) % 0.05, 6),
-                "longitude": round(81.7800 + (i * 0.0007) % 0.06, 6),
-                "ip_address": f"10.243.{(i // 256)}.{i % 256}",
-                "fromwords": "",
-                "towards": "",
-                "camera_type": "Fixed Surveillance",
-                "rtmp": f"rtmp://publish.police.gov.in:1935/live/cam{i}",
-                "status": "ACTIVE",
-                "fps": 25,
-                "is_main": False
-            }
-        registry.append(cam_dict)
+    for r in rows:
+        ps = r["ps"]
+        name = r["location"] if counts[r["location"]] == 1 else \
+            f"{r['location']} · {r['type']} · {'.'.join(r['ip'].split('.')[-2:])}"
+        registry.append({
+            "camera_id": f"CAM-{r['serial']:03d}",
+            "name": name,
+            "location": f"{ps} - {name}",
+            "sector": r["subdivision"],
+            "subdivision": r["subdivision"],
+            "police_station": ps,
+            "latitude": r["lat"] or 0.0,
+            "longitude": r["lon"] or 0.0,
+            "ip_address": r["ip"],
+            "fromwords": r["from"],
+            "towards": r["towards"],
+            "camera_type": r["type"],
+            "rtmp": f"rtsp://{r['ip']}:554/stream0",
+            "status": "ACTIVE",
+            "fps": 25,
+            "is_main": r["serial"] == 1,
+        })
 
     # Check ICSee Camera Environment Variable
     icsee_ip = os.getenv("ICSEE_CAMERA_IP", "").strip().strip("'\"")
@@ -1479,7 +1386,7 @@ def build_600_cctv_registry() -> List[Dict[str, Any]]:
 
     return registry
 
-CCTV_CAMERAS_REGISTRY = build_600_cctv_registry()
+CCTV_CAMERAS_REGISTRY = build_cctv_registry()
 
 class ICSeeCameraConnectPayload(BaseModel):
     camera_id: Optional[str] = "CAM-001"
@@ -1852,69 +1759,114 @@ async def list_cctv_cameras(
 
 GLOBAL_COUNTING_MODE = "counting"
 
+def _dashboard_camera(idx: int, cam: Dict[str, Any]) -> Dict[str, Any]:
+    """Dashboard tile payload for registry entry `cam` (idx = its position in the registry)."""
+    cam_id = cam["camera_id"]
+    is_main = cam.get("is_main", False) or cam_id == "CAM-001"
+    people_count = 14 if is_main else max(2, (idx * 7) % 29 + 3)
+    pressure = 12.5 if is_main else float((idx * 11) % 45 + 5)
+    risk_index = 8.0 if is_main else float((idx * 9) % 55 + 4)
+    comp_zone = "SAFE" if risk_index < 30 else ("WATCH" if risk_index < 60 else "DANGER")
+
+    return {
+        "id": cam_id,
+        "name": cam["name"],
+        "location": cam["location"],
+        "category": "CCTV",
+        "sector": cam.get("sector", "Central Zone"),
+        "subdivision": cam.get("subdivision", "Central Zone"),
+        "police_station": cam.get("police_station", "1 town"),
+        "fromwords": cam.get("fromwords", ""),
+        "towards": cam.get("towards", ""),
+        "camera_type": cam.get("camera_type", "RLVD"),
+        "source_stream_path": f"live/cctv{idx+1}",
+        "stream_path": f"analyzed/cctv{idx+1}",
+        "playback_stream_path": f"live/cctv{idx+1}",
+        "status": "online",
+        "source_online": True,
+        "output_online": True,
+        "enabled": True,
+        "analytics_status": "active",
+        "people_count": people_count,
+        "comp_zone": comp_zone,
+        "pressure": pressure,
+        "stampede_prob": round(risk_index / 100.0, 2),
+        "risk_index": risk_index,
+        "risk_level": comp_zone,
+        "confidence": 0.98,
+        "motion_speed": round(1.2 + (idx % 4) * 0.3, 1),
+        "turbulence": round(0.10 + (idx % 3) * 0.08, 2),
+        "connection_message": "Stream active",
+        "publish_url": cam.get("rtmp", f"rtmp://publish.police.gov.in:1935/live/cctv{idx+1}"),
+        "compliance_zone": comp_zone,
+        "active_alert": "SUSPICIOUS_LOITERING" if (idx % 19 == 0 and not is_main) else ("PERIMETER_PROWLING" if idx % 27 == 0 else "NORMAL"),
+        "resolution": "1920x1080",
+        "fps": 25,
+        "ai_fps": 24.8,
+        "rtsp_url": cam.get("rtmp", f"rtsp://{cam.get('ip_address', '10.243.0.1')}:554/stream0"),
+        "ip_address": cam.get("ip_address", "10.243.0.1"),
+        "is_main": is_main,
+        "forecast": {
+            "status": "active",
+            "accuracy_percent": round(93.5 + (idx % 5), 1),
+            "target_accuracy_percent": 90.0,
+            "validation_samples": 40 + idx * 3,
+            "horizons": [
+                {"minutes": 5, "pax": people_count + 2, "trusted": True, "accuracy_percent": 95.2},
+                {"minutes": 10, "pax": people_count + 5, "trusted": True, "accuracy_percent": 94.1},
+                {"minutes": 15, "pax": people_count + 1, "trusted": True, "accuracy_percent": 92.8}
+            ]
+        }
+    }
+
+
+_GRID_FILTERS = {
+    "Pushkaralu": ("Pushkaralu", "Ghat"), "Rjy": ("Rjy", "Railway", "RTC"), "Hospital": ("Hospital",),
+    "Port": ("Port",), "Sector4": ("Sector", "Transit"),
+}
+MAX_GRID_PAGE = 48
+
+
+def _grid_match(cam: Dict[str, Any], flt: str, q: str) -> bool:
+    if flt in _GRID_FILTERS:
+        loc = cam.get("location", "")
+        if not (any(k in loc for k in _GRID_FILTERS[flt]) or cam.get("sector") == flt):
+            return False
+    if q:
+        hay = " ".join(str(cam.get(k, "")) for k in
+                       ("camera_id", "name", "location", "sector", "subdivision", "police_station", "ip_address"))
+        if q not in hay.lower():
+            return False
+    return True
+
+
 @app.get("/cameras")
 async def get_dashboard_cameras():
-    """Endpoint consumed by the official Command Center Lite Dashboard."""
-    cameras = []
-    for idx, cam in enumerate(CCTV_CAMERAS_REGISTRY):
-        cam_id = cam["camera_id"]
-        is_main = cam.get("is_main", False) or cam_id == "CAM-001"
-        people_count = 14 if is_main else max(2, (idx * 7) % 29 + 3)
-        pressure = 12.5 if is_main else float((idx * 11) % 45 + 5)
-        risk_index = 8.0 if is_main else float((idx * 9) % 55 + 4)
-        comp_zone = "SAFE" if risk_index < 30 else ("WATCH" if risk_index < 60 else "DANGER")
+    """Full list, kept for existing consumers. The grid uses /cameras/page instead."""
+    return [_dashboard_camera(i, c) for i, c in enumerate(CCTV_CAMERAS_REGISTRY)]
 
-        cameras.append({
-            "id": cam_id,
-            "name": cam["name"],
-            "location": cam["location"],
-            "category": "CCTV",
-            "sector": cam.get("sector", "Central Zone"),
-            "subdivision": cam.get("subdivision", "Central Zone"),
-            "police_station": cam.get("police_station", "1 town"),
-            "fromwords": cam.get("fromwords", ""),
-            "towards": cam.get("towards", ""),
-            "camera_type": cam.get("camera_type", "RLVD"),
-            "source_stream_path": f"live/cctv{idx+1}",
-            "stream_path": f"analyzed/cctv{idx+1}",
-            "playback_stream_path": f"live/cctv{idx+1}",
-            "status": "online",
-            "source_online": True,
-            "output_online": True,
-            "enabled": True,
-            "analytics_status": "active",
-            "people_count": people_count,
-            "comp_zone": comp_zone,
-            "pressure": pressure,
-            "stampede_prob": round(risk_index / 100.0, 2),
-            "risk_index": risk_index,
-            "risk_level": comp_zone,
-            "confidence": 0.98,
-            "motion_speed": round(1.2 + (idx % 4) * 0.3, 1),
-            "turbulence": round(0.10 + (idx % 3) * 0.08, 2),
-            "connection_message": "Stream active",
-            "publish_url": cam.get("rtmp", f"rtmp://publish.police.gov.in:1935/live/cctv{idx+1}"),
-            "compliance_zone": comp_zone,
-            "active_alert": "SUSPICIOUS_LOITERING" if (idx % 19 == 0 and not is_main) else ("PERIMETER_PROWLING" if idx % 27 == 0 else "NORMAL"),
-            "resolution": "1920x1080",
-            "fps": 25,
-            "ai_fps": 24.8,
-            "rtsp_url": cam.get("rtmp", f"rtsp://{cam.get('ip_address', '10.243.0.1')}:554/stream0"),
-            "ip_address": cam.get("ip_address", "10.243.0.1"),
-            "is_main": is_main,
-            "forecast": {
-                "status": "active",
-                "accuracy_percent": round(93.5 + (idx % 5), 1),
-                "target_accuracy_percent": 90.0,
-                "validation_samples": 40 + idx * 3,
-                "horizons": [
-                    {"minutes": 5, "pax": people_count + 2, "trusted": True, "accuracy_percent": 95.2},
-                    {"minutes": 10, "pax": people_count + 5, "trusted": True, "accuracy_percent": 94.1},
-                    {"minutes": 15, "pax": people_count + 1, "trusted": True, "accuracy_percent": 92.8}
-                ]
-            }
-        })
-    return cameras
+
+@app.get("/cameras/page")
+async def get_dashboard_cameras_page(page: int = 1, page_size: int = 24, q: str = "", filter: str = "All"):
+    """One page of grid tiles. Only the requested slice is built, and page_size is capped."""
+    page_size = max(1, min(page_size, MAX_GRID_PAGE))
+    q = q.strip().lower()
+    matches = [(i, c) for i, c in enumerate(CCTV_CAMERAS_REGISTRY) if _grid_match(c, filter, q)]
+    total = len(matches)
+    pages = max(1, -(-total // page_size))
+    page = max(1, min(page, pages))
+    chunk = matches[(page - 1) * page_size: page * page_size]
+    return {"total": total, "fleet_total": len(CCTV_CAMERAS_REGISTRY), "page": page, "pages": pages,
+            "page_size": page_size, "items": [_dashboard_camera(i, c) for i, c in chunk]}
+
+
+@app.get("/cameras/index")
+async def get_dashboard_camera_index():
+    """Id/name directory for pickers (no streams, no analytics)."""
+    return [{"id": c["camera_id"], "name": c["name"], "location": c["location"],
+             "sector": c.get("sector", ""), "subdivision": c.get("subdivision", ""),
+             "ip": c.get("ip_address", "")}
+            for c in CCTV_CAMERAS_REGISTRY]
 
 @app.get("/get_mode")
 async def get_mode():
@@ -1963,34 +1915,13 @@ async def get_notifications():
             "zoomed_cam_url": alert.get("zoomed_cam_url") or f"/api/camera/{alert.get('camera_id', 'CAM-001')}/zoomed_frame",
             "face_crop_url": alert.get("face_crop_url"),
             "full_frame_url": alert.get("full_frame_url"),
+            "video_clip_url": alert.get("video_clip_url"),
             "face_bbox": alert.get("face_bbox"),
             "body_bbox": alert.get("body_bbox"),
             "probe_photo": alert.get("probe_photo", "/frontend/assets/placeholder.jpg"),
             "scores": alert.get("scores", {}),
             "biometric_comparison": alert.get("biometric_comparison", {}),
             "is_target_match": bool(alert.get("is_target_match", False))
-        })
-    if not notifs:
-        notifs.append({
-            "id": "ALT-SYS-01",
-            "camera_id": "CAM-001",
-            "camera_name": "CAM 1",
-            "location": "District Hospital North Wing",
-            "timestamp": time.time(),
-            "time_str": time.strftime("%H:%M:%S"),
-            "severity": "INFO",
-            "message": "AP Police CCTV Neural Perception Stack operating normally across all 16 cameras.",
-            "confidence": 0.0,
-            "confidence_percent": 0.0,
-            "risk_index": 5.0,
-            "tier": "SYSTEM",
-            "status": "ACTIVE",
-            "is_target_match": False,
-            "raw_detection_crop": "/frontend/assets/placeholder.jpg",
-            "enhanced_detection_crop": "/frontend/assets/placeholder.jpg",
-            "probe_photo": "/frontend/assets/placeholder.jpg",
-            "scores": {},
-            "biometric_comparison": {}
         })
     return notifs
 
@@ -2176,6 +2107,19 @@ async def register_suspect_intake(payload: SuspectIntakePayload):
         }
     }
 
+def _file_sha256(path: Optional[str]) -> Optional[str]:
+    """SHA-256 of a stored crop/frame, or None when there is no such file (never a made-up value)."""
+    import hashlib
+    if not path:
+        return None
+    local = path.lstrip("/")
+    for cand in (path, local, os.path.join(BASE_DIR, local)):
+        if os.path.isfile(cand):
+            with open(cand, "rb") as f:
+                return hashlib.sha256(f.read()).hexdigest()
+    return None
+
+
 @app.post("/api/suspect/search_live")
 async def execute_live_suspect_search(payload: LiveSearchPayload):
     """Rigorous live search across all CCTV camera feeds matching against the suspect."""
@@ -2188,12 +2132,7 @@ async def execute_live_suspect_search(payload: LiveSearchPayload):
                 suspect = s
                 break
     if not suspect:
-        all_s = gallery.get_all()
-        if all_s:
-            suspect = all_s[0]
-
-    if not suspect:
-        raise HTTPException(status_code=404, detail="Suspect profile not found.")
+        raise HTTPException(status_code=404, detail="Suspect profile not found. Enroll the suspect first and search for them by id.")
 
     min_conf = payload.min_confidence if payload.min_confidence is not None else 0.45
 
@@ -2257,8 +2196,8 @@ async def execute_live_suspect_search(payload: LiveSearchPayload):
                 "enhanced_probe_photo": suspect.enhanced_photo_url or suspect.photo_url or "/frontend/assets/placeholder.jpg",
                 "raw_detection_crop": trk_frame_path or "/frontend/assets/placeholder.jpg",
                 "enhanced_detection_crop": enhanced_crop_url,
-                "raw_frame_hash": "a4f891b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abc",
-                "enhanced_crop_hash": "cb9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedc"
+                "raw_frame_hash": _file_sha256(trk_frame_path),
+                "enhanced_crop_hash": _file_sha256(enhanced_crop_url)
             }
             # Add to live alerts list
             ACTIVE_ALERTS.insert(0, alert_entry)
@@ -2318,17 +2257,7 @@ async def confirm_officer_alert(payload: OfficerConfirmPayload):
     """Human-in-the-Loop (HITL) confirmation gate: officer verifies suspect match and dispatches field units."""
     alert = next((a for a in ACTIVE_ALERTS if a.get("alert_id") == payload.alert_id), None)
     if not alert:
-        # Create on the fly if test alert
-        alert = {
-            "alert_id": payload.alert_id,
-            "camera_id": "CAM-001",
-            "fir_no": "FIR-2026-AP-0194",
-            "ps_code": "PS-KAKINADA-CENTRAL",
-            "bns_sections": "BNS Section 303(2)",
-            "raw_frame_hash": "a4f891b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abc",
-            "enhanced_crop_hash": "cb9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedc"
-        }
-        ACTIVE_ALERTS.insert(0, alert)
+        raise HTTPException(status_code=404, detail=f"Alert {payload.alert_id} not found.")
 
     if payload.decision == "CONFIRMED_MATCH":
         decision_status = "CONFIRMED_DISPATCH"
@@ -2383,7 +2312,12 @@ async def confirm_officer_alert(payload: OfficerConfirmPayload):
 # ==================== LIVE FACE WATCH & AUTO-CAPTURE ENDPOINTS ====================
 
 class TargetFaceEnrollPayload(BaseModel):
-    name: str
+    name: Optional[str] = Field(default="", validate_default=True)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def _fill_name(cls, v):
+        return _subject_name(v)
     image_base64: Optional[str] = None
     image_path: Optional[str] = None
     target_id: Optional[str] = None
@@ -2427,7 +2361,7 @@ async def enroll_target_face_api(payload: TargetFaceEnrollPayload):
 @app.post("/api/watchlist/enroll-video")
 async def enroll_target_video_api(
     video_file: UploadFile = File(...),
-    name: str = Form(...),
+    name: Optional[str] = Form(""),
     fir_no: Optional[str] = Form(""),
     notes: Optional[str] = Form(""),
     max_frames: int = Form(150),
@@ -2438,6 +2372,7 @@ async def enroll_target_video_api(
     from app.pipeline.video_target_processor import VideoTargetProcessor
     from app.vision.face_watch import live_face_watcher
 
+    name = _subject_name(name)
     os.makedirs("data/samples", exist_ok=True)
     clean_name = "".join(c for c in video_file.filename if c.isalnum() or c in "._-")
     temp_filename = f"upload_{int(time.time())}_{clean_name}"

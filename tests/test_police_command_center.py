@@ -115,6 +115,11 @@ def test_live_cross_camera_search_face_occluded(client):
 
 def test_officer_confirmation_and_bsa_certificate(client):
     """Test Human-in-the-Loop (HITL) officer confirmation gate and Section 63 BSA certificate."""
+    from app.api.routes_alerts import ACTIVE_ALERTS
+    seeded = {"alert_id": "ALT-2026-TEST-9988", "incident_id": "INC-TEST", "camera_id": "CAM-001", "fir_no": "FIR-TEST",
+                             "ps_code": "PS-TEST", "bns_sections": "BNS 303(2)",
+                             "raw_frame_hash": "a" * 64, "enhanced_crop_hash": "b" * 64}
+    ACTIVE_ALERTS.insert(0, seeded)
     payload = {
         "alert_id": "ALT-2026-TEST-9988",
         "decision": "CONFIRMED_MATCH",
@@ -130,6 +135,7 @@ def test_officer_confirmation_and_bsa_certificate(client):
     assert data["decision"] == "CONFIRMED_DISPATCH"
     assert "certificate_digest" in data
     assert len(data["certificate_digest"]) > 10
+    ACTIVE_ALERTS.remove(seeded)          # leave no alert behind for other tests
 
 
 def test_super_resolution_enhancement_endpoint(client):

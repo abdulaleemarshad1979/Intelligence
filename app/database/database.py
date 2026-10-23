@@ -4,7 +4,8 @@ import sqlite3
 import os
 from typing import Optional
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "police_records.db")
+DB_DIR = os.environ.get("CCTV_DB_DIR") or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
+DB_PATH = os.path.join(DB_DIR, "police_records.db")
 
 def get_db_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
     target_path = db_path or DB_PATH

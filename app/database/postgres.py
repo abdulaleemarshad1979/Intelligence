@@ -30,7 +30,7 @@ class PostgresWatchlistDB:
         self.is_connected = False
         self.psycopg2 = None
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        self.sqlite_path = os.path.join(base_dir, "data", "watchlist_sqlite.db")
+        self.sqlite_path = os.path.join(os.environ.get("CCTV_DB_DIR") or os.path.join(base_dir, "data"), "watchlist_sqlite.db")
         os.makedirs(os.path.dirname(self.sqlite_path), exist_ok=True)
         self._init_sqlite_tables()
         self._init_connection()

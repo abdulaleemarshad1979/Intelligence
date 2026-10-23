@@ -35,26 +35,29 @@ def test_600_camera_topology_generation():
 
 
 def test_cctv_registry_scale_in_api(client):
-    """Verify that CCTV_CAMERAS_REGISTRY has 600 cameras and API endpoints return them."""
-    assert len(CCTV_CAMERAS_REGISTRY) >= 600
+    """CCTV_CAMERAS_REGISTRY is the 544-camera sheet, named from it, with unique IDs, IPs and names."""
+    assert len(CCTV_CAMERAS_REGISTRY) == 544
     assert CCTV_CAMERAS_REGISTRY[0]["camera_id"] == "CAM-001"
-    assert CCTV_CAMERAS_REGISTRY[599]["camera_id"] == "CAM-600"
+    assert CCTV_CAMERAS_REGISTRY[-1]["camera_id"] == "CAM-544"
+    assert CCTV_CAMERAS_REGISTRY[0]["name"] == "Thadithota-1"
+    for key in ("camera_id", "ip_address", "name"):
+        assert len({c[key] for c in CCTV_CAMERAS_REGISTRY}) == 544, key
 
     # 1. Test /api/cctv/cameras
     res = client.get("/api/cctv/cameras")
     assert res.status_code == 200
     data = res.json()
     assert data["status"] == "SUCCESS"
-    assert data["total"] >= 600
-    assert len(data["cameras"]) >= 600
+    assert data["total"] == 544
+    assert len(data["cameras"]) == 544
 
-    # Test filtering by sector
-    res_hosp = client.get("/api/cctv/cameras?sector=Hospital")
-    assert res_hosp.status_code == 200
-    data_hosp = res_hosp.json()
-    assert data_hosp["total"] > 0
-    for c in data_hosp["cameras"]:
-        assert c["sector"] == "Hospital"
+    # Test filtering by sector (sub-division from the sheet)
+    res_zone = client.get("/api/cctv/cameras?sector=Central Zone")
+    assert res_zone.status_code == 200
+    data_zone = res_zone.json()
+    assert 0 < data_zone["total"] < 544
+    for c in data_zone["cameras"]:
+        assert c["sector"] == "Central Zone"
 
     # Test pagination
     res_page = client.get("/api/cctv/cameras?limit=24&offset=0")
@@ -63,13 +66,13 @@ def test_cctv_registry_scale_in_api(client):
 
 
 def test_cameras_dashboard_endpoint_600(client):
-    """Verify that /cameras returns 600 stream configs for the Command Center dashboard."""
+    """Verify that /cameras returns a stream config per sheet camera for the Command Center dashboard."""
     res = client.get("/cameras")
     assert res.status_code == 200
     cams = res.json()
-    assert len(cams) >= 600
+    assert len(cams) == 544
     assert cams[0]["id"] == "CAM-001"
-    assert cams[599]["id"] == "CAM-600"
+    assert cams[-1]["id"] == "CAM-544"
     assert cams[0]["status"] == "online"
 
 
@@ -189,6 +192,6 @@ def test_fleet_status_telemetry(client):
     assert res.status_code == 200
     data = res.json()
     assert data["total_slots"] == 600
-    assert data["total_registered"] >= 600
+    assert data["total_registered"] == 544
     assert "running_workers" in data
 

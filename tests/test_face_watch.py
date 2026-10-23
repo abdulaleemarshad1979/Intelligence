@@ -205,3 +205,30 @@ def test_api_enroll_video_endpoint(tmp_path):
     assert "gait_kinematics" in res_data["results"]
     assert res_data["results"]["exo_skeleton"]["frames_extracted"] >= 0
     assert "model_training_dataset" in res_data["results"]
+
+
+def test_match_saves_image_and_video_clip_and_no_target_saves_nothing(temp_watcher, tmp_path):
+    face_img = create_synthetic_face_image()
+    scene = np.full((360, 640, 3), 30, dtype=np.uint8)
+    scene[100:240, 200:320] = face_img
+    captures = tmp_path / "captures"
+
+    # No enrolled target: frames are ignored, nothing is buffered or written.
+    for i in range(10):
+        assert temp_watcher.process_frame(scene, camera_id="CAM-007", frame_id=i) == []
+    assert os.listdir(captures) == []
+
+    temp_watcher.enroll_target_face(image_input=face_img, name="Target Gamma", target_id="TGT-GAMMA", threshold=0.45)
+    temp_watcher.cooldown_sec = 60.0
+    temp_watcher.clips.post = 0.5
+    matches = []
+    t0 = time.time()
+    for i in range(12):                                   # a short stretch of live frames with the person in view
+        matches += temp_watcher.process_frame(scene, camera_id="CAM-007", frame_id=100 + i)
+        time.sleep(0.1)
+    assert len(matches) == 1
+    temp_watcher.clips.flush()
+    cap = temp_watcher.get_captures()[0]
+    assert os.path.isfile(cap["full_frame_path"]) and os.path.isfile(cap["face_crop_path"])
+    assert cap["video_clip_url"].startswith("/data/captures/clip_CAM-007_") and os.path.isfile(cap["video_clip_path"])
+    assert len(cap["video_clip_hash"]) == 64 and cap["video_clip_duration_s"] > 0
