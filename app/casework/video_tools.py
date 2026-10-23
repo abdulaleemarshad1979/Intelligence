@@ -4,8 +4,9 @@ Timestamps come from the stored per-frame presentation times, not from frame_num
 so variable-frame-rate footage is labelled with the moment it was actually shown.
 """
 
+import json
 import subprocess
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, Iterator, List, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -19,22 +20,49 @@ def _ffmpeg(args: List[str], timeout: int = 3600) -> None:
         raise ValueError(f"ffmpeg failed: {r.stderr.strip()[:300]}")
 
 
-def read_frames(path: str, indices: Sequence[int]) -> Dict[int, np.ndarray]:
-    """Decode the requested frame indices (decode order == presentation order for these clips)."""
-    wanted, out = sorted(set(indices)), {}
-    cap = cv2.VideoCapture(path)
+def _display_size(path: str) -> Tuple[int, int]:
+    """Width/height as ffmpeg will output them (swapped for 90/270 degree rotation metadata)."""
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                        "stream=width,height:stream_side_data=rotation", "-of", "json", path],
+                       capture_output=True, text=True, timeout=120)
+    st = (json.loads(r.stdout or "{}").get("streams") or [{}])[0]
+    w, h = int(st["width"]), int(st["height"])
+    rot = next((abs(int(float(d["rotation"]))) for d in st.get("side_data_list", []) if "rotation" in d), 0)
+    return (h, w) if rot % 180 == 90 else (w, h)
+
+
+def iter_frames(path: str) -> Iterator[Tuple[int, np.ndarray]]:
+    """Every decoded frame in presentation order, one per stored timestamp (no duplication or dropping).
+
+    Decoded by ffmpeg directly rather than cv2.VideoCapture: the app sets global low-latency
+    OPENCV_FFMPEG_CAPTURE_OPTIONS for RTSP, which makes OpenCV drop frames from local files."""
+    w, h = _display_size(path)
+    proc = subprocess.Popen(["ffmpeg", "-v", "error", "-i", path, "-an", "-fps_mode", "passthrough",
+                             "-f", "rawvideo", "-pix_fmt", "bgr24", "-"],
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    size, n = w * h * 3, 0
     try:
-        n = 0
-        while wanted and cap.isOpened():
-            ok, frame = cap.read()
-            if not ok:
+        while True:
+            buf = proc.stdout.read(size)
+            if len(buf) < size:
                 break
-            if n == wanted[0]:
-                out[n] = frame
-                wanted.pop(0)
+            yield n, np.frombuffer(buf, np.uint8).reshape(h, w, 3).copy()
             n += 1
     finally:
-        cap.release()
+        proc.stdout.close()
+        proc.kill()
+        proc.wait()
+
+
+def read_frames(path: str, indices: Sequence[int]) -> Dict[int, np.ndarray]:
+    """Decode the requested frame indices."""
+    wanted, out = sorted(set(indices)), {}
+    for n, frame in iter_frames(path):
+        if not wanted:
+            break
+        if n == wanted[0]:
+            out[n] = frame
+            wanted.pop(0)
     if wanted:
         raise ValueError(f"Video has no frame(s) {wanted}")
     return out

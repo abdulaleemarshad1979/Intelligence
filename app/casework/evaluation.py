@@ -82,6 +82,7 @@ def sface_trials(references: Dict[str, str], clips: List[Dict[str, Any]], models
     """
     import os
     import cv2
+    from app.casework.video_tools import iter_frames
     det = cv2.FaceDetectorYN.create(os.path.join(models_dir, "face_detection_yunet_2023mar.onnx"), "", (320, 320), 0.6)
     rec = cv2.FaceRecognizerSF.create(os.path.join(models_dir, "face_recognition_sface_2021dec.onnx"), "")
 
@@ -100,13 +101,8 @@ def sface_trials(references: Dict[str, str], clips: List[Dict[str, Any]], models
         ref_emb[person] = e
     trials: List[Trial] = []
     for clip in clips:
-        cap, n = cv2.VideoCapture(clip["path"]), 0
-        while True:
-            ok, frame = cap.read()
-            if not ok:
-                break
-            n += 1
-            if n % stride:
+        for n, frame in iter_frames(clip["path"]):
+            if (n + 1) % stride:
                 continue
             e = embed(frame)
             if e is None:
@@ -114,5 +110,4 @@ def sface_trials(references: Dict[str, str], clips: List[Dict[str, Any]], models
             for person, re_ in ref_emb.items():
                 trials.append(Trial(float(rec.match(re_, e, cv2.FaceRecognizerSF_FR_COSINE)),
                                     person == clip["person"], clip.get("condition", "all")))
-        cap.release()
     return trials

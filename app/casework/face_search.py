@@ -16,6 +16,8 @@ from typing import Any, Callable, Dict, List, Optional, Protocol, Sequence, Tupl
 import cv2
 import numpy as np
 
+from app.casework.video_tools import iter_frames
+
 logger = logging.getLogger(__name__)
 
 MAX_LIVE_CAMERAS = 20
@@ -102,23 +104,19 @@ def scan_video(matcher: Matcher, ref_emb: np.ndarray, path: str, pts: List[float
             wanted.add(i)
             last_t = t
     hits: List[Dict[str, Any]] = []
-    cap, n, scanned = cv2.VideoCapture(path), 0, 0
-    try:
-        while cap.isOpened() and not should_stop():
-            ok, frame = cap.read()
-            if not ok:
-                break
-            if n in wanted:
-                scanned += 1
-                h = best_hit(matcher, ref_emb, frame)
-                if h and h[0] >= threshold:
-                    hits.append({"frame_no": n, "time_s": pts[n] if n < len(pts) else n / 30.0, "score": h[0], "box": h[1]})
-                if scanned % 20 == 0:
-                    on_progress(20)
-            n += 1
-        on_progress(scanned % 20)
-    finally:
-        cap.release()
+    scanned = 0
+    for n, frame in iter_frames(path):
+        if should_stop():
+            break
+        if n not in wanted:
+            continue
+        scanned += 1
+        h = best_hit(matcher, ref_emb, frame)
+        if h and h[0] >= threshold:
+            hits.append({"frame_no": n, "time_s": pts[n] if n < len(pts) else n / 30.0, "score": h[0], "box": h[1]})
+        if scanned % 20 == 0:
+            on_progress(20)
+    on_progress(scanned % 20)
     merged: List[Dict[str, Any]] = []
     for h in hits:
         if merged and h["time_s"] - merged[-1]["time_s"] <= 2.0:
