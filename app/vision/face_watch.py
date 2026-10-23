@@ -21,6 +21,7 @@ import numpy as np
 
 from app.vision.face_engine import FaceBiometricEngine
 from app.vision.vector_search import FaceVectorIndex, face_vector_index
+from app.vision.clip_recorder import ClipRecorder
 from app.integrations.notifications import notification_dispatcher
 from app.database.postgres import postgres_db
 
@@ -54,6 +55,8 @@ class LiveFaceWatcher:
         self.sync_db = sync_db
 
         self.engine = FaceBiometricEngine()
+        # Video clip (a few seconds either side) saved with each confirmed live match
+        self.clips = ClipRecorder(self.storage_dir, on_finished=self._on_clip_finished)
         self.vector_index = vector_index if vector_index is not None else FaceVectorIndex()
 
         # In-memory target registry: target_id -> target_data
@@ -235,6 +238,7 @@ class LiveFaceWatcher:
         h, w = frame.shape[:2]
         matches = []
         now = time.time()
+        self.clips.push(camera_id, frame, now)   # rolling pre-roll buffer; only runs while a target is enrolled
 
         # Run high-speed YuNet neural face detection directly on the full frame
         frame_faces = self.engine.detect_faces(frame)
@@ -380,6 +384,7 @@ class LiveFaceWatcher:
                         capture_event["is_target_match"] = True
                         self.captures.insert(0, capture_event)
                         self._dispatch_to_active_alerts(capture_event)
+                        self.clips.start(camera_id, capture_event["alert_id"], now)
                         matches.append(capture_event)
                     elif include_cooldown:
                         # Return continuous live match for video HUD overlay only when requested
@@ -624,6 +629,22 @@ class LiveFaceWatcher:
 
         return capture_rec
 
+    def _on_clip_finished(self, clip: Dict[str, Any]) -> None:
+        """Attach the finished clip to the capture records and alerts it belongs to."""
+        ids = set(clip["alert_ids"])
+        fields = {"video_clip_url": clip["url"], "video_clip_path": clip["path"],
+                  "video_clip_hash": clip["sha256"], "video_clip_duration_s": clip["duration_s"]}
+        for cap in self.captures:
+            if cap.get("alert_id") in ids:
+                cap.update(fields)
+        try:
+            from app.api.routes_alerts import ACTIVE_ALERTS
+            for alert in ACTIVE_ALERTS:
+                if alert.get("alert_id") in ids:
+                    alert.update(fields)
+        except Exception as ex:
+            logger.debug(f"Clip attach note: {ex}")
+
     def _dispatch_to_active_alerts(self, capture_event: Dict[str, Any]):
         """Inject into ACTIVE_ALERTS store and broadcast via Multi-Channel Dispatcher."""
         try:
@@ -750,6 +771,7 @@ class LiveFaceWatcher:
         return self.captures[:limit]
 
     def clear_targets(self):
+        self.clips.flush()
         self.targets.clear()
         self.vector_index.clear()
         self._last_capture_times.clear()

@@ -1579,12 +1579,6 @@
           <span>🔍 Search Live Feeds</span>
         </button>
 
-        <!-- Multi-Camera Target Person Search Button -->
-        <button id="btn-target-search" onclick="openTargetSearchModal()" class="csv-btn" style="background: linear-gradient(135deg, #0284c7 0%, #4338ca 100%); color:#ffffff; border:1px solid #38bdf8; cursor:pointer; font-weight:800; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);" title="Multi-Camera Target Person Search across CCTV feeds">
-          <span>🎯 Target Search</span>
-          <span id="targetSearchActiveBadge" class="hidden" style="background:#ef4444; color:#fff; font-size:9px; padding:2px 6px; border-radius:9999px; margin-left:4px;">ACTIVE</span>
-        </button>
-
         <!-- Zoom Captures Evidence Button -->
         <button id="btn-captures-gallery" onclick="toggleCapturesGalleryModal()" class="csv-btn" style="background:#b91c1c; color:#ffffff; border-color:#dc2626; cursor:pointer;" title="View all automatic high-resolution camera zoom pictures taken of the suspect">
           <span>📸 Zoom Captures (<span id="autoCaptureCountBadge">0</span>)</span>
@@ -3272,7 +3266,7 @@
             <div style="display: flex; flex-direction: column; gap: 2px;">
               <span style="font-size: 11px; font-weight: 800; color: #0f172a;">📸 Suspect Picture Captured</span>
               <span style="font-size: 10px; color: #0284c7; font-weight: 700;">Match Confidence: ${notif.confidence_percent}%</span>
-              <span style="font-size: 9px; color: #64748b;">SHA-256 Hash Verified</span>
+              ${notif.video_clip_url ? `<a href="${notif.video_clip_url}" target="_blank" rel="noopener" style="font-size: 10px; color: #0369a1; font-weight: 800;">🎥 Watch video clip</a>` : `<span style="font-size: 9px; color: #64748b;">Video clip recording…</span>`}
             </div>
           </div>
         ` : ''}
@@ -3302,7 +3296,7 @@
         listEl.innerHTML = `
           <div style="text-align: center; color: #64748b; padding: 50px 16px; font-size: 13px;">
             <div style="font-size: 32px; margin-bottom: 10px;">✅</div>
-            No active target alerts detected.<br>All 16 CCTV surveillance feeds are clear.
+            No target alerts.
           </div>
         `;
         return;
@@ -3358,6 +3352,13 @@
         </div>
       `;}).join("");
     }
+
+    window.clearAllNotifications = async function() {
+      if (!confirm("Clear all alerts?")) return;
+      try { await fetch("/api/notifications/clear", { method: "POST" }); } catch (e) { console.error(e); }
+      knownNotifIds = new Set();
+      await pollNotifications();
+    };
 
     async function pollNotifications() {
       try {
@@ -4933,7 +4934,9 @@
     <!-- Drawer Toolbar -->
     <div style="padding: 12px 20px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; background: #f8fafc; font-size: 12px;">
       <span style="color: #64748b; font-weight: 700;">Live Feed Detections</span>
-      <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #475569;">
+      <div style="display: flex; align-items: center; gap: 12px; font-weight: 600; color: #475569;">
+        <button type="button" onclick="clearAllNotifications()" title="Remove every alert from this list"
+                style="background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; border-radius: 6px; padding: 4px 10px; font-size: 11.5px; font-weight: 800; cursor: pointer;">Clear all</button>
         <input type="checkbox" id="chk-audio-alert" checked style="accent-color: #e11d48; cursor: pointer;">
         <label for="chk-audio-alert" style="cursor: pointer;">Sound Alarm</label>
       </div>
@@ -4942,7 +4945,7 @@
     <!-- Drawer Content / Alert Cards List -->
     <div id="notif-list" style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
       <div style="text-align: center; color: #64748b; padding: 40px 16px; font-size: 13px;">
-        No active target alerts detected. All 16 CCTV surveillance feeds are clear.
+        No target alerts.
       </div>
     </div>
   </aside>

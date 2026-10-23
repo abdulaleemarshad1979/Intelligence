@@ -169,6 +169,7 @@ matcher = CandidateMatcher(gallery, repo)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
+DB_DIR = os.environ.get("CCTV_DB_DIR") or DATA_DIR   # tests point this at a temp dir so they never touch real records
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
 # Mount static directories
@@ -229,14 +230,14 @@ cross_camera_tracker = CrossCameraTracker(camera_configs)
 behavior_analyzer = CCTVBehaviorAnalyzer()
 
 # Initialize Police Compliance Suite
-audit_logger = AuditLogger(os.path.join(DATA_DIR, "police_records.db"))
+audit_logger = AuditLogger(os.path.join(DB_DIR, "police_records.db"))
 retention_engine = BiometricRetentionEngine(
-    db_path=os.path.join(DATA_DIR, "police_records.db"),
+    db_path=os.path.join(DB_DIR, "police_records.db"),
     tracks_dir=os.path.join(DATA_DIR, "tracks"),
     audit_logger=audit_logger
 )
 human_review_gate = HumanReviewGate(
-    db_path=os.path.join(DATA_DIR, "police_records.db"),
+    db_path=os.path.join(DB_DIR, "police_records.db"),
     audit_logger=audit_logger
 )
 
@@ -1914,34 +1915,13 @@ async def get_notifications():
             "zoomed_cam_url": alert.get("zoomed_cam_url") or f"/api/camera/{alert.get('camera_id', 'CAM-001')}/zoomed_frame",
             "face_crop_url": alert.get("face_crop_url"),
             "full_frame_url": alert.get("full_frame_url"),
+            "video_clip_url": alert.get("video_clip_url"),
             "face_bbox": alert.get("face_bbox"),
             "body_bbox": alert.get("body_bbox"),
             "probe_photo": alert.get("probe_photo", "/frontend/assets/placeholder.jpg"),
             "scores": alert.get("scores", {}),
             "biometric_comparison": alert.get("biometric_comparison", {}),
             "is_target_match": bool(alert.get("is_target_match", False))
-        })
-    if not notifs:
-        notifs.append({
-            "id": "ALT-SYS-01",
-            "camera_id": "CAM-001",
-            "camera_name": "CAM 1",
-            "location": "District Hospital North Wing",
-            "timestamp": time.time(),
-            "time_str": time.strftime("%H:%M:%S"),
-            "severity": "INFO",
-            "message": "AP Police CCTV Neural Perception Stack operating normally across all 16 cameras.",
-            "confidence": 0.0,
-            "confidence_percent": 0.0,
-            "risk_index": 5.0,
-            "tier": "SYSTEM",
-            "status": "ACTIVE",
-            "is_target_match": False,
-            "raw_detection_crop": "/frontend/assets/placeholder.jpg",
-            "enhanced_detection_crop": "/frontend/assets/placeholder.jpg",
-            "probe_photo": "/frontend/assets/placeholder.jpg",
-            "scores": {},
-            "biometric_comparison": {}
         })
     return notifs
 
@@ -2127,6 +2107,19 @@ async def register_suspect_intake(payload: SuspectIntakePayload):
         }
     }
 
+def _file_sha256(path: Optional[str]) -> Optional[str]:
+    """SHA-256 of a stored crop/frame, or None when there is no such file (never a made-up value)."""
+    import hashlib
+    if not path:
+        return None
+    local = path.lstrip("/")
+    for cand in (path, local, os.path.join(BASE_DIR, local)):
+        if os.path.isfile(cand):
+            with open(cand, "rb") as f:
+                return hashlib.sha256(f.read()).hexdigest()
+    return None
+
+
 @app.post("/api/suspect/search_live")
 async def execute_live_suspect_search(payload: LiveSearchPayload):
     """Rigorous live search across all CCTV camera feeds matching against the suspect."""
@@ -2139,12 +2132,7 @@ async def execute_live_suspect_search(payload: LiveSearchPayload):
                 suspect = s
                 break
     if not suspect:
-        all_s = gallery.get_all()
-        if all_s:
-            suspect = all_s[0]
-
-    if not suspect:
-        raise HTTPException(status_code=404, detail="Suspect profile not found.")
+        raise HTTPException(status_code=404, detail="Suspect profile not found. Enroll the suspect first and search for them by id.")
 
     min_conf = payload.min_confidence if payload.min_confidence is not None else 0.45
 
@@ -2208,8 +2196,8 @@ async def execute_live_suspect_search(payload: LiveSearchPayload):
                 "enhanced_probe_photo": suspect.enhanced_photo_url or suspect.photo_url or "/frontend/assets/placeholder.jpg",
                 "raw_detection_crop": trk_frame_path or "/frontend/assets/placeholder.jpg",
                 "enhanced_detection_crop": enhanced_crop_url,
-                "raw_frame_hash": "a4f891b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abc",
-                "enhanced_crop_hash": "cb9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedc"
+                "raw_frame_hash": _file_sha256(trk_frame_path),
+                "enhanced_crop_hash": _file_sha256(enhanced_crop_url)
             }
             # Add to live alerts list
             ACTIVE_ALERTS.insert(0, alert_entry)
@@ -2269,17 +2257,7 @@ async def confirm_officer_alert(payload: OfficerConfirmPayload):
     """Human-in-the-Loop (HITL) confirmation gate: officer verifies suspect match and dispatches field units."""
     alert = next((a for a in ACTIVE_ALERTS if a.get("alert_id") == payload.alert_id), None)
     if not alert:
-        # Create on the fly if test alert
-        alert = {
-            "alert_id": payload.alert_id,
-            "camera_id": "CAM-001",
-            "fir_no": "FIR-2026-AP-0194",
-            "ps_code": "PS-KAKINADA-CENTRAL",
-            "bns_sections": "BNS Section 303(2)",
-            "raw_frame_hash": "a4f891b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abc",
-            "enhanced_crop_hash": "cb9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedc"
-        }
-        ACTIVE_ALERTS.insert(0, alert)
+        raise HTTPException(status_code=404, detail=f"Alert {payload.alert_id} not found.")
 
     if payload.decision == "CONFIRMED_MATCH":
         decision_status = "CONFIRMED_DISPATCH"
