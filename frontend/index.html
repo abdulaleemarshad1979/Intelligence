@@ -1544,13 +1544,8 @@
     <!-- Navigation & Filter Control Bar -->
     <div class="nav-control-bar">
       <div class="filter-group">
-        <button class="pill active" data-filter="All" id="btn-all-streams">All Streams (600)</button>
+        <button class="pill active" data-filter="All" id="btn-all-streams">All Streams</button>
         <button class="pill" data-filter="Active">Active Feeds</button>
-        <button class="pill" data-filter="Pushkaralu">Pushkaralu Ghats</button>
-        <button class="pill" data-filter="Rjy">Rjy Central</button>
-        <button class="pill" data-filter="Hospital">Hospital Corridor</button>
-        <button class="pill" data-filter="Port">Port Area</button>
-        <button class="pill" data-filter="Sector4">Sector 4 Plaza</button>
       </div>
 
       <div class="nav-right-group">
@@ -1572,11 +1567,6 @@
         <!-- Watchlist Targets List Button -->
         <button onclick="openWatchlistModal()" class="csv-btn" style="background:#0f766e; color:#ffffff; border-color:#0d9488; cursor:pointer;" title="View Enrolled Suspect Faces & Targets in Watchlist">
           <span>👥 Watchlist (<span id="watchlistCountBadge">0</span>)</span>
-        </button>
-
-        <!-- Connect ICSee IP Camera Button -->
-        <button onclick="openICSeeCamModal()" class="csv-btn" style="background:#059669; color:#ffffff; border-color:#10b981; cursor:pointer;" title="Connect Real ICSee / RTSP IP Cameras across the 600-Camera Fleet">
-          <span>📹 Add / Connect IP Cam</span>
         </button>
 
         <!-- Connect Matrix CCTV Camera Button -->
@@ -1623,7 +1613,7 @@
     </div>
   </div>
 
-  <!-- 600-Camera Fleet Search & Pagination Bar -->
+  <!-- Camera Fleet Search & Pagination Bar -->
   <div style="max-width: 1400px; margin: 10px auto; padding: 10px 16px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
     <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 300px;">
       <span style="font-weight: 800; color: #0284c7; font-size: 13px;">🔍 Fleet Filter:</span>
@@ -1633,7 +1623,7 @@
         oninput="handleCamSearch(this.value)" />
     </div>
     <div style="display: flex; align-items: center; gap: 14px;">
-      <span id="fleetPagingLabel" style="color: #64748b; font-size: 12px; font-weight: 700;">Showing 1–24 of 600 Streams</span>
+      <span id="fleetPagingLabel" style="color: #64748b; font-size: 12px; font-weight: 700;">Showing 1–24 Streams</span>
       <div style="display: flex; align-items: center; gap: 6px;">
         <button onclick="changeCamPage(-1)" id="btnPrevPage" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 800; transition: all 0.2s;">◀ Prev</button>
         <span id="currentPageBadge" style="background: #0284c7; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800;">1 / 25</span>
@@ -1820,6 +1810,16 @@
     // Server-side paging: only the visible page of tiles is requested, built and streamed.
     let serverTotal = 0, serverFleet = 0, serverPages = 1;
     let cameraDirectory = [];   // id/name list for pickers, loaded once
+
+    // Hide picker entries that do not match the typed text (name, id, location, IP).
+    window.filterCameraList = function(text, selector) {
+      const q = (text || "").trim().toLowerCase();
+      document.querySelectorAll(selector).forEach(el => {
+        const hay = ((el.textContent || "") + " " + (el.title || "") + " " + (el.dataset.search || "")).toLowerCase();
+        el.hidden = !!q && !hay.includes(q);
+        el.style.display = el.hidden ? "none" : "";
+      });
+    };
 
     function cameraPageUrl() {
       const p = new URLSearchParams({ page: currentPage, page_size: pageSize, q: searchQuery, filter: activeFilter });
@@ -3494,7 +3494,7 @@
         if (btnText) btnText.textContent = "🦴 Extract Exo-Skeleton & Enroll Walking Gait";
         if (btnSubmit) btnSubmit.style.background = "#4f46e5";
         if (headerTitle) headerTitle.textContent = "Enroll Surveillance Video (Exo-Skeleton & Walking Gait)";
-        if (headerSub) headerSub.textContent = "Extracts 17 COCO Keypoints, Walking Cadence & Stride into PostgreSQL/SQLite for GNN Training";
+        if (headerSub) headerSub.textContent = "Saves a walking video for review";
       } else {
         if (tabPhoto) {
           tabPhoto.style.background = "#ffffff";
@@ -3514,10 +3514,10 @@
         if (promptSub) promptSub.textContent = "Supports JPG, PNG, WEBP — Auto 5-Point Alignment & Quality Gated";
         if (fileInput) fileInput.accept = "image/*";
         if (videoConfig) videoConfig.style.display = "none";
-        if (btnText) btnText.textContent = "💾 Save to PostgreSQL & Start Watch";
+        if (btnText) btnText.textContent = "💾 Save Suspect";
         if (btnSubmit) btnSubmit.style.background = "#0284c7";
         if (headerTitle) headerTitle.textContent = "Add Suspect Target Photo";
-        if (headerSub) headerSub.textContent = "Stored directly in PostgreSQL with 512-d Biometric FRS Index";
+        if (headerSub) headerSub.textContent = "Saves the face photo to the watchlist";
       }
     };
 
@@ -3650,11 +3650,6 @@
       const fir = firInput ? firInput.value.trim() : "";
       const notes = notesInput ? notesInput.value.trim() : "";
 
-      if (!name) {
-        alert("Please enter the suspect's name.");
-        return;
-      }
-
       const isVideo = currentIntakeMode === "video" || (selectedIntakeFileObj && (selectedIntakeFileObj.type.startsWith("video/") || /\.(mp4|webm|avi|mov|mkv)$/i.test(selectedIntakeFileObj.name)));
 
       if (isVideo) {
@@ -3754,7 +3749,7 @@
 
         if (btn) {
           btn.disabled = true;
-          btn.innerHTML = "<span>⏳ Saving to PostgreSQL & Extracting 512-d FRS...</span>";
+          btn.innerHTML = "<span>⏳ Saving...</span>";
         }
 
         const controller = new AbortController();
@@ -3812,7 +3807,7 @@
                   <span style="font-size: 11px; opacity: 0.8;">${new Date().toLocaleTimeString()}</span>
                 </div>
                 <div style="font-size: 13.5px; font-weight: 700;">${name} (${data.target.target_id})</div>
-                <div style="font-size: 11.5px; opacity: 0.9;">512-d FRS Biometric Vector Indexed in PostgreSQL • Quality: ${qScore}%</div>
+                <div style="font-size: 11.5px; opacity: 0.9;">Saved to watchlist • Quality: ${qScore}%</div>
                 <div style="font-size: 11px; color: #6ee7b7; font-weight: 600;">Active Live Surveillance: Monitoring across all 16 CCTV feeds</div>
               `;
               container.appendChild(toast);
@@ -3838,7 +3833,7 @@
         } finally {
           if (btn) {
             btn.disabled = false;
-            btn.innerHTML = "<span id='btnSubmitIntakeText'>💾 Save to PostgreSQL & Start Watch</span>";
+            btn.innerHTML = "<span id='btnSubmitIntakeText'>💾 Save Suspect</span>";
           }
         }
       }
@@ -4346,6 +4341,7 @@
           opt.value = c.id;
           const secTag = c.subdivision ? `[${c.subdivision}] ` : (c.sector ? `[${c.sector}] ` : "");
           opt.textContent = `${c.id} — ${secTag}${c.name}`;
+          opt.dataset.search = `${c.ip || ""} ${c.location || ""}`;
           if (c.id === currentVal) opt.selected = true;
           sel.appendChild(opt);
         });
@@ -4993,7 +4989,7 @@
           <span style="font-size: 22px;">👥</span>
           <div>
             <div style="font-size: 15px; font-weight: 800; color: #f8fafc; letter-spacing: -0.01em;">Active Suspect Watchlist (512-d FRS Index)</div>
-            <div style="font-size: 11px; color: #99f6e4; font-weight: 500;">Persistent in PostgreSQL & SQLite • Live Surveillance Matching Across All 16 CCTV Feeds</div>
+            <div style="font-size: 11px; color: #99f6e4; font-weight: 500;">Saved watchlist • Live Surveillance Matching Across All 16 CCTV Feeds</div>
           </div>
         </div>
         <button onclick="closeWatchlistModal()" class="full-view-close-btn" style="width: 30px; height: 30px; font-size: 15px; background: rgba(255,255,255,0.1); border-radius: 50%; color: #fff;">✕</button>
@@ -5033,7 +5029,7 @@
           <span style="font-size: 22px;">🎯</span>
           <div>
             <div id="intakeModalHeaderTitle" style="font-size: 15px; font-weight: 800; color: #f8fafc; letter-spacing: -0.01em;">Suspect Biometric Enrollment</div>
-            <div id="intakeModalHeaderSub" style="font-size: 11px; color: #94a3b8; font-weight: 500;">PostgreSQL & SQLite Biometric Store • 17-Point COCO Exo-Skeleton, Walking Gait & 512-D FRS</div>
+            <div id="intakeModalHeaderSub" style="font-size: 11px; color: #94a3b8; font-weight: 500;">Face photo or walking video</div>
           </div>
         </div>
         <button onclick="closeSuspectIntakeModal()" class="full-view-close-btn" style="width: 30px; height: 30px; font-size: 15px; background: rgba(255,255,255,0.1); border-radius: 50%; color: #fff;">✕</button>
@@ -5056,10 +5052,9 @@
         <!-- Suspect Name & Identifier -->
         <div class="form-group">
           <label class="form-label" style="font-weight: 700; color: #1e293b; font-size: 12.5px; display: flex; justify-content: space-between;">
-            <span>Suspect / Person Name *</span>
-            <span style="font-size: 11px; color: #0284c7; font-weight: 600;">🐘 PostgreSQL Database</span>
+            <span>Suspect / Person Name (optional)</span>
           </label>
-          <input type="text" id="intakeName" class="form-input" required placeholder="e.g. John Doe / Raju alias 'Phantom'" style="font-size: 14px; padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 8px;">
+          <input type="text" id="intakeName" class="form-input" placeholder="Optional - leave blank if unknown" style="font-size: 14px; padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 8px;">
         </div>
 
         <!-- Universal Drag & Drop Media Upload Zone (Images & Videos) -->
@@ -5097,40 +5092,6 @@
           </div>
         </div>
 
-        <!-- Video Exo-Skeleton & Gait Options Section (Only visible in Video mode) -->
-        <div id="videoGaitConfigSection" style="display: none; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px; flex-direction: column; gap: 10px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: 700; font-size: 12px; color: #1e293b; display: flex; align-items: center; gap: 6px;">
-              <span>🦴 17 COCO Exo-Skeleton & Walking Kinematics Config</span>
-            </span>
-            <span style="font-size: 10.5px; background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 9999px; font-weight: 700;">RTMPose Body-7 Engine</span>
-          </div>
-
-          <div class="form-grid-2" style="font-size: 11.5px;">
-            <div class="form-group">
-              <label class="form-label" style="font-size: 11px; color: #475569; font-weight: 600;">Max Video Analysis Window</label>
-              <select id="intakeMaxFrames" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; font-size: 11.5px; color: #1e293b;">
-                <option value="60">60 frames (~2s walking cycle)</option>
-                <option value="150" selected>150 frames (~5s walking cycle - Recommended)</option>
-                <option value="300">300 frames (~10s long walk track)</option>
-              </select>
-            </div>
-            <div class="form-group" style="justify-content: center; gap: 6px;">
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11.5px; color: #334155; font-weight: 600;">
-                <input type="checkbox" id="intakeEnhanceVideo" checked style="accent-color: #0284c7;">
-                <span>✨ Tier-1 CLAHE & Bilateral Enhancer</span>
-              </label>
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11.5px; color: #334155; font-weight: 600;">
-                <input type="checkbox" id="intakeSaveTrainingGnn" checked style="accent-color: #6366f1;">
-                <span>💾 Export GNN Dataset (.npy [T,17,3])</span>
-              </label>
-            </div>
-          </div>
-          <div style="font-size: 10.5px; color: #64748b; line-height: 1.4; background: #ffffff; padding: 8px 10px; border-radius: 6px; border: 1px dashed #cbd5e1;">
-            💡 <strong>Exo-Skeleton Extractor</strong> captures 17 COCO coordinates (head, spine, arms, legs, ankles) per frame with &ge;0.30 confidence gating, computes cadence frequency (steps/s), stride length (cm), and exports ready-to-train tensors for GaitGraph2 / GPGait / ST-GCN.
-          </div>
-        </div>
-
         <!-- Optional FIR / Case ID / Notes -->
         <div class="form-grid-2">
           <div class="form-group">
@@ -5151,7 +5112,7 @@
             <span class="animate-spin" style="display:inline-block;">⚙️</span>
             <span id="intakeProgressMsg">Extracting 17 COCO Exo-Skeleton Keypoints & Walking Dynamics...</span>
           </div>
-          <div style="font-size: 11px; color: #60a5fa; margin-top: 4px;">Running CLAHE enhancer, RTMPose Body-7, and saving biometric index to PostgreSQL/SQLite</div>
+          <div style="font-size: 11px; color: #60a5fa; margin-top: 4px;">Processing and saving</div>
         </div>
 
         <!-- Enrollment Success Summary Box (shown after video or photo enrollment completes) -->
@@ -5195,7 +5156,7 @@
         <div class="police-modal-footer" style="padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; margin-top: 0;">
           <button type="button" onclick="closeSuspectIntakeModal()" class="btn btn--sample" style="padding: 9px 18px; border-radius: 8px;">Cancel</button>
           <button type="submit" class="btn btn--primary" id="btnSubmitIntake" style="padding: 9px 20px; border-radius: 8px; font-weight: 700; background: #0284c7; display: flex; align-items: center; gap: 6px;">
-            <span id="btnSubmitIntakeText">💾 Save to PostgreSQL & Start Watch</span>
+            <span id="btnSubmitIntakeText">💾 Save Suspect</span>
           </button>
         </div>
 
@@ -5424,6 +5385,8 @@
         <div class="form-grid-2">
           <div class="form-group">
             <label class="form-label">Target Camera Slot *</label>
+            <input type="search" id="matrixCamSearch" class="form-input" placeholder="Search by name, location, IP or ID"
+                   oninput="filterCameraList(this.value, '#matrixCamSlot option')" style="background:#ffffff; margin-bottom:6px;">
             <select id="matrixCamSlot" class="form-input" style="background:#ffffff;" required>
               <option value="CAM-001">CAM-001 — [Central Zone] Thadithota-1</option>
               <option value="CAM-004">CAM-004 — [Central Zone] Thadithota-2</option>
@@ -5494,7 +5457,7 @@
           <span style="font-size: 20px;">📹</span>
           <div>
             <div style="font-weight: 800; font-size: 15px; color:#ffffff; letter-spacing:0.3px;">ICSee &amp; RTSP IP Camera Fleet Integration</div>
-            <div style="font-size: 11px; color:#a7f3d0; font-weight:400;">Ready for all 600 cameras &bull; Ultra-low-latency RTSP &bull; Dynamic Web Setup</div>
+            <div style="font-size: 11px; color:#a7f3d0; font-weight:400;">Ready for all cameras &bull; Ultra-low-latency RTSP &bull; Dynamic Web Setup</div>
           </div>
         </div>
         <button onclick="closeICSeeCamModal()" class="full-view-close-btn" style="width: 28px; height: 28px; font-size: 14px;">✕</button>
@@ -5517,7 +5480,7 @@
       <form id="formICSeeCam" onsubmit="handleICSeeCamSubmit(event)" class="police-modal-body" style="padding:16px 20px;">
         <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #065f46; margin-bottom: 14px; display:flex; justify-content:space-between; align-items:center;">
           <div>
-            <strong>Direct Low-Latency RTSP Pipeline:</strong> Dynamic stream mapping for any camera slot across the 600-camera fleet matrix.
+            <strong>Direct Low-Latency RTSP Pipeline:</strong> Dynamic stream mapping for any camera slot across the camera fleet.
           </div>
           <span id="icseeFleetBadge" style="background:#065f46; color:#ecfdf5; font-size:10px; font-weight:700; padding:2px 8px; border-radius:12px; white-space:nowrap;">600 Cameras Online</span>
         </div>
@@ -5781,6 +5744,8 @@
                   <span>Select All (*)</span>
                 </label>
               </div>
+              <input type="search" id="tsCamSearch" placeholder="Search cameras by name, location, IP or ID" oninput="filterCameraList(this.value, '#tsCamerasChecklist label')"
+                     style="width: 100%; box-sizing: border-box; margin-bottom: 6px; background: #0b1120; border: 1px solid #334155; color: #f8fafc; border-radius: 6px; padding: 6px 10px; font-size: 11px; outline: none;">
               <div id="tsCamerasChecklist" style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 120px; overflow-y: auto; background: #0b1120; border: 1px solid #1e293b; border-radius: 6px; padding: 8px;">
                 <label style="font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px;"><input type="checkbox" class="ts-cam-cb" value="CAM-001" checked> CAM-001</label>
                 <label style="font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px;"><input type="checkbox" class="ts-cam-cb" value="CAM-002" checked> CAM-002</label>
@@ -6128,7 +6093,7 @@
           const isChecked = hasExisting ? (existingChecked.has(c.id) || (existingChecked.size === 0 && idx < 8)) : (idx < 8);
           const lbl = document.createElement('label');
           lbl.style.cssText = 'font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;';
-          lbl.title = `${c.id}: ${c.name} (${c.location || ''})`;
+          lbl.title = `${c.id}: ${c.name} (${c.location || ''}) ${c.ip || ''}`;
           lbl.innerHTML = `<input type="checkbox" class="ts-cam-cb" value="${c.id}" ${isChecked ? 'checked' : ''}> <span>${c.id} - ${c.name}</span>`;
           checklist.appendChild(lbl);
         });
