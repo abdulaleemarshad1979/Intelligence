@@ -50,3 +50,6 @@ data/police_records.db
 .pytest_cache/
 
 
+
+# Case evidence media (originals, derived copies, proxies)
+data/casework/*
