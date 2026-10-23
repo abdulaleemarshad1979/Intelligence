@@ -118,6 +118,27 @@ CREATE TABLE IF NOT EXISTS cw_annotations (
 );
 CREATE INDEX IF NOT EXISTS idx_cw_annot_media ON cw_annotations (media_id, kind);
 
+CREATE TABLE IF NOT EXISTS cw_search_jobs (
+    job_id TEXT PRIMARY KEY,
+    case_id TEXT NOT NULL REFERENCES cw_cases (case_id),
+    mode TEXT NOT NULL CHECK (mode IN ('RECORDED', 'LIVE')),
+    reference_media_id TEXT NOT NULL REFERENCES cw_media (media_id),
+    authority_ref TEXT NOT NULL,
+    camera_ids TEXT NOT NULL DEFAULT '[]',
+    clip_media_ids TEXT NOT NULL DEFAULT '[]',
+    threshold REAL NOT NULL,
+    duration_hours REAL,
+    expires_at REAL,
+    status TEXT NOT NULL DEFAULT 'CREATED'
+        CHECK (status IN ('CREATED', 'RUNNING', 'COMPLETED', 'STOPPED', 'EXPIRED', 'CAPPED', 'FAILED')),
+    frames_scanned INTEGER NOT NULL DEFAULT 0,
+    candidates_found INTEGER NOT NULL DEFAULT 0,
+    error TEXT,
+    created_by TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    finished_at REAL
+);
+
 CREATE TABLE IF NOT EXISTS cw_clip_candidates (
     candidate_id TEXT PRIMARY KEY,
     case_id TEXT NOT NULL REFERENCES cw_cases (case_id),
@@ -125,7 +146,12 @@ CREATE TABLE IF NOT EXISTS cw_clip_candidates (
     media_id TEXT REFERENCES cw_media (media_id),
     window_start REAL NOT NULL,
     window_end REAL NOT NULL,
-    origin TEXT NOT NULL CHECK (origin IN ('SPATIOTEMPORAL', 'MANUAL')),
+    origin TEXT NOT NULL CHECK (origin IN ('SPATIOTEMPORAL', 'MANUAL', 'FACE_SEARCH')),
+    job_id TEXT,
+    frame_no INTEGER,
+    frame_time_s REAL,
+    score REAL,
+    snapshot_media_id TEXT REFERENCES cw_media (media_id),
     rationale TEXT NOT NULL DEFAULT '',
     created_by TEXT NOT NULL,
     created_at REAL NOT NULL,
@@ -209,10 +235,20 @@ def connect(db_path: Optional[str] = None) -> sqlite3.Connection:
     return conn
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Dev databases made before face-search candidates existed: rebuild the (empty) queue tables."""
+    row = conn.execute("SELECT sql FROM sqlite_master WHERE name='cw_clip_candidates'").fetchone()
+    if row and "FACE_SEARCH" not in row[0]:
+        if conn.execute("SELECT COUNT(*) FROM cw_clip_candidates").fetchone()[0]:
+            raise RuntimeError("cw_clip_candidates has rows from an older schema; migrate manually")
+        conn.executescript("DROP TABLE cw_review_decisions; DROP TABLE cw_clip_candidates;")
+
+
 def init_casework_db(db_path: Optional[str] = None) -> str:
     path = db_path or CASEWORK_DB_PATH
     conn = connect(path)
     try:
+        _migrate(conn)
         conn.executescript(SCHEMA)
         conn.commit()
     finally:

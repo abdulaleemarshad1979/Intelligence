@@ -8,7 +8,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from app.casework import cameras as cam_inv
-from app.casework import imaging, video_tools
+from app.casework import face_search, imaging, video_tools
 from app.casework import media_store as ms
 from app.casework.schema import connect, init_casework_db
 from app.compliance.audit import AuditLogger
@@ -23,7 +23,13 @@ def _id(prefix: str) -> str:
 
 
 class CaseService:
-    def __init__(self, db_path: Optional[str] = None, media_root: Optional[str] = None):
+    def __init__(self, db_path: Optional[str] = None, media_root: Optional[str] = None,
+                 matcher: Optional[face_search.Matcher] = None, frame_source_factory=None,
+                 live_interval_s: float = 2.0):
+        self._matcher = matcher
+        self._frame_source_factory = frame_source_factory
+        self._live_interval_s = live_interval_s
+        self._runners: Dict[str, face_search.LiveJobRunner] = {}
         self.db_path = init_casework_db(db_path)
         self.store = ms.MediaStore(media_root)
         self.audit = AuditLogger(self.db_path)
@@ -313,7 +319,8 @@ class CaseService:
         self._log(officer, "CLIP_REVIEW_DECISION", candidate_id, {"decision": decision, "reason": reason})
         return did
 
-    def review_queue(self, case_id: str, status: Optional[str] = None) -> List[Dict[str, Any]]:
+    def review_queue(self, case_id: str, status: Optional[str] = None, limit: Optional[int] = None,
+                     offset: int = 0, order: str = "time") -> List[Dict[str, Any]]:
         """Candidates with their latest decision (PENDING if none). History stays in cw_review_decisions."""
         with self._conn() as c:
             rows = c.execute(
@@ -323,7 +330,11 @@ class CaseService:
                 "FROM cw_clip_candidates k JOIN cw_cameras cam USING (camera_id) WHERE k.case_id=? "
                 "ORDER BY k.window_start, k.camera_id", (case_id,)).fetchall()
         out = [dict(r) for r in rows]
-        return [r for r in out if r["status"] == status] if status else out
+        if status:
+            out = [r for r in out if r["status"] == status]
+        if order == "score":
+            out.sort(key=lambda r: -(r["score"] or 0))
+        return out[offset:offset + limit] if limit is not None else out[offset:]
 
     def decision_history(self, candidate_id: str) -> List[Dict[str, Any]]:
         with self._conn() as c:
@@ -449,3 +460,201 @@ class CaseService:
             q += " AND status='ACTIVE'"
         with self._conn() as c:
             return [dict(r) for r in c.execute(q + " ORDER BY subject_label, category, created_at", a)]
+
+    # ------------------------------------------------------------ face-similarity search (leads only)
+    @property
+    def matcher(self) -> face_search.Matcher:
+        if self._matcher is None:
+            self._matcher = face_search.SFaceMatcher()
+        return self._matcher
+
+    def create_search_job(self, officer: OfficerIdentity, case_id: str, *, mode: str,
+                          reference_media_id: str, authority_ref: str,
+                          camera_ids: Optional[List[str]] = None, clip_media_ids: Optional[List[str]] = None,
+                          threshold: float = face_search.DEFAULT_THRESHOLD,
+                          duration_hours: float = face_search.DEFAULT_LIVE_HOURS) -> str:
+        """Register a bounded search. Needs a stated authority, one reference face from this case, and
+        explicit cameras (LIVE, capped, expiring) or explicit footage (RECORDED). Nothing starts yet."""
+        if mode not in ("RECORDED", "LIVE"):
+            raise ValueError("mode must be RECORDED or LIVE")
+        self.get_case(case_id)
+        if len(authority_ref.strip()) < 4:
+            raise ValueError("authority_ref (FIR / court or supervisory order reference) is required")
+        if threshold < face_search.MIN_THRESHOLD:
+            raise ValueError(f"threshold may not be below {face_search.MIN_THRESHOLD}")
+        ref = self.get_media(reference_media_id)
+        if ref["case_id"] != case_id or ref["kind"] != "IMAGE" or ref["role"] == "PROXY":
+            raise ValueError("Reference must be an image belonging to this case")
+        self.verify_media(reference_media_id)
+        face_search.reference_embedding(self.matcher, ref["storage_path"])   # exactly one face, or ValueError
+        camera_ids, clip_media_ids = list(dict.fromkeys(camera_ids or [])), list(dict.fromkeys(clip_media_ids or []))
+        expires = None
+        with self._conn() as c:
+            if mode == "LIVE":
+                if not camera_ids:
+                    raise ValueError("Live search needs an explicit camera list")
+                if len(camera_ids) > face_search.MAX_LIVE_CAMERAS:
+                    raise ValueError(f"Live search is limited to {face_search.MAX_LIVE_CAMERAS} cameras per job")
+                if not 0 < duration_hours <= face_search.MAX_LIVE_HOURS:
+                    raise ValueError(f"duration_hours must be in (0, {face_search.MAX_LIVE_HOURS}]")
+                known = {r[0] for r in c.execute(
+                    f"SELECT camera_id FROM cw_cameras WHERE camera_id IN ({','.join('?' * len(camera_ids))})", camera_ids)}
+                if known != set(camera_ids):
+                    raise ValueError(f"Unknown camera(s): {sorted(set(camera_ids) - known)}")
+            else:
+                if not clip_media_ids:
+                    raise ValueError("Recorded search needs the footage (clip_media_ids) to search")
+                for mid in clip_media_ids:
+                    m = self.get_media(mid)
+                    if m["case_id"] != case_id or m["kind"] != "VIDEO" or m["role"] == "PROXY":
+                        raise ValueError(f"{mid} is not an original/derived video in this case")
+            job_id = _id("JOB")
+            c.execute("INSERT INTO cw_search_jobs (job_id, case_id, mode, reference_media_id, authority_ref, camera_ids, "
+                      "clip_media_ids, threshold, duration_hours, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                      (job_id, case_id, mode, reference_media_id, authority_ref.strip(), json.dumps(camera_ids),
+                       json.dumps(clip_media_ids), threshold,
+                       duration_hours if mode == "LIVE" else None, officer.badge_number, time.time()))
+        self._log(officer, "FACE_SEARCH_JOB_CREATED", job_id,
+                  {"case_id": case_id, "mode": mode, "authority_ref": authority_ref.strip(),
+                   "cameras": camera_ids, "clips": clip_media_ids, "threshold": threshold,
+                   "duration_hours": duration_hours if mode == "LIVE" else None})
+        return job_id
+
+    def get_job(self, job_id: str) -> Dict[str, Any]:
+        with self._conn() as c:
+            row = c.execute("SELECT * FROM cw_search_jobs WHERE job_id=?", (job_id,)).fetchone()
+        if not row:
+            raise KeyError(job_id)
+        d = dict(row)
+        d["camera_ids"], d["clip_media_ids"] = json.loads(d["camera_ids"]), json.loads(d["clip_media_ids"])
+        return d
+
+    def list_jobs(self, case_id: str) -> List[Dict[str, Any]]:
+        with self._conn() as c:
+            ids = [r[0] for r in c.execute("SELECT job_id FROM cw_search_jobs WHERE case_id=? ORDER BY created_at DESC", (case_id,))]
+        return [self.get_job(i) for i in ids]
+
+    def _job_update(self, job_id: str, **cols) -> None:
+        sets = ", ".join(f"{k}=?" for k in cols)
+        with self._conn() as c:
+            c.execute(f"UPDATE cw_search_jobs SET {sets} WHERE job_id=?", list(cols.values()) + [job_id])
+
+    def _job_cap_reached(self, job_id: str) -> bool:
+        return self.get_job(job_id)["candidates_found"] >= face_search.MAX_CANDIDATES_PER_JOB
+
+    def _add_face_candidate(self, job: Dict[str, Any], camera_id: str, media_id: str, t0: float, t1: float,
+                            frame_no: Optional[int], time_s: Optional[float], score: float,
+                            snapshot_id: Optional[str]) -> Optional[str]:
+        cid = _id("CLIP")
+        with self._conn() as c:
+            try:
+                c.execute("INSERT INTO cw_clip_candidates (candidate_id, case_id, camera_id, media_id, window_start, "
+                          "window_end, origin, job_id, frame_no, frame_time_s, score, snapshot_media_id, rationale, "
+                          "created_by, created_at) VALUES (?,?,?,?,?,?,'FACE_SEARCH',?,?,?,?,?,?,?,?)",
+                          (cid, job["case_id"], camera_id, media_id, t0, t1, job["job_id"], frame_no, time_s,
+                           round(score, 4), snapshot_id,
+                           "Face similarity above threshold (unvalidated score). Requires human review.",
+                           job["created_by"], time.time()))
+            except sqlite3.IntegrityError:
+                return None
+            c.execute("UPDATE cw_search_jobs SET candidates_found = candidates_found + 1 WHERE job_id=?", (job["job_id"],))
+        return cid
+
+    def run_recorded_search(self, officer: OfficerIdentity, job_id: str,
+                            should_stop=lambda: False) -> Dict[str, Any]:
+        """Scan the job's footage; every hit becomes a PENDING review candidate with a snapshot frame."""
+        job = self.get_job(job_id)
+        if job["mode"] != "RECORDED" or job["status"] != "CREATED":
+            raise ValueError("Job is not a startable recorded search")
+        self._job_update(job_id, status="RUNNING")
+        self._log(officer, "FACE_SEARCH_STARTED", job_id, {"mode": "RECORDED"})
+        status, err = "COMPLETED", None
+        try:
+            ref = self.get_media(job["reference_media_id"])
+            self.verify_media(ref["media_id"])
+            ref_emb = face_search.reference_embedding(self.matcher, ref["storage_path"])
+            for mid in job["clip_media_ids"]:
+                m = self.get_media(mid)
+                self.verify_media(mid)
+                pts = self.frame_times(mid)
+                cam = m["source_camera_id"]
+                if not cam:
+                    raise ValueError(f"{mid} has no source camera; set source_camera_id when adding it")
+                base = m["last_known_time"] or 0.0
+                hits = face_search.scan_video(
+                    self.matcher, ref_emb, m["storage_path"], pts, job["threshold"], should_stop,
+                    lambda n: self._job_update(job_id, frames_scanned=self.get_job(job_id)["frames_scanned"] + n))
+                for h in hits:
+                    if self._job_cap_reached(job_id):
+                        status = "CAPPED"
+                        break
+                    snap = self.extract_frame(officer, mid, h["frame_no"])
+                    self._add_face_candidate(job, cam, mid, base + h["time_s"] - 1.0, base + h["time_s"] + 1.0,
+                                             h["frame_no"], h["time_s"], h["score"], snap)
+                if status == "CAPPED" or should_stop():
+                    status = "CAPPED" if status == "CAPPED" else "STOPPED"
+                    break
+        except Exception as e:
+            status, err = "FAILED", str(e)
+        self._job_update(job_id, status=status, error=err, finished_at=time.time())
+        self._log(officer, "FACE_SEARCH_FINISHED", job_id, {"status": status, "error": err})
+        return self.get_job(job_id)
+
+    def start_live_search(self, officer: OfficerIdentity, job_id: str) -> None:
+        job = self.get_job(job_id)
+        if job["mode"] != "LIVE" or job["status"] != "CREATED":
+            raise ValueError("Job is not a startable live search")
+        if self._frame_source_factory is None:
+            raise ValueError("No live frame source is configured on this server")
+        job["expires_at"] = time.time() + (job["duration_hours"] or face_search.DEFAULT_LIVE_HOURS) * 3600
+        self._job_update(job_id, status="RUNNING", expires_at=job["expires_at"])
+        ref = self.get_media(job["reference_media_id"])
+        self.verify_media(ref["media_id"])
+        ref_emb = face_search.reference_embedding(self.matcher, ref["storage_path"])
+
+        def on_hit(cam, frame, score, box):
+            import cv2
+            import tempfile
+            now = time.time()
+            fd, tmp = tempfile.mkstemp(suffix=".jpg")
+            os.close(fd)
+            try:
+                cv2.imwrite(tmp, frame)
+                snap = self.add_original(officer, job["case_id"], tmp,
+                                         source_description=f"Live capture from {cam} for search {job_id}",
+                                         last_known_time=now, source_camera_id=cam)
+            finally:
+                os.remove(tmp)
+            self._add_face_candidate(job, cam, snap, now - 1.0, now + 1.0, None, None, score, snap)
+
+        def on_tick(n):
+            self._job_update(job_id, frames_scanned=self.get_job(job_id)["frames_scanned"] + n)
+
+        def on_end(status, err):
+            self._runners.pop(job_id, None)
+            self._job_update(job_id, status=status, error=err, finished_at=time.time())
+            self._log(officer, "FACE_SEARCH_FINISHED", job_id, {"status": status, "error": err})
+
+        runner = face_search.LiveJobRunner(job, ref_emb, self.matcher, self._frame_source_factory(),
+                                           on_hit, on_tick, on_end, lambda: self._job_cap_reached(job_id),
+                                           self._live_interval_s)
+        self._runners[job_id] = runner
+        self._log(officer, "FACE_SEARCH_STARTED", job_id, {"mode": "LIVE", "expires_at": job["expires_at"]})
+        runner.start()
+
+    def stop_search(self, officer: OfficerIdentity, job_id: str) -> None:
+        r = self._runners.get(job_id)
+        if r:
+            r.stop()
+            r.join(timeout=15)
+        else:
+            job = self.get_job(job_id)
+            if job["status"] in ("CREATED", "RUNNING"):
+                self._job_update(job_id, status="STOPPED", finished_at=time.time())
+        self._log(officer, "FACE_SEARCH_STOPPED", job_id, {})
+
+    def resume_after_restart(self) -> int:
+        """Live jobs do not survive a restart; mark them stopped rather than leave them 'RUNNING'."""
+        with self._conn() as c:
+            return c.execute("UPDATE cw_search_jobs SET status='STOPPED', finished_at=? WHERE status='RUNNING'",
+                             (time.time(),)).rowcount

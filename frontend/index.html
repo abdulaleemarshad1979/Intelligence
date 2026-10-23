@@ -1627,7 +1627,7 @@
   <div style="max-width: 1400px; margin: 10px auto; padding: 10px 16px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
     <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 300px;">
       <span style="font-weight: 800; color: #0284c7; font-size: 13px;">🔍 Fleet Filter:</span>
-      <input type="text" id="camSearchInput" placeholder="Search 600 cameras (e.g. CAM-042, Hospital, Ghat, Port, Sec-4)..."
+      <input type="text" id="camSearchInput" placeholder="Search cameras (e.g. CAM-042, Hospital, Ghat, Port, Sec-4)..."
         style="flex: 1; background: #f8fafc; border: 1.5px solid #cbd5e1; color: #0f172a; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; outline: none; transition: border-color 0.2s;"
         onfocus="this.style.borderColor='#0284c7'" onblur="this.style.borderColor='#cbd5e1'"
         oninput="handleCamSearch(this.value)" />
@@ -1644,7 +1644,6 @@
         <option value="24" selected>24 per page</option>
         <option value="36">36 per page</option>
         <option value="48">48 per page</option>
-        <option value="600">All 600 Cams</option>
       </select>
     </div>
   </div>
@@ -1818,14 +1817,38 @@
     };
 
     // Fetch cameras from the backend
-    async function loadCamerasFromBackend() {
+    // Server-side paging: only the visible page of tiles is requested, built and streamed.
+    let serverTotal = 0, serverFleet = 0, serverPages = 1;
+    let cameraDirectory = [];   // id/name list for pickers, loaded once
+
+    function cameraPageUrl() {
+      const p = new URLSearchParams({ page: currentPage, page_size: pageSize, q: searchQuery, filter: activeFilter });
+      return `/cameras/page?${p.toString()}`;
+    }
+
+    async function loadCameraDirectory() {
+      if (cameraDirectory.length) return;
       try {
-        const res = await fetch("/cameras");
+        const res = await fetch("/cameras/index");
+        if (res.ok) cameraDirectory = await res.json();
+      } catch (e) { console.error("[EGDMS] Camera directory failed:", e); }
+    }
+    const pickerCameras = () => (cameraDirectory.length ? cameraDirectory : cameras);
+
+    let _pageLoadSeq = 0;
+    async function loadCamerasFromBackend() {
+      const seq = ++_pageLoadSeq;
+      try {
+        const res = await fetch(cameraPageUrl());
         if (res.status === 401) {
           window.location.href = "/login?error=expired";
           return;
         }
-        cameras = await res.json();
+        const data = await res.json();
+        if (seq !== _pageLoadSeq) return;   // a newer page/search request superseded this one
+        cameras = data.items;
+        serverTotal = data.total; serverFleet = data.fleet_total; serverPages = data.pages;
+        currentPage = data.page;
         renderGrid();
       } catch (e) {
         console.error("[EGDMS] Failed to load cameras from backend:", e);
@@ -1918,73 +1941,52 @@
     let pageSize = 24;
     let searchQuery = "";
 
+    let _searchTimer = null;
     window.handleCamSearch = function(query) {
       searchQuery = (query || "").trim().toLowerCase();
       currentPage = 1;
-      renderGrid();
+      clearTimeout(_searchTimer);
+      _searchTimer = setTimeout(loadCamerasFromBackend, 250);
     };
 
     window.changeCamPage = function(delta) {
-      const filtered = getFilteredCameras();
-      const maxPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-      currentPage = Math.max(1, Math.min(maxPages, currentPage + delta));
-      renderGrid();
+      const next = Math.max(1, Math.min(serverPages, currentPage + delta));
+      if (next === currentPage) return;
+      currentPage = next;
+      loadCamerasFromBackend();
     };
 
     window.changeCamPageSize = function(val) {
-      pageSize = parseInt(val) || 24;
+      pageSize = Math.max(1, Math.min(48, parseInt(val) || 24));
       currentPage = 1;
-      renderGrid();
+      loadCamerasFromBackend();
     };
 
+    // The server already filtered and paged; the list in memory is exactly the visible page.
     function getFilteredCameras() {
-      return cameras.filter(cam => {
-        const matchesFilter =
-          activeFilter === "All" ||
-          (activeFilter === "Active" && isCameraPlayable(cam)) ||
-          (activeFilter === "Pushkaralu" && ((cam.location && (cam.location.includes("Pushkaralu") || cam.location.includes("Ghat"))) || cam.sector === "Pushkaralu")) ||
-          (activeFilter === "Rjy" && ((cam.location && (cam.location.includes("Rjy") || cam.location.includes("Railway") || cam.location.includes("RTC"))) || cam.sector === "Rjy")) ||
-          (activeFilter === "Hospital" && ((cam.location && cam.location.includes("Hospital")) || cam.sector === "Hospital")) ||
-          (activeFilter === "Port" && ((cam.location && cam.location.includes("Port")) || cam.sector === "Port")) ||
-          (activeFilter === "Sector4" && ((cam.location && (cam.location.includes("Sector") || cam.location.includes("Transit"))) || cam.sector === "Sector4")) ||
-          (activeFilter === "CCTV" && cam.category === "CCTV");
-
-        if (!matchesFilter) return false;
-        if (!searchQuery) return true;
-
-        const q = searchQuery;
-        return (
-          (cam.id && cam.id.toLowerCase().includes(q)) ||
-          (cam.name && cam.name.toLowerCase().includes(q)) ||
-          (cam.location && cam.location.toLowerCase().includes(q)) ||
-          (cam.sector && cam.sector.toLowerCase().includes(q))
-        );
-      });
+      return cameras;
     }
 
     // Build the grid cards dynamically without destroying existing active video players
     function renderGrid() {
       const allStreamsBtn = document.getElementById("btn-all-streams");
-      if (allStreamsBtn && cameras.length > 0) {
-        allStreamsBtn.textContent = `All Streams (${cameras.length})`;
+      if (allStreamsBtn && serverFleet > 0) {
+        allStreamsBtn.textContent = `All Streams (${serverFleet})`;
       }
 
-      const filtered = getFilteredCameras();
-      const totalFiltered = filtered.length;
-      const maxPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
-      currentPage = Math.max(1, Math.min(maxPages, currentPage));
-
+      const totalFiltered = serverTotal;
+      const maxPages = serverPages;
       const startIndex = (currentPage - 1) * pageSize;
-      const endIndex = Math.min(totalFiltered, startIndex + pageSize);
-      const pageCameras = filtered.slice(startIndex, endIndex);
+      const endIndex = Math.min(totalFiltered, startIndex + cameras.length);
+      const pageCameras = cameras;
 
       // Update paging bar UI
       const pagingLabel = document.getElementById("fleetPagingLabel");
       if (pagingLabel) {
         if (totalFiltered === 0) {
-          pagingLabel.textContent = `0 of ${cameras.length} Streams`;
+          pagingLabel.textContent = `0 of ${serverFleet} Streams`;
         } else {
-          pagingLabel.textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalFiltered} Streams (Fleet: ${cameras.length})`;
+          pagingLabel.textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalFiltered} Streams (Fleet: ${serverFleet})`;
         }
       }
       const pageBadge = document.getElementById("currentPageBadge");
@@ -2007,11 +2009,13 @@
       // 1. Hide cards not on current page and stop their video pulls
       existingCards.forEach((card, id) => {
         if (!pageCamMap.has(id)) {
-          card.classList.add("hidden");
+          // Off-page tile: stop its feed and drop it from the DOM so memory stays bounded at ~one page.
           const img = card.querySelector(".tile__video");
           if (img && img._stopFeed) {
             img._stopFeed();
           }
+          if (typeof teardownVideoFeed === "function") teardownVideoFeed(id);
+          card.remove();
         }
       });
 
@@ -2841,10 +2845,11 @@
 
       let running = true;
       let inFlight = false;
-      let isVisible = true;
+      // Start asleep when an observer exists: the first intersection callback wakes visible tiles only.
+      let isVisible = !window._cctvIntersectionObserver;
       let pauseUntil = 0;
 
-      container._isVisible = true;
+      container._isVisible = isVisible;
       container._resumeFeed = () => {
         isVisible = true;
         if (running && !inFlight) scheduleNext(10);
@@ -3075,8 +3080,12 @@
       if (cameraPollInFlight) return;
       cameraPollInFlight = true;
       try {
-        const res = await fetch("/cameras", { cache: "no-store" });
-        const newCameras = await res.json();
+        const seqAtStart = _pageLoadSeq;
+        const res = await fetch(cameraPageUrl(), { cache: "no-store" });
+        const data = await res.json();
+        if (seqAtStart !== _pageLoadSeq || data.page !== currentPage) return;   // user paged meanwhile
+        const newCameras = data.items;
+        serverTotal = data.total; serverFleet = data.fleet_total; serverPages = data.pages;
 
         let needsRerender = false;
         const oldById = new Map(cameras.map(camera => [camera.id, camera]));
@@ -3163,7 +3172,8 @@
         document.querySelectorAll(".pill").forEach(p => p.classList.remove("active"));
         pill.classList.add("active");
         activeFilter = pill.getAttribute("data-filter");
-        renderGrid();
+        currentPage = 1;
+        loadCamerasFromBackend();
       });
     });
 
@@ -4328,10 +4338,10 @@
       const m = document.getElementById("matrixCamModal");
       if (!m) return;
       const sel = document.getElementById("matrixCamSlot");
-      if (sel && typeof cameras !== 'undefined' && cameras && cameras.length > 0) {
+      if (sel && pickerCameras().length > 0) {
         const currentVal = camId || sel.value || "CAM-001";
         sel.innerHTML = "";
-        cameras.forEach(c => {
+        pickerCameras().forEach(c => {
           const opt = document.createElement("option");
           opt.value = c.id;
           const secTag = c.subdivision ? `[${c.subdivision}] ` : (c.sector ? `[${c.sector}] ` : "");
@@ -4498,7 +4508,7 @@
         if (customWrapper) customWrapper.style.display = "block";
       } else {
         if (customWrapper) customWrapper.style.display = "none";
-        const cam = cameras.find(c => c.id === val);
+        const cam = pickerCameras().find(c => c.id === val);
         if (cam) {
           if (nameInput) nameInput.value = cam.name || "";
           if (sectorSelect && cam.sector) sectorSelect.value = cam.sector;
@@ -4515,7 +4525,7 @@
       sel.innerHTML = "";
 
       // Populate from loaded cameras
-      const list = (typeof cameras !== 'undefined' && cameras && cameras.length > 0) ? cameras : [
+      const list = pickerCameras().length > 0 ? pickerCameras() : [
         { id: "CAM-001", name: "Thadithota-1", subdivision: "Central Zone", sector: "Central Zone" },
         { id: "CAM-004", name: "Thadithota-2", subdivision: "Central Zone", sector: "Central Zone" }
       ];
@@ -4593,7 +4603,7 @@
       if (pasteStatus) pasteStatus.style.display = "none";
 
       const fleetBadge = document.getElementById("icseeFleetBadge");
-      if (fleetBadge) fleetBadge.textContent = `${cameras.length || 600} Cameras Ready`;
+      if (fleetBadge) fleetBadge.textContent = `${serverFleet || cameraDirectory.length || cameras.length} Cameras Ready`;
 
       switchICSeeTab("single");
       updateRTSPPreview();
@@ -4892,6 +4902,7 @@
     // Initialize Page
     async function init() {
       await loadCamerasFromBackend();
+      loadCameraDirectory();
       setInterval(pollCameras, CAMERA_POLL_INTERVAL_MS);
       pollNotifications();
       setInterval(pollNotifications, NOTIF_POLL_INTERVAL_MS);
@@ -6107,13 +6118,13 @@
       const modal = document.getElementById('targetSearchModal');
       if (modal) modal.classList.remove('hidden');
       const checklist = document.getElementById('tsCamerasChecklist');
-      if (checklist && typeof cameras !== 'undefined' && cameras && cameras.length > 0) {
+      if (checklist && pickerCameras().length > 0) {
         const existingChecked = new Set();
         document.querySelectorAll('.ts-cam-cb:checked').forEach(cb => existingChecked.add(cb.value));
         const hasExisting = document.querySelectorAll('.ts-cam-cb').length > 0;
         
         checklist.innerHTML = '';
-        cameras.forEach((c, idx) => {
+        pickerCameras().forEach((c, idx) => {
           const isChecked = hasExisting ? (existingChecked.has(c.id) || (existingChecked.size === 0 && idx < 8)) : (idx < 8);
           const lbl = document.createElement('label');
           lbl.style.cssText = 'font-size: 11px; color: #cbd5e1; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;';

@@ -1854,69 +1854,113 @@ async def list_cctv_cameras(
 
 GLOBAL_COUNTING_MODE = "counting"
 
+def _dashboard_camera(idx: int, cam: Dict[str, Any]) -> Dict[str, Any]:
+    """Dashboard tile payload for registry entry `cam` (idx = its position in the registry)."""
+    cam_id = cam["camera_id"]
+    is_main = cam.get("is_main", False) or cam_id == "CAM-001"
+    people_count = 14 if is_main else max(2, (idx * 7) % 29 + 3)
+    pressure = 12.5 if is_main else float((idx * 11) % 45 + 5)
+    risk_index = 8.0 if is_main else float((idx * 9) % 55 + 4)
+    comp_zone = "SAFE" if risk_index < 30 else ("WATCH" if risk_index < 60 else "DANGER")
+
+    return {
+        "id": cam_id,
+        "name": cam["name"],
+        "location": cam["location"],
+        "category": "CCTV",
+        "sector": cam.get("sector", "Central Zone"),
+        "subdivision": cam.get("subdivision", "Central Zone"),
+        "police_station": cam.get("police_station", "1 town"),
+        "fromwords": cam.get("fromwords", ""),
+        "towards": cam.get("towards", ""),
+        "camera_type": cam.get("camera_type", "RLVD"),
+        "source_stream_path": f"live/cctv{idx+1}",
+        "stream_path": f"analyzed/cctv{idx+1}",
+        "playback_stream_path": f"live/cctv{idx+1}",
+        "status": "online",
+        "source_online": True,
+        "output_online": True,
+        "enabled": True,
+        "analytics_status": "active",
+        "people_count": people_count,
+        "comp_zone": comp_zone,
+        "pressure": pressure,
+        "stampede_prob": round(risk_index / 100.0, 2),
+        "risk_index": risk_index,
+        "risk_level": comp_zone,
+        "confidence": 0.98,
+        "motion_speed": round(1.2 + (idx % 4) * 0.3, 1),
+        "turbulence": round(0.10 + (idx % 3) * 0.08, 2),
+        "connection_message": "Stream active",
+        "publish_url": cam.get("rtmp", f"rtmp://publish.police.gov.in:1935/live/cctv{idx+1}"),
+        "compliance_zone": comp_zone,
+        "active_alert": "SUSPICIOUS_LOITERING" if (idx % 19 == 0 and not is_main) else ("PERIMETER_PROWLING" if idx % 27 == 0 else "NORMAL"),
+        "resolution": "1920x1080",
+        "fps": 25,
+        "ai_fps": 24.8,
+        "rtsp_url": cam.get("rtmp", f"rtsp://{cam.get('ip_address', '10.243.0.1')}:554/stream0"),
+        "ip_address": cam.get("ip_address", "10.243.0.1"),
+        "is_main": is_main,
+        "forecast": {
+            "status": "active",
+            "accuracy_percent": round(93.5 + (idx % 5), 1),
+            "target_accuracy_percent": 90.0,
+            "validation_samples": 40 + idx * 3,
+            "horizons": [
+                {"minutes": 5, "pax": people_count + 2, "trusted": True, "accuracy_percent": 95.2},
+                {"minutes": 10, "pax": people_count + 5, "trusted": True, "accuracy_percent": 94.1},
+                {"minutes": 15, "pax": people_count + 1, "trusted": True, "accuracy_percent": 92.8}
+            ]
+        }
+    }
+
+
+_GRID_FILTERS = {
+    "Pushkaralu": ("Pushkaralu", "Ghat"), "Rjy": ("Rjy", "Railway", "RTC"), "Hospital": ("Hospital",),
+    "Port": ("Port",), "Sector4": ("Sector", "Transit"),
+}
+MAX_GRID_PAGE = 48
+
+
+def _grid_match(cam: Dict[str, Any], flt: str, q: str) -> bool:
+    if flt in _GRID_FILTERS:
+        loc = cam.get("location", "")
+        if not (any(k in loc for k in _GRID_FILTERS[flt]) or cam.get("sector") == flt):
+            return False
+    if q:
+        hay = " ".join(str(cam.get(k, "")) for k in
+                       ("camera_id", "name", "location", "sector", "subdivision", "police_station", "ip_address"))
+        if q not in hay.lower():
+            return False
+    return True
+
+
 @app.get("/cameras")
 async def get_dashboard_cameras():
-    """Endpoint consumed by the official Command Center Lite Dashboard."""
-    cameras = []
-    for idx, cam in enumerate(CCTV_CAMERAS_REGISTRY):
-        cam_id = cam["camera_id"]
-        is_main = cam.get("is_main", False) or cam_id == "CAM-001"
-        people_count = 14 if is_main else max(2, (idx * 7) % 29 + 3)
-        pressure = 12.5 if is_main else float((idx * 11) % 45 + 5)
-        risk_index = 8.0 if is_main else float((idx * 9) % 55 + 4)
-        comp_zone = "SAFE" if risk_index < 30 else ("WATCH" if risk_index < 60 else "DANGER")
+    """Full list, kept for existing consumers. The grid uses /cameras/page instead."""
+    return [_dashboard_camera(i, c) for i, c in enumerate(CCTV_CAMERAS_REGISTRY)]
 
-        cameras.append({
-            "id": cam_id,
-            "name": cam["name"],
-            "location": cam["location"],
-            "category": "CCTV",
-            "sector": cam.get("sector", "Central Zone"),
-            "subdivision": cam.get("subdivision", "Central Zone"),
-            "police_station": cam.get("police_station", "1 town"),
-            "fromwords": cam.get("fromwords", ""),
-            "towards": cam.get("towards", ""),
-            "camera_type": cam.get("camera_type", "RLVD"),
-            "source_stream_path": f"live/cctv{idx+1}",
-            "stream_path": f"analyzed/cctv{idx+1}",
-            "playback_stream_path": f"live/cctv{idx+1}",
-            "status": "online",
-            "source_online": True,
-            "output_online": True,
-            "enabled": True,
-            "analytics_status": "active",
-            "people_count": people_count,
-            "comp_zone": comp_zone,
-            "pressure": pressure,
-            "stampede_prob": round(risk_index / 100.0, 2),
-            "risk_index": risk_index,
-            "risk_level": comp_zone,
-            "confidence": 0.98,
-            "motion_speed": round(1.2 + (idx % 4) * 0.3, 1),
-            "turbulence": round(0.10 + (idx % 3) * 0.08, 2),
-            "connection_message": "Stream active",
-            "publish_url": cam.get("rtmp", f"rtmp://publish.police.gov.in:1935/live/cctv{idx+1}"),
-            "compliance_zone": comp_zone,
-            "active_alert": "SUSPICIOUS_LOITERING" if (idx % 19 == 0 and not is_main) else ("PERIMETER_PROWLING" if idx % 27 == 0 else "NORMAL"),
-            "resolution": "1920x1080",
-            "fps": 25,
-            "ai_fps": 24.8,
-            "rtsp_url": cam.get("rtmp", f"rtsp://{cam.get('ip_address', '10.243.0.1')}:554/stream0"),
-            "ip_address": cam.get("ip_address", "10.243.0.1"),
-            "is_main": is_main,
-            "forecast": {
-                "status": "active",
-                "accuracy_percent": round(93.5 + (idx % 5), 1),
-                "target_accuracy_percent": 90.0,
-                "validation_samples": 40 + idx * 3,
-                "horizons": [
-                    {"minutes": 5, "pax": people_count + 2, "trusted": True, "accuracy_percent": 95.2},
-                    {"minutes": 10, "pax": people_count + 5, "trusted": True, "accuracy_percent": 94.1},
-                    {"minutes": 15, "pax": people_count + 1, "trusted": True, "accuracy_percent": 92.8}
-                ]
-            }
-        })
-    return cameras
+
+@app.get("/cameras/page")
+async def get_dashboard_cameras_page(page: int = 1, page_size: int = 24, q: str = "", filter: str = "All"):
+    """One page of grid tiles. Only the requested slice is built, and page_size is capped."""
+    page_size = max(1, min(page_size, MAX_GRID_PAGE))
+    q = q.strip().lower()
+    matches = [(i, c) for i, c in enumerate(CCTV_CAMERAS_REGISTRY) if _grid_match(c, filter, q)]
+    total = len(matches)
+    pages = max(1, -(-total // page_size))
+    page = max(1, min(page, pages))
+    chunk = matches[(page - 1) * page_size: page * page_size]
+    return {"total": total, "fleet_total": len(CCTV_CAMERAS_REGISTRY), "page": page, "pages": pages,
+            "page_size": page_size, "items": [_dashboard_camera(i, c) for i, c in chunk]}
+
+
+@app.get("/cameras/index")
+async def get_dashboard_camera_index():
+    """Id/name directory for pickers (no streams, no analytics)."""
+    return [{"id": c["camera_id"], "name": c["name"], "location": c["location"],
+             "sector": c.get("sector", ""), "subdivision": c.get("subdivision", "")}
+            for c in CCTV_CAMERAS_REGISTRY]
 
 @app.get("/get_mode")
 async def get_mode():

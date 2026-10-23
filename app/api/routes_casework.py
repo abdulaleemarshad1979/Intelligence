@@ -3,6 +3,7 @@
 import os
 import shutil
 import tempfile
+import threading
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
@@ -17,9 +18,21 @@ from app.compliance.rbac import DEFAULT_OFFICER as OFFICER
 router = APIRouter(prefix="/api/casework", tags=["Casework (manual review)"])
 
 
+def _live_source_factory():
+    from app.casework.face_search import RtspFrameSource
+
+    def ip_of(camera_id: str) -> Optional[str]:
+        with get_service()._conn() as c:
+            r = c.execute("SELECT ip_address FROM cw_cameras WHERE camera_id=?", (camera_id,)).fetchone()
+        return r[0] if r else None
+    return RtspFrameSource(ip_of)
+
+
 @lru_cache(maxsize=1)
 def get_service() -> CaseService:
-    return CaseService()
+    svc = CaseService(frame_source_factory=_live_source_factory)
+    svc.resume_after_restart()
+    return svc
 
 
 def _call(fn, *a, **kw):
@@ -111,6 +124,16 @@ class ProposeIn(BaseModel):
     window_before_s: float = 600.0
     window_after_s: float = 1800.0
     camera_types: Optional[List[str]] = None
+
+
+class SearchIn(BaseModel):
+    mode: str = Field(pattern="^(RECORDED|LIVE)$")
+    reference_media_id: str
+    authority_ref: str
+    camera_ids: List[str] = []
+    clip_media_ids: List[str] = []
+    threshold: float = 0.50
+    duration_hours: float = 8.0
 
 
 class DecisionIn(BaseModel):
@@ -250,6 +273,30 @@ def retract(descriptor_id: str):
     return {"status": "RETRACTED"}
 
 
+@router.get("/cameras")
+def list_cameras(page: int = 1, page_size: int = 25, q: str = "", camera_type: Optional[str] = None,
+                 police_station: Optional[str] = None):
+    """Paged camera inventory (the imported 544-camera sheet)."""
+    page_size, page = max(1, min(page_size, 100)), max(1, page)
+    where, args = ["1=1"], []
+    if q.strip():
+        where.append("(location LIKE ? OR camera_id LIKE ? OR ip_address LIKE ? OR from_side LIKE ? OR towards LIKE ?)")
+        args += [f"%{q.strip()}%"] * 5
+    if camera_type:
+        where.append("camera_type = ?")
+        args.append(camera_type)
+    if police_station:
+        where.append("police_station = ?")
+        args.append(police_station)
+    cond = " AND ".join(where)
+    with get_service()._conn() as c:
+        total = c.execute(f"SELECT COUNT(*) FROM cw_cameras WHERE {cond}", args).fetchone()[0]
+        rows = c.execute(f"SELECT * FROM cw_cameras WHERE {cond} ORDER BY sheet_serial, camera_id LIMIT ? OFFSET ?",
+                         args + [page_size, (page - 1) * page_size]).fetchall()
+    return {"total": total, "page": page, "page_size": page_size, "pages": max(1, -(-total // page_size)),
+            "items": [dict(r) for r in rows]}
+
+
 @router.get("/cameras/near")
 def cameras_nearby(lat: float, lon: float, radius_m: float = 500.0, camera_type: Optional[str] = None):
     svc = get_service()
@@ -265,8 +312,51 @@ def propose(case_id: str, b: ProposeIn):
 
 
 @router.get("/cases/{case_id}/review-queue")
-def review_queue(case_id: str, status: Optional[str] = None):
-    return get_service().review_queue(case_id, status)
+def review_queue(case_id: str, status: Optional[str] = None, page: int = 1, page_size: int = 25,
+                 order: str = "time"):
+    page_size = max(1, min(page_size, 100))
+    svc = get_service()
+    total = len(svc.review_queue(case_id, status))
+    items = svc.review_queue(case_id, status, limit=page_size, offset=(max(page, 1) - 1) * page_size, order=order)
+    return {"total": total, "page": max(page, 1), "page_size": page_size,
+            "pages": max(1, -(-total // page_size)), "items": items}
+
+
+@router.post("/cases/{case_id}/searches")
+def create_search(case_id: str, b: SearchIn):
+    return {"job_id": _call(get_service().create_search_job, OFFICER, case_id, mode=b.mode,
+                            reference_media_id=b.reference_media_id, authority_ref=b.authority_ref,
+                            camera_ids=b.camera_ids, clip_media_ids=b.clip_media_ids,
+                            threshold=b.threshold, duration_hours=b.duration_hours)}
+
+
+@router.get("/cases/{case_id}/searches")
+def list_searches(case_id: str):
+    return get_service().list_jobs(case_id)
+
+
+@router.get("/searches/{job_id}")
+def get_search(job_id: str):
+    return _call(get_service().get_job, job_id)
+
+
+@router.post("/searches/{job_id}/start")
+def start_search(job_id: str):
+    svc = get_service()
+    job = _call(svc.get_job, job_id)
+    if job["mode"] == "LIVE":
+        _call(svc.start_live_search, OFFICER, job_id)
+    else:
+        if job["status"] != "CREATED":
+            raise HTTPException(422, "Job already started")
+        threading.Thread(target=svc.run_recorded_search, args=(OFFICER, job_id), daemon=True).start()
+    return {"job_id": job_id, "status": "RUNNING"}
+
+
+@router.post("/searches/{job_id}/stop")
+def stop_search(job_id: str):
+    _call(get_service().stop_search, OFFICER, job_id)
+    return _call(get_service().get_job, job_id)
 
 
 @router.post("/candidates/{candidate_id}/decision")
